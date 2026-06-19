@@ -1,0 +1,43 @@
+# ╔══════════════════════════════════════════════════════════╗
+# ║  .gitignore для Django-проекту Karro                    ║
+# ╚══════════════════════════════════════════════════════════╝
+
+# ── Секрети та конфігурація ──
+.env
+
+# ── Python ──
+__pycache__/
+*.py[cod]
+*$py.class
+*.egg-info/
+dist/
+build/
+
+# ── Віртуальне середовище ──
+.venv/
+venv/
+env/
+
+# ── База даних (SQLite) ──
+db.sqlite3
+db.sqlite3-journal
+
+# ── Медіа файли (завантажені користувачами) ──
+media/
+
+# ── Статика для production (collectstatic) ──
+staticfiles/
+
+# ── Логи ──
+logs/*.log
+
+# ── IDE ──
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# ── OS ──
+.DS_Store
+Thumbs.db
