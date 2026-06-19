@@ -1,26 +1,12 @@
-/**
- * Karro — клієнтська інтернаціоналізація (UA ↔ EN)
- *
- * Як це працює:
- *   1. Елементи з атрибутом  data-i18n="ключ"         — отримують textContent
- *   2. Елементи з атрибутом  data-i18n-placeholder="ключ" — отримують placeholder
- *   3. Елементи з атрибутом  data-i18n-html="ключ"    — отримують innerHTML
- *   4. Мова зберігається в localStorage('karro_lang')
- *   5. Тогл вставляється автоматично в <header>
- */
+// Клієнтська локалізація (UA ↔ EN) для Karro
 
 const TRANSLATIONS = {
-    // ══════════════════════════════════════
-    // HEADER / NAV (загальне)
-    // ══════════════════════════════════════
     'nav.login':              { uk: 'Увійти',           en: 'Sign In' },
     'nav.my_profile':         { uk: 'Мій профіль',      en: 'My Profile' },
     'nav.back':               { uk: '← Повернутись',    en: '← Go Back' },
     'nav.logout':             { uk: 'Вийти',            en: 'Log Out' },
 
-    // ══════════════════════════════════════
-    // HOME PAGE
-    // ══════════════════════════════════════
+    // Головна сторінка
     'home.badge':             { uk: 'Навчальний проєкт · ZPI-21',    en: 'Educational Project · ZPI-21' },
     'home.h1_line2':          { uk: 'твій',              en: 'your' },
     'home.h1_accent':         { uk: 'автосервіс',        en: 'auto service' },
@@ -30,7 +16,6 @@ const TRANSLATIONS = {
     'home.btn_find':          { uk: 'Знайти СТО',        en: 'Find Station' },
     'home.btn_about':         { uk: 'Про проєкт',        en: 'About' },
 
-    // About section
     'home.about_label':       { uk: 'Про проєкт',        en: 'About' },
     'home.about_title':       { uk: 'Навіщо створено Karro?', en: 'Why was Karro created?' },
     'home.about_p1':          { uk: 'Karro — це платформа для пошуку автосервісів, розроблена як навчальний проєкт з дисципліни ZPI. Мета — дати автовласникам зручний інструмент для вибору перевіреного СТО з реальними відгуками та прозорими цінами.',
@@ -38,7 +23,6 @@ const TRANSLATIONS = {
     'home.about_p2':          { uk: 'Власники СТО можуть реєструватись і керувати своїм профілем станції. Клієнти — шукати сервіси, прив\'язувати свої авто та залишати відгуки.',
                                 en: 'Station owners can register and manage their station profile. Clients can search for services, link their cars, and leave reviews.' },
 
-    // Features
     'home.f1_title':          { uk: 'Пошук СТО',         en: 'Station Search' },
     'home.f1_desc':           { uk: 'Знаходь автосервіси за адресою, назвою або рейтингом клієнтів.',
                                 en: 'Find auto services by address, name, or customer rating.' },
@@ -52,7 +36,6 @@ const TRANSLATIONS = {
     'home.f4_desc':           { uk: 'Зберігай VIN-коди своїх авто та відстежуй сервісну історію.',
                                 en: 'Save VIN codes of your cars and track service history.' },
 
-    // Author
     'home.author_label':      { uk: 'Автор',              en: 'Author' },
     'home.author_title':      { uk: 'Хто стоїть за Karro?', en: 'Who is behind Karro?' },
     'home.author_desc':       { uk: 'Проєкт розроблений студентом групи ZPI-21 від ідеї до повноцінного веб-застосунку.',
@@ -62,9 +45,7 @@ const TRANSLATIONS = {
     'home.footer':            { uk: '© 2026 <span>Karro</span> · Навчальний проєкт · ZPI-21 · Летінський О.',
                                 en: '© 2026 <span>Karro</span> · Educational Project · ZPI-21 · Letinskyi O.' },
 
-    // ══════════════════════════════════════
-    // LOGIN / REGISTER PAGE
-    // ══════════════════════════════════════
+    // Вхід та реєстрація
     'login.tab_login':        { uk: 'Вхід',               en: 'Login' },
     'login.tab_register':     { uk: 'Реєстрація',         en: 'Register' },
     'login.welcome':          { uk: 'З поверненням!',      en: 'Welcome back!' },
@@ -92,19 +73,15 @@ const TRANSLATIONS = {
     'login.footer':           { uk: '© 2026 <a href="/">Karro</a> · ZPI-21 · Летінський О.',
                                 en: '© 2026 <a href="/">Karro</a> · ZPI-21 · Letinskyi O.' },
 
-    // Placeholders
     'ph.email':               { uk: 'you@example.com',     en: 'you@example.com' },
     'ph.password':            { uk: '••••••••',            en: '••••••••' },
     'ph.full_name':           { uk: 'Іван Петренко',       en: 'John Doe' },
     'ph.phone':               { uk: '+380671234567',       en: '+380671234567' },
 
-    // ══════════════════════════════════════
-    // PROFILE PAGE
-    // ══════════════════════════════════════
+    // Особистий кабінет
     'profile.role_client':    { uk: 'Клієнт',              en: 'Client' },
     'profile.role_station':   { uk: 'Власник СТО',         en: 'Station Owner' },
 
-    // Sidebar nav
     'profile.nav_info':       { uk: 'Особисті дані',       en: 'Personal Info' },
     'profile.nav_cars':       { uk: 'Мої автомобілі',      en: 'My Cars' },
     'profile.nav_reviews':    { uk: 'Мої відгуки',         en: 'My Reviews' },
@@ -112,7 +89,6 @@ const TRANSLATIONS = {
     'profile.nav_services':   { uk: 'Послуги',             en: 'Services' },
     'profile.nav_settings':   { uk: 'Налаштування',        en: 'Settings' },
 
-    // Personal Info card
     'profile.info_title':     { uk: 'Особисті дані',       en: 'Personal Info' },
     'profile.info_sub':       { uk: "Оновлюй своє ім'я та контакти", en: 'Update your name and contacts' },
     'profile.label_name':     { uk: "Повне ім'я",          en: 'Full Name' },
@@ -120,19 +96,16 @@ const TRANSLATIONS = {
     'profile.label_email':    { uk: 'Email',               en: 'Email' },
     'profile.btn_save':       { uk: 'Зберегти зміни',      en: 'Save Changes' },
 
-    // Settings
     'profile.settings_title': { uk: 'Налаштування',        en: 'Settings' },
     'profile.settings_sub':   { uk: 'Мова та параметри інтерфейсу', en: 'Language and interface preferences' },
     'profile.label_lang':     { uk: 'Мова інтерфейсу',     en: 'Interface Language' },
 
-    // Change password
     'profile.pwd_title':      { uk: 'Зміна пароля',        en: 'Change Password' },
     'profile.pwd_sub':        { uk: 'Встанови новий пароль для входу', en: 'Set a new password for login' },
     'profile.label_new_pwd':  { uk: 'Новий пароль',        en: 'New Password' },
     'profile.label_new_pwd2': { uk: 'Повторити пароль',    en: 'Confirm Password' },
     'profile.btn_change_pwd': { uk: 'Змінити пароль',      en: 'Change Password' },
 
-    // Cars
     'profile.cars_title':     { uk: 'Мої автомобілі',      en: 'My Cars' },
     'profile.cars_sub':       { uk: "Автомобілі прив'язані до твого акаунту", en: 'Cars linked to your account' },
     'profile.no_cars':        { uk: 'Ще немає доданих автомобілів', en: 'No cars added yet' },
@@ -147,12 +120,10 @@ const TRANSLATIONS = {
     'profile.change_photo':   { uk: 'Змінити фото',        en: 'Change Photo' },
     'profile.add_photo':      { uk: 'Додати фото авто',    en: 'Add Car Photo' },
 
-    // Reviews
     'profile.reviews_title':  { uk: 'Мої відгуки',         en: 'My Reviews' },
     'profile.reviews_sub':    { uk: 'Відгуки які ти залишив на СТО', en: 'Reviews you left for stations' },
     'profile.no_reviews':     { uk: 'Ти ще не залишав відгуків', en: "You haven't left any reviews yet" },
 
-    // Station profile
     'profile.station_title':  { uk: 'Профіль СТО',         en: 'Station Profile' },
     'profile.station_sub':    { uk: 'Дані твоєї станції технічного обслуговування', en: 'Your service station details' },
     'profile.label_st_name':  { uk: 'Назва СТО',           en: 'Station Name' },
@@ -161,7 +132,6 @@ const TRANSLATIONS = {
     'profile.btn_update_st':  { uk: 'Оновити дані',        en: 'Update Info' },
     'profile.btn_create_st':  { uk: 'Створити СТО',        en: 'Create Station' },
 
-    // Services
     'profile.svc_title':      { uk: 'Послуги СТО',         en: 'Station Services' },
     'profile.svc_sub':        { uk: 'Керуй переліком послуг твоєї станції', en: 'Manage the service list of your station' },
     'profile.no_services':    { uk: 'Послуг ще немає. Додай першу!', en: 'No services yet. Add the first one!' },
@@ -171,16 +141,13 @@ const TRANSLATIONS = {
     'profile.label_svc_desc': { uk: "Опис (необов'язково)", en: 'Description (optional)' },
     'profile.btn_add_svc':    { uk: 'Додати послугу',      en: 'Add Service' },
 
-    // Placeholders — profile
     'ph.station_name':        { uk: 'AutoMaster',          en: 'AutoMaster' },
     'ph.station_addr':        { uk: 'вул. Гагаріна 15, Київ', en: '15 Gagarin St, Kyiv' },
     'ph.station_phone':       { uk: '+380441234567',       en: '+380441234567' },
     'ph.svc_name':            { uk: 'Заміна масла',        en: 'Oil Change' },
     'ph.svc_desc':            { uk: 'Короткий опис послуги...', en: 'Brief description of the service...' },
 
-    // ══════════════════════════════════════
-    // SEARCH PAGE
-    // ══════════════════════════════════════
+    // Пошук
     'search.label_city':      { uk: 'Місто',               en: 'City' },
     'search.label_service':   { uk: 'Послуга',             en: 'Service' },
     'search.label_rating':    { uk: 'Мін. рейтинг',        en: 'Min. Rating' },
@@ -196,19 +163,14 @@ const TRANSLATIONS = {
     'search.results_city':    { uk: 'місто:',              en: 'city:' },
     'search.results_service': { uk: 'послуга:',            en: 'service:' },
 
-    // Placeholders — search
     'ph.city':                { uk: 'Київ, Львів…',        en: 'Kyiv, Lviv…' },
     'ph.service':             { uk: 'Заміна масла…',       en: 'Oil change…' },
 
-    // ══════════════════════════════════════
-    // FLASH MESSAGES
-    // ══════════════════════════════════════
+    // Повідомлення
     'msg.address_en_only':    { uk: 'Адреса повинна бути тільки англійською мовою.', en: 'Address must be in English only.' },
 };
 
-
-/* ── Головний движок ── */
-
+// Робота з мовою інтерфейсу
 function getLang() {
     return localStorage.getItem('karro_lang') || 'uk';
 }
@@ -221,28 +183,27 @@ function setLang(lang) {
 }
 
 function applyTranslations(lang) {
-    // textContent
     document.querySelectorAll('[data-i18n]').forEach(el => {
         const key = el.getAttribute('data-i18n');
         if (TRANSLATIONS[key] && TRANSLATIONS[key][lang] !== undefined) {
             el.textContent = TRANSLATIONS[key][lang];
         }
     });
-    // innerHTML (for strings with <span>, <a>, <br>)
+
     document.querySelectorAll('[data-i18n-html]').forEach(el => {
         const key = el.getAttribute('data-i18n-html');
         if (TRANSLATIONS[key] && TRANSLATIONS[key][lang] !== undefined) {
             el.innerHTML = TRANSLATIONS[key][lang];
         }
     });
-    // placeholder
+
     document.querySelectorAll('[data-i18n-placeholder]').forEach(el => {
         const key = el.getAttribute('data-i18n-placeholder');
         if (TRANSLATIONS[key] && TRANSLATIONS[key][lang] !== undefined) {
             el.placeholder = TRANSLATIONS[key][lang];
         }
     });
-    // <title>
+
     const titleEl = document.querySelector('[data-i18n-title]');
     if (titleEl) {
         const key = titleEl.getAttribute('data-i18n-title');
@@ -250,7 +211,7 @@ function applyTranslations(lang) {
             document.title = TRANSLATIONS[key][lang];
         }
     }
-    // alerts (flash messages without data-i18n)
+
     document.querySelectorAll('.alert').forEach(el => {
         const text = el.textContent.trim();
         for (const [key, val] of Object.entries(TRANSLATIONS)) {
@@ -274,7 +235,6 @@ function initLangSelect() {
     });
 }
 
-/* ── Init ── */
 document.addEventListener('DOMContentLoaded', () => {
     const lang = getLang();
     if (lang !== 'uk') {

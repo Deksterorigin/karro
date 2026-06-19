@@ -1,8 +1,3 @@
-# ╔══════════════════════════════════════════════════════════╗
-# ║                   main/views.py                         ║
-# ║         Усі функції-обробники (views) сайту Karro       ║
-# ╚══════════════════════════════════════════════════════════╝
-
 import logging
 import os
 import re
@@ -21,29 +16,17 @@ from .models import User, Car, Review, ServiceStation, Service
 
 logger = logging.getLogger(__name__)
 
-# ─────────────────────────────────────────────────────────────
-# 🔧 ДОПОМІЖНІ ФУНКЦІЇ
-# ─────────────────────────────────────────────────────────────
-
-# Дозволені MIME-типи та розширення для завантаження зображень.
-# Обмеження запобігає завантаженню виконуваних файлів (.exe, .html, .svg)
-# під виглядом картинок — потенційний вектор атаки через XSS або RCE.
+# Дозволені формати та обмеження розміру для зображень
 ALLOWED_IMAGE_TYPES = {
     'image/jpeg': ['.jpg', '.jpeg'],
     'image/png': ['.png'],
     'image/webp': ['.webp'],
     'image/gif': ['.gif'],
 }
-
-# Максимальний розмір файлу (3 МБ) для запобігання DoS.
 MAX_IMAGE_SIZE_BYTES = 3 * 1024 * 1024
 
-
 def get_current_user(request):
-    """
-    Повертає об'єкт User за ID із сесії, або None якщо не знайдено.
-    Очищає сесію якщо запис у БД вже не існує (користувач видалений).
-    """
+    """Повертає об'єкт користувача з сесії або None."""
     user_id = request.session.get('user_id')
     if not user_id:
         return None
@@ -53,97 +36,56 @@ def get_current_user(request):
         request.session.flush()
         return None
 
-
 def is_valid_vin(vin: str) -> bool:
-    """
-    Перевіряє що VIN-код відповідає стандарту ISO 3779:
-    - рівно 17 символів
-    - лише латинські літери (без I, O, Q — їх немає в VIN) та цифри
-    """
+    """Перевірка відповідності VIN-коду стандарту ISO 3779."""
     return bool(re.fullmatch(r'[A-HJ-NPR-Z0-9]{17}', vin.upper()))
 
-
 def _validate_image_upload(uploaded_file):
-    """
-    Валідує завантажений файл зображення на безпеку.
-
-    Перевіряє:
-    - Content-Type (MIME) — тільки дозволені типи зображень
-    - Розширення файлу — повинно відповідати MIME-типу
-    - Розмір — не більше MAX_IMAGE_SIZE_BYTES
-
-    Повертає:
-        (True, None) — якщо файл валідний
-        (False, str) — якщо є проблема, другий елемент — повідомлення помилки
-    """
+    """Валідація завантаженого файлу зображення."""
     if not uploaded_file:
         return False, 'Оберіть файл для завантаження.'
 
-    # Перевірка MIME-типу (Content-Type заголовок від браузера)
     content_type = uploaded_file.content_type
     if content_type not in ALLOWED_IMAGE_TYPES:
         return False, 'Дозволені лише зображення (JPEG, PNG, WebP, GIF).'
 
-    # Перевірка розширення файлу — повинно відповідати MIME-типу.
-    # Це запобігає атаці "image.png.exe" з підробленим Content-Type.
     _, ext = os.path.splitext(uploaded_file.name.lower())
     if ext not in ALLOWED_IMAGE_TYPES[content_type]:
         return False, f'Розширення файлу "{ext}" не відповідає типу "{content_type}".'
 
-    # Обмеження розміру для запобігання DoS
     if uploaded_file.size > MAX_IMAGE_SIZE_BYTES:
         max_mb = MAX_IMAGE_SIZE_BYTES / (1024 * 1024)
         return False, f'Розмір файлу перевищує {max_mb:.0f} МБ.'
 
     return True, None
 
-
 def _save_file(instance, field_name: str, uploaded_file):
-    """
-    Видаляє старий файл з диску та зберігає новий.
-    Працює для будь-якого ImageField (аватар, фото авто і т.д.).
-    """
+    """Видаляє старий файл та зберігає новий."""
     old_file = getattr(instance, field_name)
     if old_file:
         try:
             if os.path.isfile(old_file.path):
                 os.remove(old_file.path)
         except (ValueError, OSError):
-            pass  # файл вже відсутній або шлях недоступний
+            pass
     setattr(instance, field_name, uploaded_file)
     instance.save()
 
-
 def _set_session_data(request, user):
-    """
-    Зберігає дані користувача в сесію після входу або реєстрації.
-    Централізовано — щоб уникнути дублювання та розсинхрону ключів.
-    """
+    """Записує ідентифікаційні дані користувача в сесію."""
     request.session['user_id'] = user.user_id
     request.session['user_name'] = user.full_name
     request.session['user_role'] = user.role
 
-
 def _redirect_to_profile(**query_params):
-    """
-    Створює redirect на профіль з GET-параметрами через reverse().
-    Безпечна альтернатива хардкоду URL.
-    """
+    """Перенаправляє на профіль із передачею параметрів."""
     url = reverse('profile')
     if query_params:
         url += '?' + urlencode(query_params)
     return redirect(url)
 
-
 def geocode_address(city: str, address: str):
-    """
-    Визначає координати (широта, довгота) за адресою
-    через безкоштовний Nominatim API (OpenStreetMap).
-
-    Повертає:
-        (latitude, longitude) — при успіху
-        (None, None) — при помилці або відсутності результатів
-    """
+    """Визначає геокоординати за адресою через Nominatim API."""
     query = f"{address}, {city}, Україна"
     try:
         resp = requests.get(
@@ -159,30 +101,12 @@ def geocode_address(city: str, address: str):
         logger.warning('Geocoding failed for address: %s', query, exc_info=True)
     return None, None
 
-
-# ─────────────────────────────────────────────────────────────
-# 🏠 ГОЛОВНА СТОРІНКА
-# URL: /
-# ─────────────────────────────────────────────────────────────
-
 def home(request):
-    """Головна (landing) сторінка проекту Karro."""
+    """Головна сторінка сервісу."""
     return render(request, 'main/home.html')
 
-
-# ─────────────────────────────────────────────────────────────
-# 🔑 ВХІД (LOGIN)
-# GET  → показує форму входу
-# POST → перевіряє email + пароль, зберігає сесію
-# URL: /login/
-# ─────────────────────────────────────────────────────────────
-
 def login_view(request):
-    """
-    Аутентифікація по email + пароль.
-    Повідомлення про помилку однакове при невірному email і паролі —
-    щоб не давати зловмиснику підказки про існування акаунту (user enumeration).
-    """
+    """Авторизація користувача за email та паролем."""
     if request.session.get('user_id'):
         return redirect('profile')
 
@@ -198,25 +122,12 @@ def login_view(request):
             else:
                 messages.error(request, 'Невірний email або пароль.')
         except User.DoesNotExist:
-            # Однакове повідомлення — захист від user enumeration
             messages.error(request, 'Невірний email або пароль.')
 
     return render(request, 'main/login.html')
 
-
-# ─────────────────────────────────────────────────────────────
-# 📝 РЕЄСТРАЦІЯ (REGISTER)
-# GET  → показує форму реєстрації
-# POST → валідує, створює користувача, логінить
-# URL: /register/
-# ─────────────────────────────────────────────────────────────
-
 def register_view(request):
-    """
-    Реєстрація нового користувача.
-    Пароль зберігається як PBKDF2+SHA256 хеш (Django make_password).
-    Після створення — автоматичний вхід.
-    """
+    """Реєстрація нового користувача в системі."""
     if request.session.get('user_id'):
         return redirect('profile')
 
@@ -230,7 +141,6 @@ def register_view(request):
 
         ctx = {'show_register': True}
 
-        # ── Валідація ──
         if not full_name:
             messages.error(request, "Введіть своє ім'я.")
             return render(request, 'main/login.html', ctx)
@@ -255,7 +165,6 @@ def register_view(request):
             messages.error(request, 'Такий телефон вже використовується.')
             return render(request, 'main/login.html', ctx)
 
-        # ── Створення користувача ──
         user = User.objects.create(
             full_name=full_name,
             phone=phone,
@@ -270,34 +179,13 @@ def register_view(request):
 
     return render(request, 'main/login.html', {'show_register': True})
 
-
-# ─────────────────────────────────────────────────────────────
-# 👤 ПРОФІЛЬ КОРИСТУВАЧА
-# Обробляє всі дії на сторінці профілю через POST action.
-# Різний контент для клієнта і власника СТО.
-#
-# Дії (action):
-#   update_profile    — зміна імені/телефону
-#   change_password   — зміна пароля
-#   upload_avatar     — завантаження фото профілю
-#   add_car           — додати авто [client]
-#   delete_car        — видалити авто [client]
-#   upload_car_photo  — фото авто [client]
-#   update_station    — дані СТО [station]
-#   add_service       — додати послугу [station]
-#   delete_service    — видалити послугу [station]
-#
-# URL: /profile/
-# ─────────────────────────────────────────────────────────────
-
 @login_required_session
 def profile_view(request):
-    """Сторінка профілю з обробкою POST-дій для всіх ролей."""
+    """Особистий кабінет з підтримкою кастомних POST-операцій."""
     user = get_current_user(request)
     if user is None:
         return redirect('login')
 
-    # ── Контекст для шаблону ──
     context = {'user': user}
 
     if user.is_client:
@@ -325,11 +213,10 @@ def profile_view(request):
         if station:
             context['services'] = Service.objects.filter(station=station)
 
-    # ════ ОБРОБКА POST-ЗАПИТІВ ════
     if request.method == 'POST':
         action = request.POST.get('action', '')
 
-        # ── Оновлення особистих даних ──
+        # Зміна персональних даних
         if action == 'update_profile':
             full_name = request.POST.get('full_name', '').strip()
             phone = request.POST.get('phone', '').strip()
@@ -345,7 +232,7 @@ def profile_view(request):
                     request.session['user_name'] = user.full_name
                     messages.success(request, 'Дані успішно оновлено.')
 
-        # ── Зміна пароля ──
+        # Оновлення пароля
         elif action == 'change_password':
             old_password = request.POST.get('old_password', '')
             new_password = request.POST.get('new_password', '')
@@ -362,7 +249,7 @@ def profile_view(request):
                 user.save(update_fields=['password'])
                 messages.success(request, 'Пароль успішно змінено.')
 
-        # ── Завантаження аватара ──
+        # Оновлення фото профілю
         elif action == 'upload_avatar':
             uploaded = request.FILES.get('avatar')
             valid, error_msg = _validate_image_upload(uploaded)
@@ -372,7 +259,7 @@ def profile_view(request):
                 _save_file(user, 'avatar', uploaded)
                 messages.success(request, 'Аватар оновлено.')
 
-        # ── Додавання авто [тільки клієнт] ──
+        # Додавання автомобіля (клієнт)
         elif action == 'add_car':
             if not user.is_client:
                 messages.error(request, 'Ця дія доступна тільки клієнтам.')
@@ -400,10 +287,10 @@ def profile_view(request):
                     )
                     messages.success(request, f'Автомобіль {brand} {model} додано.')
 
-        # ── Видалення авто [тільки клієнт] ──
+        # Видалення автомобіля (клієнт)
         elif action == 'delete_car':
             if not user.is_client:
-                messages.error(request, 'Ця дія доступна тільки клієнтам.')
+                messages.error(request, 'Ця дія доступна только клієнтам.')
             else:
                 vin = request.POST.get('vin_code', '').strip().upper()
                 deleted, _ = Car.objects.filter(vin_code=vin, user=user).delete()
@@ -412,7 +299,7 @@ def profile_view(request):
                 else:
                     messages.error(request, 'Автомобіль не знайдено.')
 
-        # ── Завантаження фото авто [тільки клієнт] ──
+        # Завантаження фото автомобіля (клієнт)
         elif action == 'upload_car_photo':
             if not user.is_client:
                 messages.error(request, 'Ця дія доступна тільки клієнтам.')
@@ -431,7 +318,7 @@ def profile_view(request):
                         _save_file(car, 'photo', uploaded)
                         messages.success(request, 'Фото автомобіля оновлено.')
 
-        # ── Оновлення профілю СТО [тільки власник] ──
+        # Оновлення чи створення профілю СТО (власник)
         elif action == 'update_station':
             if not user.is_station:
                 messages.error(request, 'Ця дія доступна тільки власникам СТО.')
@@ -484,7 +371,7 @@ def profile_view(request):
                             edit_station=new_station.pk, tab='station'
                         )
 
-        # ── Додавання послуги [тільки власник] ──
+        # Додавання нової послуги (власник)
         elif action == 'add_service':
             if not user.is_station:
                 messages.error(request, 'Ця дія доступна тільки власникам СТО.')
@@ -529,7 +416,7 @@ def profile_view(request):
                                 edit_station=station.pk, tab='station'
                             )
 
-        # ── Видалення послуги [тільки власник] ──
+        # Видалення послуги (власник)
         elif action == 'delete_service':
             if not user.is_station:
                 messages.error(request, 'Ця дія доступна тільки власникам СТО.')
@@ -551,23 +438,13 @@ def profile_view(request):
         else:
             messages.warning(request, 'Невідома дія.')
 
-        # PRG-патерн: після будь-якого POST — redirect
         return redirect('profile')
 
     return render(request, 'main/profile.html', context)
 
-
-# ─────────────────────────────────────────────────────────────
-# 🚪 ВИХІД (LOGOUT)
-# POST-only: захищено від CSRF-атак.
-# GET-запити на /logout/ не працюють — це запобігає
-# розлогінюванню через <img src="/logout/">.
-# URL: /logout/
-# ─────────────────────────────────────────────────────────────
-
 @login_required_session
 @require_POST
 def logout_view(request):
-    """Завершує сесію користувача. Тільки POST (CSRF-захист)."""
+    """Вихід з облікового запису та очищення сесії."""
     request.session.flush()
     return redirect('home')

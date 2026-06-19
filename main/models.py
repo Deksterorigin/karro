@@ -1,35 +1,25 @@
-# ╔══════════════════════════════════════════════════════════╗
-# ║                   main/models.py                        ║
-# ║         Моделі бази даних для проекту Karro             ║
-# ╚══════════════════════════════════════════════════════════╝
-
 from django.db import models
 from django.core.validators import MinValueValidator, MaxValueValidator, RegexValidator
 
-
 class User(models.Model):
     """
-    Користувач системи.
-
-    Може бути клієнтом (шукає СТО, прив'язує авто)
-    або власником СТО (керує профілем станції та послугами).
-
-    Примітка: не наследує AbstractBaseUser — аутентифікація реалізована
-    через кастомну сесійну логіку (див. main.views.login_view).
-    Пароль зберігається як PBKDF2+SHA256 хеш через django.contrib.auth.hashers.
+    Користувач системи (клієнт або власник СТО).
+    Не наслідує AbstractBaseUser; автентифікація реалізована через кастомну сесійну логіку.
     """
     ROLE_CHOICES = [
         ('client',  'Клієнт'),
         ('station', 'Адміністратор СТО'),
     ]
 
-    user_id   = models.AutoField(primary_key=True)
+    user_id = models.AutoField(primary_key=True)
     full_name = models.CharField(max_length=100, verbose_name='Повне ім\'я')
-    phone     = models.CharField(max_length=20, unique=True, verbose_name='Телефон')
-    email     = models.EmailField(max_length=100, unique=True, verbose_name='Email')
-    password  = models.CharField(max_length=255)
-    role      = models.CharField(max_length=10, choices=ROLE_CHOICES, verbose_name='Роль')
-    avatar    = models.ImageField(upload_to='avatars/', null=True, blank=True, verbose_name='Аватар')
+    phone = models.CharField(max_length=20, unique=True, verbose_name='Телефон')
+    email = models.EmailField(max_length=100, unique=True, verbose_name='Email')
+    password = models.CharField(max_length=255)
+    role = models.CharField(max_length=10, choices=ROLE_CHOICES, verbose_name='Роль')
+    avatar = models.ImageField(upload_to='avatars/', null=True, blank=True, verbose_name='Аватар')
+    is_active = models.BooleanField(default=True, verbose_name='Активен')
+    date_joined = models.DateTimeField(auto_now_add=True, verbose_name='Дата реєстрації')
 
     class Meta:
         db_table = 'user'
@@ -41,37 +31,33 @@ class User(models.Model):
 
     @property
     def is_client(self):
-        """True якщо роль — клієнт (шукає СТО)."""
         return self.role == 'client'
 
     @property
     def is_station(self):
-        """True якщо роль — власник/адміністратор СТО."""
         return self.role == 'station'
-
 
 class ServiceStation(models.Model):
     """
     Профіль станції технічного обслуговування.
-
-    Кожна СТО прив'язана до одного користувача з роллю 'station'.
-    Рейтинг обчислюється динамічно через avg_rating() — не кешується,
-    щоб завжди відображати актуальне значення.
+    Прив'язаний до користувача з роллю 'station'.
     """
     station_id = models.AutoField(primary_key=True)
-    name       = models.CharField(max_length=100, verbose_name='Назва СТО')
-    city       = models.CharField(max_length=100, blank=True, default='', verbose_name='Місто')
-    address    = models.CharField(max_length=200, verbose_name='Адреса')
-    phone      = models.CharField(max_length=20, verbose_name='Телефон')
-    user       = models.ForeignKey(
+    name = models.CharField(max_length=100, verbose_name='Назва СТО')
+    city = models.CharField(max_length=100, blank=True, default='', verbose_name='Місто')
+    address = models.CharField(max_length=200, verbose_name='Адреса')
+    phone = models.CharField(max_length=20, verbose_name='Телефон')
+    user = models.ForeignKey(
         User, on_delete=models.CASCADE, db_column='user_id', verbose_name='Власник'
     )
-    latitude  = models.DecimalField(
+    latitude = models.DecimalField(
         max_digits=9, decimal_places=6, null=True, blank=True, verbose_name='Широта'
     )
     longitude = models.DecimalField(
         max_digits=9, decimal_places=6, null=True, blank=True, verbose_name='Довгота'
     )
+    is_verified = models.BooleanField(default=False, verbose_name='Верифікована')
+    created_at = models.DateTimeField(auto_now_add=True, verbose_name='Дата створення')
 
     class Meta:
         db_table = 'service_station'
@@ -83,24 +69,19 @@ class ServiceStation(models.Model):
         return self.name
 
     def avg_rating(self):
-        """Повертає середній рейтинг СТО або None якщо відгуків немає."""
+        """Обчислює середній рейтинг СТО."""
         from django.db.models import Avg
         result = Review.objects.filter(station=self).aggregate(avg=Avg('rating'))
         avg = result.get('avg')
         return round(avg, 1) if avg is not None else None
 
     def review_count(self):
-        """Кількість відгуків для СТО."""
+        """Повертає кількість відгуків СТО."""
         return Review.objects.filter(station=self).count()
-
 
 class Car(models.Model):
     """
-    Автомобіль клієнта.
-
-    Первинний ключ — VIN-код (Vehicle Identification Number).
-    VIN валідується регулярним виразом: 17 символів, без I/O/Q
-    (ці літери виключені стандартом ISO 3779).
+    Автомобіль клієнта з валідацією VIN за стандартом ISO 3779.
     """
     vin_validator = RegexValidator(
         regex=r'^[A-HJ-NPR-Z0-9]{17}$',
@@ -114,11 +95,11 @@ class Car(models.Model):
     )
     brand = models.CharField(max_length=50, verbose_name='Марка')
     model = models.CharField(max_length=50, verbose_name='Модель')
-    year  = models.IntegerField(
+    year = models.IntegerField(
         validators=[MinValueValidator(1900), MaxValueValidator(2030)],
         verbose_name='Рік випуску'
     )
-    user  = models.ForeignKey(
+    user = models.ForeignKey(
         User, on_delete=models.CASCADE, db_column='user_id', verbose_name='Власник'
     )
     photo = models.ImageField(
@@ -134,16 +115,14 @@ class Car(models.Model):
     def __str__(self):
         return f'{self.brand} {self.model} ({self.year})'
 
-
 class Service(models.Model):
     """
     Послуга, що надається конкретною СТО.
-    Ціна в гривнях, мінімум 0.01.
     """
-    service_id   = models.AutoField(primary_key=True)
+    service_id = models.AutoField(primary_key=True)
     service_name = models.CharField(max_length=100, verbose_name='Назва послуги')
-    description  = models.TextField(blank=True, null=True, verbose_name='Опис')
-    price        = models.DecimalField(
+    description = models.TextField(blank=True, null=True, verbose_name='Опис')
+    price = models.DecimalField(
         max_digits=10, decimal_places=2,
         validators=[MinValueValidator(0.01)],
         verbose_name='Ціна (грн)'
@@ -162,22 +141,18 @@ class Service(models.Model):
     def __str__(self):
         return f'{self.service_name} — {self.price} грн'
 
-
 class Review(models.Model):
     """
-    Відгук клієнта про СТО.
-
-    Рейтинг — ціле число від 1 до 5.
-    Дата встановлюється автоматично при створенні (auto_now_add).
+    Відгук клієнта про роботу СТО.
     """
     review_id = models.AutoField(primary_key=True)
-    text      = models.TextField(verbose_name='Текст відгуку')
-    rating    = models.SmallIntegerField(
+    text = models.TextField(verbose_name='Текст відгуку')
+    rating = models.SmallIntegerField(
         validators=[MinValueValidator(1), MaxValueValidator(5)],
         verbose_name='Оцінка (1–5)'
     )
-    date    = models.DateField(auto_now_add=True, verbose_name='Дата')
-    user    = models.ForeignKey(
+    date = models.DateField(auto_now_add=True, verbose_name='Дата')
+    user = models.ForeignKey(
         User, on_delete=models.CASCADE, db_column='user_id', verbose_name='Автор'
     )
     station = models.ForeignKey(

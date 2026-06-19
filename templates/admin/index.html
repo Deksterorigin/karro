@@ -1,0 +1,132 @@
+{% extends 'admin/base.html' %}
+{% load i18n %}
+
+{% block title %}{% if subtitle %}{{ subtitle }} | {% endif %}{{ title }} | {{ site_title|default:_('Django site admin') }}{% endblock %}
+
+{% block branding %}
+    {% include "unfold/helpers/site_branding.html" %}
+{% endblock %}
+
+{% block content %}
+    <!-- Метрики KPI (стиль Unfold) -->
+    {% if kpi %}
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+        {% for item in kpi %}
+        <div class="bg-white dark:bg-gray-800 rounded-lg p-6 shadow-sm border border-gray-200 dark:border-gray-700">
+            <h3 class="text-sm font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">{{ item.title }}</h3>
+            <p class="mt-2 text-3xl font-bold text-gray-900 dark:text-white">{{ item.metric }}</p>
+            <p class="mt-1 text-xs text-gray-400 dark:text-gray-500">{{ item.footer }}</p>
+        </div>
+        {% endfor %}
+    </div>
+    {% endif %}
+
+    <!-- Аналітичні графіки (Chart.js) -->
+    {% if chart_data %}
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
+        <div class="bg-white dark:bg-gray-800 rounded-lg p-6 shadow-sm border border-gray-200 dark:border-gray-700">
+            <h3 class="text-lg font-medium text-gray-900 dark:text-white mb-4">Динаміка реєстрацій</h3>
+            <div style="position: relative; height:250px; width:100%">
+                <canvas id="lineChart"></canvas>
+            </div>
+        </div>
+        
+        <div class="bg-white dark:bg-gray-800 rounded-lg p-6 shadow-sm border border-gray-200 dark:border-gray-700">
+            <h3 class="text-lg font-medium text-gray-900 dark:text-white mb-4">Топ міст за кількістю СТО</h3>
+            <div style="position: relative; height:250px; width:100%">
+                <canvas id="donutChart"></canvas>
+            </div>
+        </div>
+    </div>
+
+    <div class="bg-white dark:bg-gray-800 rounded-lg p-6 shadow-sm border border-gray-200 dark:border-gray-700 mb-8">
+        <h3 class="text-lg font-medium text-gray-900 dark:text-white mb-4">Рейтинг СТО (Розподіл відгуків)</h3>
+        <div style="position: relative; height:200px; width:100%">
+            <canvas id="barChart"></canvas>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Перелік застосунків (Unfold App List) -->
+    <div class="flex flex-col lg:flex-row lg:gap-8">
+        <div class="grow">
+            {% include "unfold/helpers/app_list_default.html" %}
+        </div>
+        {% include "unfold/helpers/history.html" %}
+    </div>
+
+    <!-- Обробка графіків -->
+    {% if chart_data %}
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const chartData = {{ chart_data|safe }};
+            
+            const isDark = document.documentElement.classList.contains('dark');
+            Chart.defaults.color = isDark ? '#9CA3AF' : '#4B5563';
+            Chart.defaults.borderColor = isDark ? '#374151' : '#E5E7EB';
+            Chart.defaults.font.family = 'Inter, sans-serif';
+
+            // Лінійний графік реєстрацій
+            new Chart(document.getElementById('lineChart'), {
+                type: 'line',
+                data: {
+                    labels: chartData.line.labels,
+                    datasets: [
+                        {
+                            label: 'Користувачі',
+                            data: chartData.line.users,
+                            borderColor: '#10B981',
+                            backgroundColor: 'rgba(16, 185, 129, 0.1)',
+                            fill: true,
+                            tension: 0.4
+                        },
+                        {
+                            label: 'СТО',
+                            data: chartData.line.stations,
+                            borderColor: '#3B82F6',
+                            backgroundColor: 'rgba(59, 130, 246, 0.1)',
+                            fill: true,
+                            tension: 0.4
+                        }
+                    ]
+                },
+                options: { responsive: true, maintainAspectRatio: false }
+            });
+
+            // Кругова діаграма розподілу за містами
+            new Chart(document.getElementById('donutChart'), {
+                type: 'doughnut',
+                data: {
+                    labels: chartData.donut.labels,
+                    datasets: [{
+                        data: chartData.donut.data,
+                        backgroundColor: ['#10B981', '#3B82F6', '#F59E0B', '#EF4444', '#8B5CF6'],
+                        borderWidth: 0
+                    }]
+                },
+                options: { responsive: true, maintainAspectRatio: false }
+            });
+
+            // Стовпчастий графік розподілу оцінок
+            new Chart(document.getElementById('barChart'), {
+                type: 'bar',
+                data: {
+                    labels: ['1 зірка', '2 зірки', '3 зірки', '4 зірки', '5 зірок'],
+                    datasets: [{
+                        label: 'Кількість відгуків',
+                        data: chartData.bar.data,
+                        backgroundColor: '#10B981',
+                        borderRadius: 4
+                    }]
+                },
+                options: { 
+                    responsive: true, 
+                    maintainAspectRatio: false,
+                    scales: { y: { beginAtZero: true, ticks: { precision: 0 } } }
+                }
+            });
+        });
+    </script>
+    {% endif %}
+{% endblock %}

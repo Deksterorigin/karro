@@ -1,84 +1,44 @@
-"""
-Django settings for sto project (Karro).
-
-Конфигурация читается из .env через python-decouple.
-Включает hardening для production-развёртывания.
-
-For more information on this file, see
-https://docs.djangoproject.com/en/4.2/topics/settings/
-"""
-
 from pathlib import Path
 import os
 from decouple import config, Csv
 
-# Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
 
-
-# ─────────────────────────────────────────────
-# 🔐 БЕЗПЕКА
-# Значення читаються з файлу .env
-# ─────────────────────────────────────────────
 SECRET_KEY = config('SECRET_KEY')
-
 DEBUG = config('DEBUG', default=False, cast=bool)
-
 ALLOWED_HOSTS = config('ALLOWED_HOSTS', default='127.0.0.1,localhost', cast=Csv())
 
-
-# ─────────────────────────────────────────────
-# 🛡️ SECURITY HEADERS & COOKIES
-# Захист сесій, cookie та HTTP-заголовків.
-# Ці налаштування критичні для production.
-# ─────────────────────────────────────────────
-
-# --- Сесії ---
-# Час життя сесії: 24 години (в секундах)
+# Налаштування сесій
 SESSION_COOKIE_AGE = 86400
-# Сесія знищується при закритті браузера
 SESSION_EXPIRE_AT_BROWSER_CLOSE = True
-# Cookie сесії недоступна з JavaScript (захист від XSS)
 SESSION_COOKIE_HTTPONLY = True
-# Cookie передається тільки через HTTPS (вмикати в production)
 SESSION_COOKIE_SECURE = not DEBUG
-# SameSite=Lax блокує cross-site запити з cookie
 SESSION_COOKIE_SAMESITE = 'Lax'
 
-# --- CSRF ---
-# CSRF cookie також захищена від JS-доступу
+# Захист CSRF
 CSRF_COOKIE_HTTPONLY = True
 CSRF_COOKIE_SECURE = not DEBUG
 CSRF_COOKIE_SAMESITE = 'Lax'
 
-# --- HTTPS / HSTS (тільки в production) ---
+# Захист з'єднання (тільки для production)
 if not DEBUG:
-    # Перенаправляє HTTP → HTTPS
     SECURE_SSL_REDIRECT = True
-    # HSTS: браузер запам'ятовує що сайт тільки HTTPS (1 рік)
     SECURE_HSTS_SECONDS = 31536000
     SECURE_HSTS_INCLUDE_SUBDOMAINS = True
     SECURE_HSTS_PRELOAD = True
-    # Забороняє браузеру "вгадувати" MIME-тип
     SECURE_CONTENT_TYPE_NOSNIFF = True
 
-# --- Обмеження розміру завантаження (захист від DoS) ---
-# Максимум 5 МБ для тіла запиту
+# Обмеження розміру завантажуваних файлів (захист від DoS)
 DATA_UPLOAD_MAX_MEMORY_SIZE = 5 * 1024 * 1024
-# Максимум 5 МБ для файлів
 FILE_UPLOAD_MAX_MEMORY_SIZE = 5 * 1024 * 1024
 
-# --- Аутентифікація ---
 LOGIN_URL = '/login/'
 
-
-# ─────────────────────────────────────────────
-# 📦 ВСТАНОВЛЕНІ ЗАСТОСУНКИ
-# ─────────────────────────────────────────────
 INSTALLED_APPS = [
     'station',
     'search',
     'main',
+    'unfold',
     'django.contrib.admin',
     'django.contrib.auth',
     'django.contrib.contenttypes',
@@ -95,6 +55,7 @@ MIDDLEWARE = [
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
+    'main.middleware.BanCheckMiddleware',
 ]
 
 ROOT_URLCONF = 'sto.urls'
@@ -117,11 +78,7 @@ TEMPLATES = [
 
 WSGI_APPLICATION = 'sto.wsgi.application'
 
-
-# ─────────────────────────────────────────────
-# 🗄️ БАЗА ДАНИХ
-# Параметри читаються з .env
-# ─────────────────────────────────────────────
+# Налаштування бази даних (MySQL / SQLite)
 if config('USE_SQLITE', default=False, cast=bool):
     DATABASES = {
         'default': {
@@ -141,10 +98,6 @@ else:
         }
     }
 
-
-# ─────────────────────────────────────────────
-# 🔑 ВАЛІДАТОРИ ПАРОЛІВ
-# ─────────────────────────────────────────────
 AUTH_PASSWORD_VALIDATORS = [
     {
         'NAME': 'django.contrib.auth.password_validation.UserAttributeSimilarityValidator',
@@ -160,36 +113,21 @@ AUTH_PASSWORD_VALIDATORS = [
     },
 ]
 
-
-# ─────────────────────────────────────────────
-# 🌍 ІНТЕРНАЦІОНАЛІЗАЦІЯ
-# ─────────────────────────────────────────────
+# Локалізація
 LANGUAGE_CODE = 'uk'
-
 TIME_ZONE = 'Europe/Kyiv'
-
 USE_I18N = True
-
 USE_TZ = True
 
-
-# ─────────────────────────────────────────────
-# 📁 СТАТИЧНІ ТА МЕДІА ФАЙЛИ
-# ─────────────────────────────────────────────
+# Статичні та медіа файли
 STATIC_URL = 'static/'
 STATICFILES_DIRS = [BASE_DIR / 'static']
-# Каталог для collectstatic (production)
 STATIC_ROOT = BASE_DIR / 'staticfiles'
 
 MEDIA_URL = '/media/'
-MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
+MEDIA_ROOT = BASE_DIR / 'media'
 
-
-# ─────────────────────────────────────────────
-# 📋 ЛОГУВАННЯ
-# Логуємо помилки безпеки та серверні помилки
-# у файл та в консоль для діагностики атак.
-# ─────────────────────────────────────────────
+# Логування помилок та загроз безпеки
 LOGGING = {
     'version': 1,
     'disable_existing_loggers': False,
@@ -205,14 +143,14 @@ LOGGING = {
             'formatter': 'verbose',
         },
         'file': {
+            'level': 'WARNING',
             'class': 'logging.FileHandler',
-            'filename': BASE_DIR / 'logs' / 'django.log',
-            'formatter': 'verbose',
+            'filename': BASE_DIR / 'logs' / 'security.log',
         },
     },
     'loggers': {
         'django.security': {
-            'handlers': ['console', 'file'],
+            'handlers': ['file'],
             'level': 'WARNING',
             'propagate': True,
         },
@@ -224,8 +162,11 @@ LOGGING = {
     },
 }
 
-
-# ─────────────────────────────────────────────
-# 🔧 ІНШЕ
-# ─────────────────────────────────────────────
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
+
+# Налаштування інтерфейсу Django Unfold
+UNFOLD = {
+    "SITE_TITLE": "Karro Admin",
+    "SITE_HEADER": "Karro",
+    "DASHBOARD_CALLBACK": "main.dashboard.dashboard_callback",
+}
