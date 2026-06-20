@@ -2,10 +2,7 @@ from django.db import models
 from django.core.validators import MinValueValidator, MaxValueValidator, RegexValidator
 
 class User(models.Model):
-    """
-    Користувач системи (клієнт або власник СТО).
-    Не наслідує AbstractBaseUser; автентифікація реалізована через кастомну сесійну логіку.
-    """
+
     ROLE_CHOICES = [
         ('client',  'Клієнт'),
         ('station', 'Адміністратор СТО'),
