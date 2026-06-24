@@ -54,6 +54,8 @@ class ServiceStation(models.Model):
         max_digits=9, decimal_places=6, null=True, blank=True, verbose_name='Довгота'
     )
     is_verified = models.BooleanField(default=False, verbose_name='Верифікована')
+    opening_time = models.TimeField(default='09:00', verbose_name='Час відкриття')
+    closing_time = models.TimeField(default='18:00', verbose_name='Час закриття')
     created_at = models.DateTimeField(auto_now_add=True, verbose_name='Дата створення')
 
     class Meta:
@@ -165,3 +167,70 @@ class Review(models.Model):
 
     def __str__(self):
         return f'Відгук від {self.user.full_name} — оцінка {self.rating}/5'
+
+
+class Booking(models.Model):
+    """
+    Заявка на ремонт автомобіля.
+    Клієнт створює заявку, обираючи СТО та описуючи проблему.
+    """
+
+    STATUS_CHOICES = [
+        ('pending', 'Очікує'),
+        ('confirmed', 'Підтверджено'),
+        ('completed', 'Виконано'),
+        ('cancelled', 'Скасовано'),
+    ]
+
+    client = models.ForeignKey(
+        User,
+        on_delete=models.CASCADE,
+        related_name='bookings',
+        db_column='client_id',
+        verbose_name='Клієнт',
+    )
+    station = models.ForeignKey(
+        ServiceStation,
+        on_delete=models.CASCADE,
+        related_name='bookings',
+        db_column='station_id',
+        verbose_name='СТО',
+    )
+    car = models.ForeignKey(
+        Car,
+        on_delete=models.CASCADE,
+        null=True,
+        blank=True,
+        related_name='bookings',
+        verbose_name='Автомобіль',
+    )
+    service_name = models.CharField(
+        max_length=150,
+        blank=True,
+        null=True,
+        verbose_name='Назва послуги',
+    )
+    description = models.TextField(verbose_name='Опис проблеми')
+    status = models.CharField(
+        max_length=10,
+        choices=STATUS_CHOICES,
+        default='pending',
+        verbose_name='Статус',
+    )
+    scheduled_time = models.DateTimeField(
+        null=True, blank=True,
+        verbose_name='Бажаний час візиту',
+    )
+    created_at = models.DateTimeField(
+        auto_now_add=True,
+        verbose_name='Створено',
+    )
+
+    class Meta:
+        db_table = 'booking'
+        verbose_name = 'Заявка на ремонт'
+        verbose_name_plural = 'Заявки на ремонт'
+        ordering = ['-created_at']
+
+    def __str__(self):
+        return f'Заявка #{self.pk} — {self.client.full_name} → {self.station.name} ({self.get_status_display()})'

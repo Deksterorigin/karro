@@ -4,567 +4,9 @@
 {% block title %}Karro — Профіль{% endblock %}
 
 {% block extra_css %}
-<style>
-    /* ── PROFILE LAYOUT ── */
-    .profile-page-container {
-        max-width: 1200px;
-        margin: 0 auto;
-        padding: 3rem 2rem;
-        display: grid;
-        grid-template-columns: 280px 1fr;
-        gap: 2.5rem;
-        align-items: start;
-    }
 
-    /* ── SIDEBAR ── */
-    .profile-sidebar {
-        position: sticky;
-        top: 100px;
-        background: var(--surface);
-        border: 1px solid var(--border);
-        border-radius: var(--radius-lg);
-        padding: 2rem 1.5rem;
-        box-shadow: var(--shadow-md);
-        display: flex;
-        flex-direction: column;
-        gap: 2rem;
-    }
+    <link rel="stylesheet" href="{% static 'css/profile.css' %}">
 
-    .profile-summary {
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-        text-align: center;
-        gap: 1rem;
-        border-bottom: 1px solid var(--border);
-        padding-bottom: 1.5rem;
-    }
-
-    .avatar-wrapper {
-        position: relative;
-        width: 80px;
-        height: 80px;
-        border-radius: 50%;
-        background: var(--bg);
-        border: 2px solid var(--border);
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        font-size: 2rem;
-        font-weight: 700;
-        color: var(--accent);
-        cursor: pointer;
-        overflow: hidden;
-        transition: all var(--transition-normal);
-        box-shadow: var(--shadow-sm);
-    }
-
-    .avatar-wrapper:hover {
-        border-color: var(--accent);
-        transform: scale(1.02);
-    }
-
-    .avatar-wrapper img {
-        width: 100%;
-        height: 100%;
-        object-fit: cover;
-    }
-
-    .avatar-overlay {
-        position: absolute;
-        inset: 0;
-        background: rgba(0, 0, 0, 0.45);
-        backdrop-filter: blur(2px);
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        opacity: 0;
-        transition: opacity var(--transition-fast) ease;
-        color: #FFFFFF;
-    }
-
-    .avatar-wrapper:hover .avatar-overlay {
-        opacity: 1;
-    }
-
-    .avatar-overlay svg {
-        width: 24px;
-        height: 24px;
-    }
-
-    .profile-name {
-        font-size: 1.1rem;
-        font-weight: 700;
-        color: var(--text);
-        margin-bottom: 0.25rem;
-        word-break: break-all;
-    }
-
-    .profile-email {
-        font-size: 0.85rem;
-        color: var(--text-muted);
-        margin-bottom: 0.5rem;
-        word-break: break-all;
-    }
-
-    .role-badge {
-        display: inline-flex;
-        align-items: center;
-        font-size: 0.75rem;
-        font-weight: 600;
-        padding: 0.35rem 0.75rem;
-        border-radius: 20px;
-        background: var(--accent-dim);
-        color: var(--accent);
-        border: 1px solid rgba(0, 82, 204, 0.1);
-    }
-
-    /* Sidebar nav list */
-    .nav-list {
-        display: flex;
-        flex-direction: column;
-        gap: 0.5rem;
-    }
-
-    .nav-item {
-        display: flex;
-        align-items: center;
-        gap: 0.75rem;
-        padding: 0.75rem 1rem;
-        border-radius: var(--radius-md);
-        font-size: 0.9rem;
-        font-weight: 600;
-        color: var(--text-muted);
-        cursor: pointer;
-        transition: all var(--transition-fast);
-        border: none;
-        background: transparent;
-        text-align: left;
-        width: 100%;
-        position: relative;
-    }
-
-    .nav-item:hover {
-        color: var(--text);
-        background: var(--bg);
-    }
-
-    .nav-item.active {
-        color: var(--accent);
-        background: var(--accent-dim);
-    }
-
-    .nav-item.active::before {
-        content: '';
-        position: absolute;
-        left: 0;
-        top: 25%;
-        height: 50%;
-        width: 4px;
-        background-color: var(--accent);
-        border-radius: 0 4px 4px 0;
-    }
-
-    .nav-item svg {
-        width: 20px;
-        height: 20px;
-        stroke-width: 2;
-        flex-shrink: 0;
-    }
-
-    /* ── CONTENT AREA ── */
-    .profile-content {
-        display: flex;
-        flex-direction: column;
-        gap: 2rem;
-        min-width: 0;
-    }
-
-    .section-panel {
-        display: none;
-    }
-
-    .section-panel.active {
-        display: flex;
-        flex-direction: column;
-        gap: 2rem;
-        animation: fadeIn var(--transition-normal);
-    }
-
-    @keyframes fadeIn {
-        from { opacity: 0; transform: translateY(8px); }
-        to { opacity: 1; transform: translateY(0); }
-    }
-
-    .section-header {
-        border-bottom: 1px solid var(--border);
-        padding-bottom: 1rem;
-        margin-bottom: 0.5rem;
-    }
-
-    .section-title {
-        font-size: 1.75rem;
-        font-weight: 800;
-        letter-spacing: -0.03em;
-        color: var(--text);
-        margin-bottom: 0.25rem;
-    }
-
-    .section-desc {
-        font-size: 0.95rem;
-        color: var(--text-muted);
-    }
-
-    /* Cards and containers */
-    .card {
-        background: var(--surface);
-        border: 1px solid var(--border);
-        border-radius: var(--radius-lg);
-        padding: 2rem;
-        box-shadow: var(--shadow-md);
-    }
-
-    .card-header {
-        margin-bottom: 1.5rem;
-    }
-
-    .card-title {
-        font-size: 1.25rem;
-        font-weight: 700;
-        color: var(--text);
-    }
-
-    .card-desc {
-        font-size: 0.875rem;
-        color: var(--text-muted);
-        margin-top: 0.25rem;
-    }
-
-    /* Forms */
-    .form-group {
-        margin-bottom: 1.5rem;
-        display: flex;
-        flex-direction: column;
-        gap: 0.5rem;
-    }
-
-    .form-row {
-        display: grid;
-        grid-template-columns: 1fr 1fr;
-        gap: 1.5rem;
-    }
-
-    label {
-        font-size: 0.875rem;
-        font-weight: 700;
-        color: var(--text);
-    }
-
-    input[type="text"],
-    input[type="email"],
-    input[type="tel"],
-    input[type="number"],
-    input[type="password"],
-    textarea,
-    select {
-        width: 100%;
-        padding: 0.75rem 1rem;
-        background: var(--bg);
-        border: 1px solid var(--border);
-        border-radius: var(--radius-md);
-        color: var(--text);
-        font-size: 0.9rem;
-        font-family: inherit;
-        transition: all var(--transition-fast);
-        outline: none;
-    }
-
-    input:hover, textarea:hover, select:hover {
-        border-color: var(--border-hover);
-    }
-
-    input:focus, textarea:focus, select:focus {
-        border-color: var(--accent);
-        box-shadow: 0 0 0 4px rgba(0, 82, 204, 0.08);
-        background-color: var(--surface);
-    }
-
-    input:disabled {
-        opacity: 0.6;
-        cursor: not-allowed;
-        background: var(--border);
-    }
-
-    textarea {
-        resize: vertical;
-        min-height: 120px;
-    }
-
-    input::placeholder, textarea::placeholder {
-        color: var(--text-faint);
-    }
-
-    select {
-        appearance: none;
-        background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%23555555'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M19 9l-7 7-7-7'%3E%3C/path%3E%3C/svg%3E");
-        background-repeat: no-repeat;
-        background-position: right 1rem center;
-        background-size: 1rem;
-        padding-right: 2.5rem;
-        cursor: pointer;
-    }
-
-    /* ── LIST GRIDS (Cars, Services, Reviews) ── */
-    .list-grid {
-        display: grid;
-        grid-template-columns: 1fr;
-        gap: 1.5rem;
-        margin-bottom: 1.5rem;
-    }
-
-    .list-item {
-        background: var(--surface);
-        border: 1px solid var(--border);
-        border-radius: var(--radius-lg);
-        padding: 1.5rem;
-        box-shadow: var(--shadow-sm);
-        display: flex;
-        flex-direction: column;
-        gap: 1.25rem;
-        transition: all var(--transition-fast);
-    }
-
-    .list-item:hover {
-        border-color: var(--border-hover);
-        box-shadow: var(--shadow-md);
-    }
-
-    .item-header {
-        display: flex;
-        justify-content: space-between;
-        align-items: flex-start;
-        gap: 1rem;
-    }
-
-    .item-info {
-        flex: 1;
-        min-width: 0;
-    }
-
-    .item-title {
-        font-size: 1.1rem;
-        font-weight: 700;
-        color: var(--text);
-        margin-bottom: 0.25rem;
-    }
-
-    .item-sub {
-        font-size: 0.85rem;
-        color: var(--text-muted);
-    }
-
-    .item-actions {
-        display: flex;
-        align-items: center;
-        gap: 0.5rem;
-    }
-
-    .btn-icon {
-        padding: 0.5rem;
-        background: var(--bg);
-        color: var(--text-muted);
-        border: 1px solid var(--border);
-        border-radius: var(--radius-md);
-        cursor: pointer;
-        transition: all var(--transition-fast);
-        display: flex;
-        align-items: center;
-        justify-content: center;
-    }
-
-    .btn-icon:hover {
-        background: var(--surface-hover);
-        color: var(--text);
-        border-color: var(--border-hover);
-    }
-
-    .btn-icon.danger:hover {
-        background: var(--error-dim);
-        color: var(--error);
-        border-color: rgba(229, 62, 62, 0.2);
-    }
-
-    .btn-icon svg {
-        width: 18px;
-        height: 18px;
-        stroke-width: 2;
-    }
-
-    /* Car image upload container */
-    .car-photo-container {
-        width: 100%;
-        height: 200px;
-        border-radius: var(--radius-md);
-        background: var(--bg);
-        border: 2px dashed var(--border);
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        overflow: hidden;
-        position: relative;
-        transition: all var(--transition-fast);
-    }
-
-    .car-photo-container:hover {
-        border-color: var(--accent);
-    }
-
-    .car-photo-container img {
-        width: 100%;
-        height: 100%;
-        object-fit: cover;
-    }
-
-    .upload-overlay {
-        position: absolute;
-        inset: 0;
-        background: rgba(255, 255, 255, 0.85);
-        backdrop-filter: blur(4px);
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-        justify-content: center;
-        gap: 0.75rem;
-        opacity: 0;
-        transition: opacity var(--transition-fast);
-        cursor: pointer;
-        color: var(--accent);
-        font-size: 0.9rem;
-        font-weight: 700;
-        width: 100%;
-        height: 100%;
-    }
-
-    .car-photo-container:hover .upload-overlay,
-    .photo-empty .upload-overlay {
-        opacity: 1;
-    }
-
-    .upload-overlay svg {
-        width: 28px;
-        height: 28px;
-        stroke-width: 2.2;
-    }
-
-    /* Review specifically */
-    .review-rating {
-        color: var(--accent);
-        font-weight: 700;
-        font-size: 0.95rem;
-        background: var(--accent-dim);
-        padding: 0.35rem 0.75rem;
-        border-radius: 20px;
-        display: inline-flex;
-        align-items: center;
-        gap: 0.25rem;
-    }
-
-    .empty-state {
-        text-align: center;
-        padding: 4rem 2rem;
-        background: var(--surface);
-        border: 2px dashed var(--border);
-        border-radius: var(--radius-lg);
-        color: var(--text-muted);
-        box-shadow: var(--shadow-sm);
-    }
-
-    .empty-state svg {
-        width: 48px;
-        height: 48px;
-        margin: 0 auto 1.25rem;
-        color: var(--text-faint);
-        stroke-width: 1.5;
-    }
-
-    .empty-state p {
-        font-size: 0.95rem;
-        font-weight: 500;
-    }
-
-    /* Station specific style rules */
-    .station-badge-wrap {
-        display: flex;
-        flex-wrap: wrap;
-        gap: 0.75rem;
-        align-items: center;
-        margin-bottom: 2rem;
-    }
-
-    .station-select-btn {
-        text-decoration: none;
-        display: inline-flex;
-        align-items: center;
-        gap: 0.5rem;
-        padding: 0.6rem 1.2rem;
-        border-radius: var(--radius-md);
-        font-weight: 600;
-    }
-
-    .station-select-btn.active {
-        border-color: var(--accent);
-        background: var(--accent-dim);
-        color: var(--accent);
-    }
-
-    .auto-location-banner {
-        margin-top: 0.5rem;
-        padding: 1rem 1.25rem;
-        background: var(--accent-dim);
-        border: 1px solid rgba(0, 82, 204, 0.1);
-        border-radius: var(--radius-md);
-        display: flex;
-        align-items: center;
-        gap: 0.75rem;
-        color: var(--text-muted);
-        font-size: 0.875rem;
-        font-weight: 500;
-    }
-
-    .auto-location-banner svg {
-        color: var(--accent);
-        width: 20px;
-        height: 20px;
-        stroke-width: 2;
-        flex-shrink: 0;
-    }
-
-    /* Responsive */
-    @media (max-width: 900px) {
-        .profile-page-container {
-            grid-template-columns: 1fr;
-            padding: 2rem 1.5rem;
-            gap: 2rem;
-        }
-
-        .profile-sidebar {
-            position: static;
-            padding: 1.5rem;
-        }
-
-        .form-row {
-            grid-template-columns: 1fr;
-            gap: 1rem;
-        }
-
-        .profile-summary {
-            flex-direction: row;
-            text-align: left;
-            align-items: center;
-            gap: 1.5rem;
-        }
-    }
-</style>
 {% endblock %}
 
 {% block content %}
@@ -620,12 +62,20 @@
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
                 <span data-i18n="profile.nav_reviews">Мої відгуки</span>
             </button>
+            <button class="nav-item" onclick="showSection('client-bookings', this)">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
+                <span>Мої записи</span>
+            </button>
             {% endif %}
 
             {% if user.role == "station" %}
             <button class="nav-item" onclick="showSection('station', this)">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
                 <span data-i18n="profile.nav_station">Моя СТО</span>
+            </button>
+            <button class="nav-item" onclick="showSection('bookings', this)">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
+                <span>Заявки</span>
             </button>
             {% endif %}
 
@@ -824,6 +274,127 @@
                 {% endif %}
             </div>
         </div>
+
+        <!-- ══ CLIENT BOOKINGS PANEL (Client only) ══ -->
+        <div class="section-panel" id="section-client-bookings">
+            <div class="section-header">
+                <h1 class="section-title">Цифровий Гараж</h1>
+                <p class="section-desc">Історія обслуговування твоїх автомобілів</p>
+            </div>
+
+            <div class="digital-garage-container">
+                {% if client_cars %}
+                    {% for car in client_cars %}
+                    <div class="garage-car-group">
+                        <!-- Картка автомобіля -->
+                        <div class="garage-car-card">
+                            <div class="garage-car-icon">
+                                <svg viewBox="0 0 24 24" width="32" height="32" fill="none" stroke="currentColor" stroke-width="2"><rect x="1" y="3" width="15" height="13" rx="2"/><path d="M16 8h4l3 3v5h-7V8z"/><circle cx="5.5" cy="18.5" r="2.5"/><circle cx="18.5" cy="18.5" r="2.5"/></svg>
+                            </div>
+                            <div class="garage-car-details">
+                                <h3 class="garage-car-title">{{ car.brand }} {{ car.model }}</h3>
+                                <p class="garage-car-meta">Рік випуску: <strong>{{ car.year }}</strong> &bull; VIN: <code class="garage-car-vin">{{ car.vin_code }}</code></p>
+                            </div>
+                        </div>
+
+                        <!-- Таймлайн записів -->
+                        <div class="vertical-timeline-wrapper">
+                            {% if car.bookings_list %}
+                                <div class="timeline-line"></div>
+                                <div class="timeline-items">
+                                    {% for booking in car.bookings_list %}
+                                    <div class="timeline-item">
+                                        <div class="timeline-dot"></div>
+                                        <div class="timeline-content-box">
+                                            <div class="timeline-meta-row">
+                                                <span class="timeline-date">
+                                                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align: -2px; margin-right: 4px;"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+                                                    {{ booking.scheduled_time|date:"d.m.Y H:i" }}
+                                                </span>
+                                                <span class="status-badge status-{{ booking.status }}">
+                                                    {{ booking.get_status_display }}
+                                                </span>
+                                            </div>
+                                            <h4 class="timeline-service-name">
+                                                {% if booking.service_name %}
+                                                    {{ booking.service_name }}
+                                                {% else %}
+                                                    Діагностика / Загальний ремонт
+                                                {% endif %}
+                                            </h4>
+                                            <div class="timeline-station-name">
+                                                СТО: <a href="{% url 'station:station_detail' booking.station.pk %}" class="station-link">"{{ booking.station.name }}"</a>
+                                            </div>
+                                            <p class="timeline-description">
+                                                <strong>Опис проблеми:</strong> {{ booking.description }}
+                                            </p>
+                                        </div>
+                                    </div>
+                                    {% endfor %}
+                                </div>
+                            {% else %}
+                                <p class="no-bookings-hint" style="color: var(--text-faint); font-style: italic; font-size: 0.9rem; padding-left: 0.5rem;">
+                                    Немає зареєстрованих ремонтів або заявок для цього автомобіля.
+                                </p>
+                            {% endif %}
+                        </div>
+                    </div>
+                    {% endfor %}
+                {% else %}
+                    <div class="empty-state">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><rect x="1" y="3" width="15" height="13" rx="2"/><path d="M16 8h4l3 3v5h-7V8z"/><circle cx="5.5" cy="18.5" r="2.5"/><circle cx="18.5" cy="18.5" r="2.5"/></svg>
+                        <p>У твоєму цифровому гаражі немає доданих авто.</p>
+                        <button class="btn-primary" onclick="showSection('cars', document.querySelector('[onclick*=\'cars\']'))" style="margin-top: 1rem;">
+                            Додати перший автомобіль
+                        </button>
+                    </div>
+                {% endif %}
+
+                <!-- Записи без автомобіля (якщо є старі дані) -->
+                {% if other_bookings %}
+                <div class="garage-car-group" style="margin-top: 3rem;">
+                    <div class="garage-car-card other-bookings-card" style="background: rgba(0,0,0,0.02); border-style: dashed;">
+                        <div class="garage-car-icon" style="color: var(--text-faint);">
+                            <svg viewBox="0 0 24 24" width="32" height="32" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+                        </div>
+                        <div class="garage-car-details">
+                            <h3 class="garage-car-title" style="color: var(--text-muted);">Інші записи</h3>
+                            <p class="garage-car-meta">Записи без вказаного конкретного автомобіля</p>
+                        </div>
+                    </div>
+
+                    <div class="vertical-timeline-wrapper">
+                        <div class="timeline-line"></div>
+                        <div class="timeline-items">
+                            {% for booking in other_bookings %}
+                            <div class="timeline-item">
+                                <div class="timeline-dot"></div>
+                                <div class="timeline-content-box">
+                                    <div class="timeline-meta-row">
+                                        <span class="timeline-date">
+                                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align: -2px; margin-right: 4px;"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+                                            {% if booking.scheduled_time %}{{ booking.scheduled_time|date:"d.m.Y H:i" }}{% else %}Не вказано{% endif %}
+                                        </span>
+                                        <span class="status-badge status-{{ booking.status }}">
+                                            {{ booking.get_status_display }}
+                                        </span>
+                                    </div>
+                                    <h4 class="timeline-service-name">Діагностика / Загальний ремонт</h4>
+                                    <div class="timeline-station-name">
+                                        СТО: <a href="{% url 'station:station_detail' booking.station.pk %}" class="station-link">"{{ booking.station.name }}"</a>
+                                    </div>
+                                    <p class="timeline-description">
+                                        <strong>Опис проблеми:</strong> {{ booking.description }}
+                                    </p>
+                                </div>
+                            </div>
+                            {% endfor %}
+                        </div>
+                    </div>
+                </div>
+                {% endif %}
+            </div>
+        </div>
         {% endif %}
 
         <!-- ══ STATION PANEL (Owner only) ══ -->
@@ -966,55 +537,77 @@
             </div>
             {% endif %}
         </div>
+        </div>
+        {% endif %}
+
+        <!-- ══ BOOKINGS PANEL (Station only) ══ -->
+        {% if user.role == "station" %}
+        <div class="section-panel" id="section-bookings">
+            <div class="section-header">
+                <h1 class="section-title">Заявки клієнтів</h1>
+                <p class="section-desc">Керуй заявками на ремонт</p>
+            </div>
+            
+            <div class="list-grid">
+                {% if bookings %}
+                    {% for booking in bookings %}
+                    <div class="booking-card">
+                        <div class="item-header">
+                            <div class="item-info">
+                                <div class="item-title">
+                                    <a href="{% url 'client_profile' booking.client.user_id %}" style="text-decoration: none; color: var(--accent);">
+                                        {{ booking.client.full_name }}
+                                    </a> 
+                                    <span style="font-size: 0.85rem; color: var(--text-muted); font-weight: 500;">
+                                        на СТО "{{ booking.station.name }}"
+                                    </span>
+                                </div>
+                                <div class="item-sub" style="margin-top: 0.25rem;">
+                                    Дата запису: {% if booking.scheduled_time %}{{ booking.scheduled_time|date:"d.m.Y H:i" }}{% else %}Не вказано{% endif %}
+                                </div>
+                            </div>
+                            <div style="flex-shrink: 0; margin-left: 1rem;">
+                                <span class="status-badge status-{{ booking.status }}">
+                                    {{ booking.get_status_display }}
+                                </span>
+                            </div>
+                        </div>
+                        
+                        <div class="booking-desc">
+                            <strong>Опис проблеми:</strong> {{ booking.description }}
+                        </div>
+                        
+                        <div class="booking-footer">
+                            <form method="POST" action="{% url 'profile' %}" style="display: flex; gap: 0.5rem; align-items: center;">
+                                {% csrf_token %}
+                                <input type="hidden" name="action" value="update_booking_status">
+                                <input type="hidden" name="booking_id" value="{{ booking.id }}">
+                                <select name="status" style="width: auto; padding: 0.4rem 2rem 0.4rem 0.75rem; font-size: 0.85rem; margin: 0;">
+                                    <option value="pending" {% if booking.status == 'pending' %}selected{% endif %}>Очікує</option>
+                                    <option value="confirmed" {% if booking.status == 'confirmed' %}selected{% endif %}>Підтверджено</option>
+                                    <option value="completed" {% if booking.status == 'completed' %}selected{% endif %}>Виконано</option>
+                                    <option value="cancelled" {% if booking.status == 'cancelled' %}selected{% endif %}>Відхилено</option>
+                                </select>
+                                <button type="submit" class="btn-primary" style="padding: 0.4rem 1rem; font-size: 0.85rem; width: auto;">Оновити статус</button>
+                            </form>
+                        </div>
+                    </div>
+                    {% endfor %}
+                {% else %}
+                    <div class="empty-state">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
+                        <p>Наразі немає жодних заявок.</p>
+                    </div>
+                {% endif %}
+            </div>
+        </div>
         {% endif %}
     </main>
 </div>
 {% endblock %}
 
 {% block extra_js %}
-<script>
-function showSection(name, btn) {
-    document.querySelectorAll('.section-panel').forEach(p => p.classList.remove('active'));
-    document.querySelectorAll('.nav-item').forEach(b => b.classList.remove('active'));
-    const panel = document.getElementById('section-' + name);
-    if (panel) panel.classList.add('active');
-    if (btn) btn.classList.add('active');
-}
 
-// Language syncing logic
-function switchLang(lang) {
-    // Locate global select if exists or set directly
-    const globalSelect = document.getElementById('lang-select');
-    if (globalSelect) {
-        globalSelect.value = lang;
-        globalSelect.dispatchEvent(new Event('change'));
-    } else {
-        localStorage.setItem('lang', lang);
-        location.reload();
-    }
-}
+    <script src="{% static 'js/profile.js' %}"></script>
 
-document.addEventListener('DOMContentLoaded', () => {
-    const params = new URLSearchParams(window.location.search);
-    const tab = params.get('tab');
-    if (tab) {
-        const btn = document.querySelector(`button[onclick*="'${tab}'"]`);
-        if (btn) {
-            showSection(tab, btn);
-        }
-    } else if (params.has('edit_station') || params.get('action') === 'new_station') {
-        const btn = document.querySelector(`button[onclick*="'station'"]`);
-        if (btn) {
-            showSection('station', btn);
-        }
-    }
-
-    // Set matching value on lang select if active
-    const savedLang = localStorage.getItem('lang') || 'uk';
-    const profLangSelect = document.getElementById('profile-lang-select');
-    if (profLangSelect) {
-        profLangSelect.value = savedLang;
-    }
-});
-</script>
 {% endblock %}

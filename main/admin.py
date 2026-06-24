@@ -1,7 +1,7 @@
 from django.contrib import admin
 from unfold.admin import ModelAdmin
 from unfold.decorators import action
-from .models import User, ServiceStation, Review
+from .models import User, ServiceStation, Review, Booking
 
 @admin.register(User)
 class UserAdmin(ModelAdmin):
@@ -42,3 +42,27 @@ class ReviewAdmin(ModelAdmin):
     def delete_spam(self, request, queryset):
         count, _ = queryset.delete()
         self.message_user(request, f"Видалено {count} відгуків (Спам).")
+
+
+@admin.register(Booking)
+class BookingAdmin(ModelAdmin):
+    list_display = ('id', 'client', 'station', 'status', 'scheduled_time', 'created_at')
+    list_filter = ('status', 'station', 'created_at')
+    search_fields = ('client__full_name', 'station__name', 'description')
+    list_per_page = 25
+    actions = ['confirm_bookings', 'complete_bookings', 'cancel_bookings']
+
+    @action(description="Підтвердити заявки")
+    def confirm_bookings(self, request, queryset):
+        count = queryset.update(status='confirmed')
+        self.message_user(request, f"Підтверджено {count} заявок.")
+
+    @action(description="Відзначити як виконані")
+    def complete_bookings(self, request, queryset):
+        count = queryset.update(status='completed')
+        self.message_user(request, f"Виконано {count} заявок.")
+
+    @action(description="Скасувати заявки")
+    def cancel_bookings(self, request, queryset):
+        count = queryset.update(status='cancelled')
+        self.message_user(request, f"Скасовано {count} заявок.")

@@ -3,7 +3,7 @@ from django.contrib import messages
 from django.db.models import Avg, Count
 from django.shortcuts import render, redirect, get_object_or_404
 
-from main.models import ServiceStation, Service, Review
+from main.models import ServiceStation, Service, Review, Car
 from main.views import get_current_user, _validate_image_upload
 from .models import StationPhoto
 
@@ -93,6 +93,10 @@ def station_detail(request, station_id):
 
         return redirect('station:station_detail', station_id=station.pk)
 
+    cars = None
+    if user and user.is_client:
+        cars = Car.objects.filter(user=user)
+
     context = {
         'station': station,
         'services': services,
@@ -102,5 +106,6 @@ def station_detail(request, station_id):
         'review_count': stats['review_count'],
         'user': user,
         'is_owner': is_owner,
+        'cars': cars,
     }
     return render(request, 'station/detail.html', context)

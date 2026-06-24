@@ -11,8 +11,10 @@ from django.shortcuts import render, redirect
 from django.urls import reverse
 from django.views.decorators.http import require_POST
 
+from django.http import JsonResponse
+import json
 from .decorators import login_required_session
-from .models import User, Car, Review, ServiceStation, Service
+from .models import User, Car, Review, ServiceStation, Service, Booking
 
 logger = logging.getLogger(__name__)
 
@@ -189,7 +191,12 @@ def profile_view(request):
     context = {'user': user}
 
     if user.is_client:
-        context['cars'] = Car.objects.filter(user=user)
+        client_cars = Car.objects.filter(user=user)
+        for car in client_cars:
+            car.bookings_list = Booking.objects.filter(client=user, car=car).order_by('-scheduled_time', '-created_at').select_related('station')
+        context['client_cars'] = client_cars
+        context['other_bookings'] = Booking.objects.filter(client=user, car__isnull=True).order_by('-created_at').select_related('station')
+        context['cars'] = client_cars
         context['reviews'] = Review.objects.filter(user=user).select_related('station')
 
     if user.is_station:
@@ -212,6 +219,8 @@ def profile_view(request):
         context['is_new_station'] = is_new or (not station)
         if station:
             context['services'] = Service.objects.filter(station=station)
+            
+        context['bookings'] = Booking.objects.filter(station__user=user).select_related('client', 'station')
 
     if request.method == 'POST':
         action = request.POST.get('action', '')
@@ -435,6 +444,27 @@ def profile_view(request):
                 else:
                     messages.error(request, 'Послугу не знайдено.')
 
+        # Оновлення статусу заявки (власник)
+        elif action == 'update_booking_status':
+            if not user.is_station:
+                messages.error(request, 'Ця дія доступна тільки власникам СТО.')
+            else:
+                booking_id = request.POST.get('booking_id')
+                new_status = request.POST.get('status')
+                
+                try:
+                    booking = Booking.objects.get(id=booking_id, station__user=user)
+                    if new_status in dict(Booking.STATUS_CHOICES):
+                        booking.status = new_status
+                        booking.save(update_fields=['status'])
+                        messages.success(request, f'Статус заявки #{booking.id} оновлено.')
+                    else:
+                        messages.error(request, 'Невірний статус.')
+                except Booking.DoesNotExist:
+                    messages.error(request, 'Заявку не знайдено.')
+                
+                return _redirect_to_profile(tab='bookings')
+
         else:
             messages.warning(request, 'Невідома дія.')
 
@@ -448,3 +478,96 @@ def logout_view(request):
     """Вихід з облікового запису та очищення сесії."""
     request.session.flush()
     return redirect('home')
+
+@require_POST
+def create_booking_api(request):
+    """Створення заявки на ремонт (AJAX)."""
+    user_id = request.session.get('user_id')
+    if not user_id:
+        return JsonResponse({'status': 'error', 'message': 'Unauthorized'}, status=401)
+    
+    try:
+        data = json.loads(request.body)
+        station_id = data.get('station_id')
+        car_id = data.get('car_id')
+        service_name = data.get('service_name', '').strip()
+        description = data.get('description', '').strip()
+        scheduled_time = data.get('scheduled_time')
+
+        if not station_id or not description or not service_name:
+            return JsonResponse({'status': 'error', 'message': 'Будь ласка, заповніть усі обов\'язкові поля'}, status=400)
+
+        if not scheduled_time:
+            return JsonResponse({'status': 'error', 'message': 'Бажаний час візиту обов\'язковий'}, status=400)
+
+        client = User.objects.get(user_id=user_id)
+        station = ServiceStation.objects.get(pk=station_id)
+
+        # Перевірка чи автомобіль належить поточному клієнту
+        if not car_id:
+            return JsonResponse({'status': 'error', 'message': 'Будь ласка, оберіть автомобіль'}, status=400)
+        try:
+            car = Car.objects.get(vin_code=car_id, user=client)
+        except Car.DoesNotExist:
+            return JsonResponse({'status': 'error', 'message': 'Обраний автомобіль не знайдено або він не належить вам'}, status=400)
+
+        # Валідація формату дати/часу та годин роботи СТО
+        try:
+            import datetime
+            scheduled_dt = datetime.datetime.fromisoformat(scheduled_time)
+            from django.conf import settings
+            from django.utils import timezone
+            if settings.USE_TZ and timezone.is_naive(scheduled_dt):
+                scheduled_dt = timezone.make_aware(scheduled_dt)
+        except ValueError:
+            return JsonResponse({'status': 'error', 'message': 'Невірний формат часу'}, status=400)
+
+        visit_time = scheduled_dt.time()
+        if visit_time < station.opening_time or visit_time > station.closing_time:
+            opening_str = station.opening_time.strftime('%H:%M')
+            closing_str = station.closing_time.strftime('%H:%M')
+            return JsonResponse({
+                'status': 'error',
+                'message': f'СТО працює з {opening_str} до {closing_str}. Будь ласка, оберіть інший час.'
+            }, status=400)
+
+        Booking.objects.create(
+            client=client,
+            station=station,
+            car=car,
+            service_name=service_name,
+            description=description,
+            scheduled_time=scheduled_dt
+        )
+        return JsonResponse({"status": "success", "message": "Заявку успішно створено"})
+    except User.DoesNotExist:
+        return JsonResponse({'status': 'error', 'message': 'Клієнта не знайдено'}, status=404)
+    except ServiceStation.DoesNotExist:
+        return JsonResponse({'status': 'error', 'message': 'СТО не знайдено'}, status=404)
+    except json.JSONDecodeError:
+        return JsonResponse({'status': 'error', 'message': 'Невірний формат даних'}, status=400)
+    except Exception as e:
+        logger.error(f'Booking API Error: {e}', exc_info=True)
+        return JsonResponse({'status': 'error', 'message': 'Внутрішня помилка сервера'}, status=500)
+
+@login_required_session
+def client_profile_view(request, client_id):
+    """Перегляд профілю клієнта власником СТО."""
+    user = get_current_user(request)
+    if not user.is_station:
+        messages.error(request, 'Доступ заборонено.')
+        return redirect('profile')
+        
+    try:
+        client = User.objects.get(user_id=client_id, role='client')
+    except User.DoesNotExist:
+        messages.error(request, 'Клієнта не знайдено.')
+        return redirect('profile')
+        
+    cars = Car.objects.filter(user=client)
+    
+    context = {
+        'client': client,
+        'cars': cars,
+    }
+    return render(request, 'main/client_detail.html', context)

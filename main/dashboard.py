@@ -2,7 +2,7 @@ import json
 from django.utils import timezone
 from django.db.models import Count
 from django.db.models.functions import TruncMonth
-from .models import User, ServiceStation, Review
+from .models import User, ServiceStation, Review, Booking
 
 def dashboard_callback(request, context):
     """
@@ -16,7 +16,7 @@ def dashboard_callback(request, context):
     active_stations = ServiceStation.objects.filter(is_verified=True).count()
     pending_stations = ServiceStation.objects.filter(is_verified=False).count()
     new_reviews_today = Review.objects.filter(date=today).count()
-    active_bookings = 0
+    active_bookings = Booking.objects.filter(status='pending').count()
 
     context.update({
         "kpi": [
@@ -38,7 +38,7 @@ def dashboard_callback(request, context):
             {
                 "title": "Активні заявки",
                 "metric": str(active_bookings),
-                "footer": "В очікуванні (Модель у розробці)",
+                "footer": "Нових заявок в очікуванні",
             },
         ],
     })
