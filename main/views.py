@@ -5,10 +5,12 @@ from datetime import date
 from urllib.parse import urlencode
 
 import requests
+from django.conf import settings as django_settings
 from django.contrib import messages
 from django.contrib.auth.hashers import make_password, check_password
 from django.shortcuts import render, redirect
 from django.urls import reverse
+from django.utils import timezone
 from django.views.decorators.http import require_POST
 
 from django.http import JsonResponse
@@ -191,9 +193,13 @@ def profile_view(request):
     context = {'user': user}
 
     if user.is_client:
-        client_cars = Car.objects.filter(user=user)
-        for car in client_cars:
-            car.bookings_list = Booking.objects.filter(client=user, car=car).order_by('-scheduled_time', '-created_at').select_related('station')
+        from django.db.models import Prefetch
+        bookings_prefetch = Prefetch(
+            'bookings',
+            queryset=Booking.objects.filter(client=user).order_by('-scheduled_time', '-created_at').select_related('station'),
+            to_attr='bookings_list'
+        )
+        client_cars = Car.objects.filter(user=user).prefetch_related(bookings_prefetch)
         context['client_cars'] = client_cars
         context['other_bookings'] = Booking.objects.filter(client=user, car__isnull=True).order_by('-created_at').select_related('station')
         context['cars'] = client_cars
@@ -221,6 +227,9 @@ def profile_view(request):
             context['services'] = Service.objects.filter(station=station)
             
         context['bookings'] = Booking.objects.filter(station__user=user).select_related('client', 'station')
+        
+        from accounting.models import Employee
+        context['station_employees'] = Employee.objects.filter(station__user=user, is_active=True)
 
     if request.method == 'POST':
         action = request.POST.get('action', '')
@@ -299,7 +308,7 @@ def profile_view(request):
         # Видалення автомобіля (клієнт)
         elif action == 'delete_car':
             if not user.is_client:
-                messages.error(request, 'Ця дія доступна только клієнтам.')
+                messages.error(request, 'Ця дія доступна тільки клієнтам.')
             else:
                 vin = request.POST.get('vin_code', '').strip().upper()
                 deleted, _ = Car.objects.filter(vin_code=vin, user=user).delete()
@@ -515,12 +524,13 @@ def create_booking_api(request):
         try:
             import datetime
             scheduled_dt = datetime.datetime.fromisoformat(scheduled_time)
-            from django.conf import settings
-            from django.utils import timezone
-            if settings.USE_TZ and timezone.is_naive(scheduled_dt):
+            if django_settings.USE_TZ and timezone.is_naive(scheduled_dt):
                 scheduled_dt = timezone.make_aware(scheduled_dt)
         except ValueError:
             return JsonResponse({'status': 'error', 'message': 'Невірний формат часу'}, status=400)
+
+        if scheduled_dt < timezone.now():
+            return JsonResponse({'status': 'error', 'message': 'Неможливо записатися на минулий час'}, status=400)
 
         visit_time = scheduled_dt.time()
         if visit_time < station.opening_time or visit_time > station.closing_time:
@@ -562,6 +572,10 @@ def client_profile_view(request, client_id):
         client = User.objects.get(user_id=client_id, role='client')
     except User.DoesNotExist:
         messages.error(request, 'Клієнта не знайдено.')
+        return redirect('profile')
+        
+    if not Booking.objects.filter(client=client, station__user=user).exists():
+        messages.error(request, 'Доступ заборонено: у цього клієнта немає заявок на вашій СТО.')
         return redirect('profile')
         
     cars = Car.objects.filter(user=client)

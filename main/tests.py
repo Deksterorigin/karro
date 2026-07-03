@@ -2,24 +2,26 @@
 import json
 import datetime
 from django.test import TestCase, Client
+from django.contrib.auth.hashers import make_password
+from django.utils import timezone
 from main.models import User, ServiceStation, Car, Booking
 
 class BookingAPITestCase(TestCase):
     def setUp(self):
         self.client = Client()
-        # Створюємо користувачів
+        # Створюємо користувачів з хешованими паролями
         self.client_user = User.objects.create(
             full_name='Test Client',
             phone='+380501111111',
             email='client@test.com',
-            password='testpassword',
+            password=make_password('testpassword'),
             role='client'
         )
         self.station_user = User.objects.create(
             full_name='Test Station Admin',
             phone='+380502222222',
             email='station@test.com',
-            password='testpassword',
+            password=make_password('testpassword'),
             role='station'
         )
         # Створюємо СТО
@@ -40,6 +42,11 @@ class BookingAPITestCase(TestCase):
             user=self.client_user
         )
 
+    def _future_time(self, hour=12):
+        """Генерує дату/час у майбутньому з заданою годиною."""
+        future_date = timezone.now().date() + datetime.timedelta(days=7)
+        return f'{future_date.isoformat()}T{hour:02d}:00:00'
+
     def login_client(self):
         session = self.client.session
         session['user_id'] = self.client_user.user_id
@@ -55,7 +62,7 @@ class BookingAPITestCase(TestCase):
                 'car_id': self.car.vin_code,
                 'service_name': 'Заміна мастила',
                 'description': 'Заміна масла в двигуні',
-                'scheduled_time': '2026-06-21T10:00:00'
+                'scheduled_time': self._future_time(10)
             }),
             content_type='application/json'
         )
@@ -71,7 +78,7 @@ class BookingAPITestCase(TestCase):
                 'car_id': self.car.vin_code,
                 'service_name': 'Заміна мастила',
                 'description': 'Заміна масла в двигуні',
-                'scheduled_time': '2026-06-21T12:00:00'
+                'scheduled_time': self._future_time(12)
             }),
             content_type='application/json'
         )
@@ -89,7 +96,7 @@ class BookingAPITestCase(TestCase):
                 'car_id': self.car.vin_code,
                 'service_name': 'Заміна мастила',
                 'description': 'Заміна масла в двигуні',
-                'scheduled_time': '2026-06-21T22:00:00'
+                'scheduled_time': self._future_time(22)
             }),
             content_type='application/json'
         )
@@ -102,7 +109,7 @@ class BookingAPITestCase(TestCase):
             full_name='Other Client',
             phone='+380504444444',
             email='other@test.com',
-            password='testpassword',
+            password=make_password('testpassword'),
             role='client'
         )
         other_car = Car.objects.create(
@@ -120,10 +127,9 @@ class BookingAPITestCase(TestCase):
                 'car_id': other_car.vin_code,
                 'service_name': 'Заміна мастила',
                 'description': 'Заміна масла в двигуні',
-                'scheduled_time': '2026-06-21T12:00:00'
+                'scheduled_time': self._future_time(12)
             }),
             content_type='application/json'
         )
         self.assertEqual(response.status_code, 400)
         self.assertIn('не належить вам', response.json()['message'])
-

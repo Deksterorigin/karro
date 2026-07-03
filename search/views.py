@@ -1,4 +1,3 @@
-import re
 from django.db.models import Avg, Count
 from django.shortcuts import render
 from main.models import ServiceStation
@@ -6,7 +5,6 @@ from main.models import ServiceStation
 def search_stations(request):
     """
     Пошук та фільтрація СТО за містом, послугою та рейтингом.
-    Місто фільтрується виключно латиницею.
     """
     city_query = request.GET.get('city', '').strip()
     service_query = request.GET.get('service', '').strip()
@@ -18,10 +16,7 @@ def search_stations(request):
     ).prefetch_related('service_set')
 
     if city_query:
-        if re.search(r'[А-Яа-яЁёІіЇїЄєҐґ]', city_query):
-            stations = stations.none()
-        else:
-            stations = stations.filter(city__icontains=city_query)
+        stations = stations.filter(city__icontains=city_query)
 
     if service_query:
         stations = stations.filter(
@@ -42,7 +37,7 @@ def search_stations(request):
             'review_count': s.review_count,
             'services': s.service_set.all(),
         }
-        for s in stations
+        for s in stations[:50]
     ]
 
     context = {

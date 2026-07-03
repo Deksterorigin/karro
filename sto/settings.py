@@ -35,6 +35,7 @@ FILE_UPLOAD_MAX_MEMORY_SIZE = 5 * 1024 * 1024
 LOGIN_URL = '/login/'
 
 INSTALLED_APPS = [
+    'accounting',
     'station',
     'search',
     'main',

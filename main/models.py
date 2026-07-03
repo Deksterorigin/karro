@@ -1,5 +1,10 @@
 from django.db import models
 from django.core.validators import MinValueValidator, MaxValueValidator, RegexValidator
+import datetime
+
+def get_current_year_plus_one():
+    return datetime.date.today().year + 1
+
 
 class User(models.Model):
 
@@ -13,7 +18,7 @@ class User(models.Model):
     phone = models.CharField(max_length=20, unique=True, verbose_name='Телефон')
     email = models.EmailField(max_length=100, unique=True, verbose_name='Email')
     password = models.CharField(max_length=255)
-    role = models.CharField(max_length=10, choices=ROLE_CHOICES, verbose_name='Роль')
+    role = models.CharField(max_length=10, choices=ROLE_CHOICES, db_index=True, verbose_name='Роль')
     avatar = models.ImageField(upload_to='avatars/', null=True, blank=True, verbose_name='Аватар')
     is_active = models.BooleanField(default=True, verbose_name='Активен')
     date_joined = models.DateTimeField(auto_now_add=True, verbose_name='Дата реєстрації')
@@ -41,7 +46,7 @@ class ServiceStation(models.Model):
     """
     station_id = models.AutoField(primary_key=True)
     name = models.CharField(max_length=100, verbose_name='Назва СТО')
-    city = models.CharField(max_length=100, blank=True, default='', verbose_name='Місто')
+    city = models.CharField(max_length=100, blank=True, default='', db_index=True, verbose_name='Місто')
     address = models.CharField(max_length=200, verbose_name='Адреса')
     phone = models.CharField(max_length=20, verbose_name='Телефон')
     user = models.ForeignKey(
@@ -95,7 +100,7 @@ class Car(models.Model):
     brand = models.CharField(max_length=50, verbose_name='Марка')
     model = models.CharField(max_length=50, verbose_name='Модель')
     year = models.IntegerField(
-        validators=[MinValueValidator(1900), MaxValueValidator(2030)],
+        validators=[MinValueValidator(1900), MaxValueValidator(get_current_year_plus_one)],
         verbose_name='Рік випуску'
     )
     user = models.ForeignKey(
@@ -191,14 +196,15 @@ class Booking(models.Model):
     )
     station = models.ForeignKey(
         ServiceStation,
-        on_delete=models.CASCADE,
+        on_delete=models.SET_NULL,
+        null=True,
         related_name='bookings',
         db_column='station_id',
         verbose_name='СТО',
     )
     car = models.ForeignKey(
         Car,
-        on_delete=models.CASCADE,
+        on_delete=models.SET_NULL,
         null=True,
         blank=True,
         related_name='bookings',
@@ -215,10 +221,12 @@ class Booking(models.Model):
         max_length=10,
         choices=STATUS_CHOICES,
         default='pending',
+        db_index=True,
         verbose_name='Статус',
     )
     scheduled_time = models.DateTimeField(
         null=True, blank=True,
+        db_index=True,
         verbose_name='Бажаний час візиту',
     )
     created_at = models.DateTimeField(
@@ -233,4 +241,5 @@ class Booking(models.Model):
         ordering = ['-created_at']
 
     def __str__(self):
-        return f'Заявка #{self.pk} — {self.client.full_name} → {self.station.name} ({self.get_status_display()})'
+        station_name = self.station.name if self.station else 'Видалена СТО'
+        return f'Заявка #{self.pk} — {self.client.full_name} → {station_name} ({self.get_status_display()})'

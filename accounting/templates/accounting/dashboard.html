@@ -1,0 +1,482 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Karro — Бухгалтерія{% endblock %}
+
+{% block extra_css %}
+    <link rel="stylesheet" href="{% static 'css/profile.css' %}">
+    <link rel="stylesheet" href="{% static 'css/accounting.css' %}">
+{% endblock %}
+
+{% block content %}
+<div class="profile-page-container">
+    <!-- ════ SIDEBAR ════ -->
+    <aside class="profile-sidebar">
+        <div class="profile-summary">
+            <div class="avatar-wrapper" style="cursor: default;">
+                {% if user.avatar %}
+                    <img src="{{ user.avatar.url }}" alt="avatar">
+                {% else %}
+                    {{ user.full_name|first|upper }}
+                {% endif %}
+            </div>
+            <div>
+                <div class="profile-name">{{ user.full_name }}</div>
+                <div class="profile-email">{{ user.email }}</div>
+                <div class="role-badge">
+                    <span data-i18n="profile.role_station">Власник СТО</span>
+                </div>
+            </div>
+        </div>
+
+        <nav class="nav-list">
+            <a href="{% url 'profile' %}?tab=info" class="nav-item" style="text-decoration: none;">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+                <span data-i18n="profile.nav_info">Особисті дані</span>
+            </a>
+
+            <a href="{% url 'profile' %}?tab=station" class="nav-item" style="text-decoration: none;">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
+                <span data-i18n="profile.nav_station">Моя СТО</span>
+            </a>
+
+            <a href="{% url 'profile' %}?tab=bookings" class="nav-item" style="text-decoration: none;">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
+                <span>Заявки</span>
+            </a>
+
+            <a href="{% url 'accounting:dashboard' %}?station_id={{ selected_station.pk }}" class="nav-item active" style="text-decoration: none;">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <line x1="12" y1="1" x2="12" y2="23"></line>
+                    <path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"></path>
+                </svg>
+                <span data-i18n="profile.nav_accounting">Бухгалтерія</span>
+            </a>
+
+            <a href="{% url 'profile' %}?tab=settings" class="nav-item" style="text-decoration: none;">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+                <span data-i18n="profile.nav_settings">Налаштування</span>
+            </a>
+        </nav>
+    </aside>
+
+    <!-- ════ MAIN CONTENT ════ -->
+    <main class="profile-content">
+        <!-- Dashboard Header & Station Switcher -->
+        <div class="dashboard-header-bar">
+            <div>
+                <h1 class="section-title" data-i18n="acc.title">Бухгалтерія та персонал</h1>
+                <p class="section-desc" data-i18n="acc.subtitle">Управління фінансами, працівниками та зарплатами</p>
+            </div>
+            
+            <div class="filters-container">
+                <form method="GET" class="filter-form">
+                    {% if stations.count > 1 %}
+                        <select name="station_id" onchange="this.form.submit()" class="station-select-input">
+                            {% for st in stations %}
+                                <option value="{{ st.pk }}" {% if st.pk == selected_station.pk %}selected{% endif %}>{{ st.name }}</option>
+                            {% endfor %}
+                        </select>
+                    {% else %}
+                        <input type="hidden" name="station_id" value="{{ selected_station.pk }}">
+                    {% endif %}
+                    
+                    <div class="date-inputs">
+                        <input type="date" name="start_date" value="{{ start_date }}" class="date-filter-input" onchange="this.form.submit()">
+                        <span class="date-divider">—</span>
+                        <input type="date" name="end_date" value="{{ end_date }}" class="date-filter-input" onchange="this.form.submit()">
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <!-- Metric Widgets Row -->
+        <div class="metrics-grid">
+            <!-- Widget 1: Revenue -->
+            <div class="metric-card income-theme">
+                <div class="metric-icon">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"></polyline><polyline points="17 6 23 6 23 12"></polyline></svg>
+                </div>
+                <div class="metric-details">
+                    <span class="metric-label" data-i18n="acc.metric_income">Загальний дохід</span>
+                    <span class="metric-value">{{ total_income }} ₴</span>
+                </div>
+            </div>
+
+            <!-- Widget 2: Expenses -->
+            <div class="metric-card expense-theme">
+                <div class="metric-icon">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="23 18 13.5 8.5 8.5 13.5 1 6"></polyline><polyline points="17 18 23 18 23 12"></polyline></svg>
+                </div>
+                <div class="metric-details">
+                    <span class="metric-label" data-i18n="acc.metric_expense">Витрати</span>
+                    <span class="metric-value">{{ total_expense }} ₴</span>
+                </div>
+            </div>
+
+            <!-- Widget 3: Profit -->
+            <div class="metric-card {% if net_profit >= 0 %}profit-theme{% else %}loss-theme{% endif %}">
+                <div class="metric-icon">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                        <line x1="12" y1="1" x2="12" y2="23"></line>
+                        <path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"></path>
+                    </svg>
+                </div>
+                <div class="metric-details">
+                    <span class="metric-label" data-i18n="acc.metric_profit">Чистий прибуток</span>
+                    <span class="metric-value">{{ net_profit }} ₴</span>
+                </div>
+            </div>
+
+            <!-- Widget 4: Outstanding Salaries -->
+            <div class="metric-card salary-theme">
+                <div class="metric-icon">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+                </div>
+                <div class="metric-details">
+                    <span class="metric-label" data-i18n="acc.metric_salaries">Борг по зарплатах</span>
+                    <span class="metric-value">{{ unpaid_salaries }} ₴</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Analytical Category Breakdown -->
+        <div class="analytical-card">
+            <h2 class="card-title-lg" data-i18n="acc.analytic_title">Розподіл витрат за категоріями</h2>
+            <div class="chart-progress-list">
+                {% for cat in expense_categories %}
+                    <div class="chart-progress-item">
+                        <div class="chart-item-header">
+                            <span class="chart-item-label">{{ cat.label }}</span>
+                            <span class="chart-item-vals">
+                                <strong>{{ cat.amount }} ₴</strong>
+                                <span class="chart-item-pct">({{ cat.percent }}%)</span>
+                            </span>
+                        </div>
+                        <div class="chart-progress-bar-bg">
+                            <div class="chart-progress-bar-fill" style="width: {{ cat.percent }}%;"></div>
+                        </div>
+                    </div>
+                {% empty %}
+                    <div class="chart-empty-state" data-i18n="acc.no_expenses">Немає витрат за вказаний період</div>
+                {% endfor %}
+            </div>
+        </div>
+
+        <!-- Grid of Employees and Transactions -->
+        <div class="dashboard-tables-grid">
+            <!-- Employees Panel -->
+            <div class="content-table-card">
+                <div class="card-header-actions">
+                    <h2 class="card-title" data-i18n="acc.staff_title">Штат працівників</h2>
+                    <button class="btn-primary-sm" onclick="openModal('addEmployeeModal')">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></svg>
+                        <span data-i18n="acc.btn_add_employee">Додати працівника</span>
+                    </button>
+                </div>
+
+                <div class="table-scroll-wrapper">
+                    <table class="acc-table">
+                        <thead>
+                            <tr>
+                                <th data-i18n="acc.tbl_name">Ім'я</th>
+                                <th data-i18n="acc.tbl_position">Посада</th>
+                                <th data-i18n="acc.tbl_rate">Ставка / %</th>
+                                <th data-i18n="acc.tbl_balance">До виплати</th>
+                                <th data-i18n="acc.tbl_actions">Дії</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for emp in employees %}
+                                <tr class="{% if not emp.is_active %}fired-row{% endif %}">
+                                    <td>
+                                        <div class="employee-name-cell">
+                                            <strong>{{ emp.full_name }}</strong>
+                                            <span>{{ emp.phone|default:"" }}</span>
+                                        </div>
+                                    </td>
+                                    <td><span class="badge badge-neutral">{{ emp.position }}</span></td>
+                                    <td>
+                                        <div class="employee-rate-cell">
+                                            <span>Ставка: {{ emp.base_salary }} ₴</span>
+                                            <span>Комісія: {{ emp.commission_percent }}%</span>
+                                        </div>
+                                    </td>
+                                    <td>
+                                        <strong class="balance-amount">{{ emp.salary_balance.current_balance }} ₴</strong>
+                                    </td>
+                                    <td>
+                                        <div class="action-buttons-wrap">
+                                            {% if emp.is_active %}
+                                                {% if emp.salary_balance.current_balance > 0 %}
+                                                    <button class="btn-success-xs" onclick="openPayoutModal('{{ emp.pk }}', '{{ emp.full_name }}', '{{ emp.salary_balance.current_balance }}')">
+                                                        <span data-i18n="acc.btn_pay">Виплатити</span>
+                                                    </button>
+                                                {% endif %}
+                                                <button class="btn-outline-xs" onclick="openEditEmployeeModal('{{ emp.pk }}', '{{ emp.full_name }}', '{{ emp.phone|default:'' }}', '{{ emp.email|default:'' }}', '{{ emp.position }}', '{{ emp.base_salary }}', '{{ emp.commission_percent }}')">
+                                                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>
+                                                </button>
+                                                <form action="{% url 'accounting:fire_employee' emp.pk %}" method="POST" onsubmit="return confirm('Ви впевнені, що хочете звільнити цього співробітника?')" style="display: inline;">
+                                                    {% csrf_token %}
+                                                    <button type="submit" class="btn-danger-xs">
+                                                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/></svg>
+                                                    </button>
+                                                </form>
+                                            {% else %}
+                                                <span class="badge badge-error" data-i18n="acc.fired">Звільнений</span>
+                                                <!-- Action to reactivate employee -->
+                                                <button class="btn-outline-xs" onclick="openEditEmployeeModal('{{ emp.pk }}', '{{ emp.full_name }}', '{{ emp.phone|default:'' }}', '{{ emp.email|default:'' }}', '{{ emp.position }}', '{{ emp.base_salary }}', '{{ emp.commission_percent }}', 'false')">
+                                                    <span data-i18n="acc.btn_reactivate">Поновити</span>
+                                                </button>
+                                            {% endif %}
+                                        </div>
+                                    </td>
+                                </tr>
+                            {% empty %}
+                                <tr>
+                                    <td colspan="5" class="table-empty-msg" data-i18n="acc.no_staff">Штат порожній. Додайте першого працівника!</td>
+                                </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Transactions Panel -->
+            <div class="content-table-card">
+                <div class="card-header-actions">
+                    <h2 class="card-title" data-i18n="acc.transactions_title">Журнал операцій</h2>
+                    <button class="btn-primary-sm" onclick="openModal('addTransactionModal')">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></svg>
+                        <span data-i18n="acc.btn_add_transaction">Нова операція</span>
+                    </button>
+                </div>
+
+                <div class="table-scroll-wrapper">
+                    <table class="acc-table">
+                        <thead>
+                            <tr>
+                                <th data-i18n="acc.tbl_date">Дата</th>
+                                <th data-i18n="acc.tbl_desc">Опис</th>
+                                <th data-i18n="acc.tbl_amount">Сума</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for tx in transactions %}
+                                <tr>
+                                    <td><span class="tx-date-cell">{{ tx.date|date:"d.m.Y" }}</span></td>
+                                    <td>
+                                        <div class="tx-details-cell">
+                                            <strong>{{ tx.get_category_display }}</strong>
+                                            <span>{{ tx.description|default:"" }}</span>
+                                        </div>
+                                    </td>
+                                    <td>
+                                        <span class="tx-amount {% if tx.type == 'income' %}income-text{% else %}expense-text{% endif %}">
+                                            {% if tx.type == 'income' %}+{% else %}-{% endif %}{{ tx.amount }} ₴
+                                        </span>
+                                    </td>
+                                </tr>
+                            {% empty %}
+                                <tr>
+                                    <td colspan="3" class="table-empty-msg" data-i18n="acc.no_transactions">Немає транзакцій за обраний період.</td>
+                                </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </main>
+</div>
+
+<!-- ════ MODALS ════ -->
+
+<!-- Modal 1: Add Employee -->
+<div class="acc-modal-overlay" id="addEmployeeModal">
+    <div class="acc-modal-content">
+        <div class="acc-modal-header">
+            <h3 data-i18n="acc.add_emp_title">Додати нового працівника</h3>
+            <button class="close-modal-btn" onclick="closeModal('addEmployeeModal')">&times;</button>
+        </div>
+        <form action="{% url 'accounting:add_employee' %}" method="POST" class="acc-modal-form">
+            {% csrf_token %}
+            <input type="hidden" name="station_id" value="{{ selected_station.pk }}">
+            
+            <div class="form-group">
+                <label data-i18n="acc.lbl_emp_name">Повне ім'я *</label>
+                <input type="text" name="full_name" placeholder="Петро Іванов" required>
+            </div>
+            
+            <div class="form-grid">
+                <div class="form-group">
+                    <label data-i18n="acc.lbl_emp_phone">Телефон</label>
+                    <input type="text" name="phone" placeholder="+380671234567">
+                </div>
+                <div class="form-group">
+                    <label>Email</label>
+                    <input type="email" name="email" placeholder="petro@example.com">
+                </div>
+            </div>
+
+            <div class="form-group">
+                <label data-i18n="acc.lbl_emp_pos">Посада *</label>
+                <input type="text" name="position" placeholder="Автомеханік, Автоелектрик" required>
+            </div>
+
+            <div class="form-grid">
+                <div class="form-group">
+                    <label data-i18n="acc.lbl_emp_rate">Денна/Місячна ставка (грн) *</label>
+                    <input type="number" name="base_salary" step="0.01" value="0.00" min="0" required>
+                </div>
+                <div class="form-group">
+                    <label data-i18n="acc.lbl_emp_comm">Комісія від замовлень (%) *</label>
+                    <input type="number" name="commission_percent" step="0.01" value="0.00" min="0" max="100" required>
+                </div>
+            </div>
+
+            <button type="submit" class="btn-primary" style="width: 100%; justify-content: center; margin-top: 1rem;" data-i18n="acc.btn_save">Зберегти</button>
+        </form>
+    </div>
+</div>
+
+<!-- Modal 2: Edit Employee -->
+<div class="acc-modal-overlay" id="editEmployeeModal">
+    <div class="acc-modal-content">
+        <div class="acc-modal-header">
+            <h3 data-i18n="acc.edit_emp_title">Редагувати дані працівника</h3>
+            <button class="close-modal-btn" onclick="closeModal('editEmployeeModal')">&times;</button>
+        </div>
+        <form id="editEmployeeForm" action="" method="POST" class="acc-modal-form">
+            {% csrf_token %}
+            <input type="hidden" name="is_active" id="edit_emp_is_active" value="true">
+            
+            <div class="form-group">
+                <label data-i18n="acc.lbl_emp_name">Повне ім'я *</label>
+                <input type="text" name="full_name" id="edit_emp_name" required>
+            </div>
+            
+            <div class="form-grid">
+                <div class="form-group">
+                    <label data-i18n="acc.lbl_emp_phone">Телефон</label>
+                    <input type="text" name="phone" id="edit_emp_phone">
+                </div>
+                <div class="form-group">
+                    <label>Email</label>
+                    <input type="email" name="email" id="edit_emp_email">
+                </div>
+            </div>
+
+            <div class="form-group">
+                <label data-i18n="acc.lbl_emp_pos">Посада *</label>
+                <input type="text" name="position" id="edit_emp_position" required>
+            </div>
+
+            <div class="form-grid">
+                <div class="form-group">
+                    <label data-i18n="acc.lbl_emp_rate">Денна/Місячна ставка (грн) *</label>
+                    <input type="number" name="base_salary" id="edit_emp_rate" step="0.01" min="0" required>
+                </div>
+                <div class="form-group">
+                    <label data-i18n="acc.lbl_emp_comm">Комісія від замовлень (%) *</label>
+                    <input type="number" name="commission_percent" id="edit_emp_comm" step="0.01" min="0" max="100" required>
+                </div>
+            </div>
+
+            <div class="form-group" id="reactivate-checkbox-wrap" style="display: none;">
+                <label style="display: flex; align-items: center; gap: 0.5rem; cursor: pointer;">
+                    <input type="checkbox" id="reactivate-checkbox" onchange="document.getElementById('edit_emp_is_active').value = this.checked ? 'true' : 'false'">
+                    <span data-i18n="acc.chk_active">Активний працівник (поновити на роботі)</span>
+                </label>
+            </div>
+
+            <button type="submit" class="btn-primary" style="width: 100%; justify-content: center; margin-top: 1rem;" data-i18n="acc.btn_save">Зберегти зміни</button>
+        </form>
+    </div>
+</div>
+
+<!-- Modal 3: Pay Salary -->
+<div class="acc-modal-overlay" id="payoutModal">
+    <div class="acc-modal-content">
+        <div class="acc-modal-header">
+            <h3 data-i18n="acc.pay_salary_title">Виплатити зарплату</h3>
+            <button class="close-modal-btn" onclick="closeModal('payoutModal')">&times;</button>
+        </div>
+        <form action="{% url 'accounting:pay_salary' %}" method="POST" class="acc-modal-form">
+            {% csrf_token %}
+            <input type="hidden" name="employee_id" id="payout_emp_id">
+            
+            <div class="payout-summary-bubble">
+                <span data-i18n="acc.lbl_payout_target">Працівник:</span>
+                <strong id="payout_emp_name">...</strong>
+            </div>
+
+            <div class="form-group">
+                <label>
+                    <span data-i18n="acc.lbl_payout_amount">Сума виплати (грн) *</span>
+                    <small style="color: var(--text-muted); display: block; margin-top: 0.25rem;">
+                        <span data-i18n="acc.max_avail">Максимум доступно:</span> <span id="payout_max_amount">0.00</span> ₴
+                    </small>
+                </label>
+                <input type="number" name="amount" id="payout_amount_input" step="0.01" min="0.01" required>
+            </div>
+
+            <button type="submit" class="btn-success" style="width: 100%; justify-content: center; margin-top: 1rem;" data-i18n="acc.btn_confirm_payout">Підтвердити виплату</button>
+        </form>
+    </div>
+</div>
+
+<!-- Modal 4: Add Manual Transaction -->
+<div class="acc-modal-overlay" id="addTransactionModal">
+    <div class="acc-modal-content">
+        <div class="acc-modal-header">
+            <h3 data-i18n="acc.new_tx_title">Внести нову фінансову операцію</h3>
+            <button class="close-modal-btn" onclick="closeModal('addTransactionModal')">&times;</button>
+        </div>
+        <form action="{% url 'accounting:add_transaction' %}" method="POST" class="acc-modal-form">
+            {% csrf_token %}
+            <input type="hidden" name="station_id" value="{{ selected_station.pk }}">
+            
+            <div class="form-grid">
+                <div class="form-group">
+                    <label data-i18n="acc.lbl_tx_type">Тип операції *</label>
+                    <select name="type" id="tx_type_select" onchange="toggleCategories(this.value)" required>
+                        <option value="expense" data-i18n="acc.opt_expense">Витрата</option>
+                        <option value="income" data-i18n="acc.opt_income">Дохід</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label data-i18n="acc.lbl_tx_category">Категорія *</label>
+                    <select name="category" id="tx_category_select" required>
+                        <!-- Expense choices by default -->
+                        <option value="spare_parts" data-i18n="acc.cat_spare_parts">Запчастини</option>
+                        <option value="rent" data-i18n="acc.cat_rent">Оренда</option>
+                        <option value="utilities" data-i18n="acc.cat_utilities">Комунальні послуги</option>
+                        <option value="other_expense" data-i18n="acc.cat_other_expense">Інші витрати</option>
+                    </select>
+                </div>
+            </div>
+
+            <div class="form-grid">
+                <div class="form-group">
+                    <label data-i18n="acc.lbl_tx_amount">Сума (грн) *</label>
+                    <input type="number" name="amount" step="0.01" min="0.01" required>
+                </div>
+                <div class="form-group">
+                    <label data-i18n="acc.lbl_tx_date">Дата *</label>
+                    <input type="date" name="date" value="{{ start_date }}" required>
+                </div>
+            </div>
+
+            <div class="form-group">
+                <label data-i18n="acc.lbl_tx_desc">Опис / Примітка</label>
+                <textarea name="description" placeholder="Введіть опис або назву витрати..." rows="3"></textarea>
+            </div>
+
+            <button type="submit" class="btn-primary" style="width: 100%; justify-content: center; margin-top: 1rem;" data-i18n="acc.btn_save">Записати</button>
+        </form>
+    </div>
+</div>
+
+<script src="{% static 'js/accounting.js' %}"></script>
+{% endblock %}

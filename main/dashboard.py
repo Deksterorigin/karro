@@ -60,18 +60,16 @@ def dashboard_callback(request, context):
 
     for u in users_by_month:
         if u['month']:
-            m_str = u['month'].strftime("%b %Y")
-            months_set.add(m_str)
-            user_dict[m_str] = u['c']
+            months_set.add(u['month'])
+            user_dict[u['month']] = u['c']
 
     for s in stations_by_month:
         if s['month']:
-            m_str = s['month'].strftime("%b %Y")
-            months_set.add(m_str)
-            station_dict[m_str] = s['c']
+            months_set.add(s['month'])
+            station_dict[s['month']] = s['c']
 
     sorted_months = sorted(list(months_set))
-    chart_data['line']['labels'] = sorted_months
+    chart_data['line']['labels'] = [m.strftime("%b %Y") for m in sorted_months]
     chart_data['line']['users'] = [user_dict.get(m, 0) for m in sorted_months]
     chart_data['line']['stations'] = [station_dict.get(m, 0) for m in sorted_months]
 

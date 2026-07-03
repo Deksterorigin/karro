@@ -11,6 +11,7 @@ urlpatterns = [
     path('', include('main.urls')),
     path('search/', include('search.urls')),
     path('station/', include('station.urls')),
+    path('accounting/', include('accounting.urls', namespace='accounting')),
 ]
 
 if settings.DEBUG:
