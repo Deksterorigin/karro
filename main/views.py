@@ -28,8 +28,7 @@ logger = logging.getLogger(__name__)
 # FIX (SEC-01): Простий in-memory rate limiter для захисту від brute-force
 _login_attempts = defaultdict(list)
 MAX_LOGIN_ATTEMPTS = 5
-LOGIN_LOCKOUT_SECONDS = 300  # 5 хвилин
-
+LOGIN_LOCKOUT_SECONDS = 300  # 5 хвилин 
 
 def _check_login_rate_limit(identifier: str) -> bool:
     """Повертає True якщо IP заблоковано через перевищення кількості спроб."""
