@@ -11,4 +11,6 @@ urlpatterns = [
     path('employee/pay/', views.pay_salary_view, name='pay_salary'),
     path('transaction/add/', views.add_transaction_view, name='add_transaction'),
     path('booking/complete/', views.complete_booking_view, name='complete_booking'),
+    # Експорт транзакцій у CSV
+    path('export/csv/', views.export_transactions_csv, name='export_csv'),
 ]

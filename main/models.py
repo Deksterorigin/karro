@@ -243,3 +243,35 @@ class Booking(models.Model):
     def __str__(self):
         station_name = self.station.name if self.station else 'Видалена СТО'
         return f'Заявка #{self.pk} — {self.client.full_name} → {station_name} ({self.get_status_display()})'
+
+
+class Notification(models.Model):
+    """
+    Сповіщення для користувачів сайту (наприклад, про нові записи для власників СТО).
+    """
+    recipient = models.ForeignKey(
+        User,
+        on_delete=models.CASCADE,
+        related_name='notifications',
+        db_column='recipient_id',
+        verbose_name='Отримувач'
+    )
+    booking = models.ForeignKey(
+        Booking,
+        on_delete=models.CASCADE,
+        related_name='notifications',
+        db_column='booking_id',
+        verbose_name='Заявка'
+    )
+    message = models.TextField(verbose_name='Повідомлення')
+    is_read = models.BooleanField(default=False, db_index=True, verbose_name='Прочитано')
+    created_at = models.DateTimeField(auto_now_add=True, verbose_name='Створено')
+
+    class Meta:
+        db_table = 'notification'
+        verbose_name = 'Сповіщення'
+        verbose_name_plural = 'Сповіщення'
+        ordering = ['-created_at']
+
+    def __str__(self):
+        return f'Сповіщення для {self.recipient.full_name}: {self.message[:30]}'

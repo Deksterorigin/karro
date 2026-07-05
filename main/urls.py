@@ -9,4 +9,7 @@ urlpatterns = [
     path('logout/', views.logout_view, name='logout'),
     path('api/bookings/create/', views.create_booking_api, name='create_booking_api'),
     path('client/<int:client_id>/', views.client_profile_view, name='client_profile'),
+    path('api/notifications/', views.get_notifications_api, name='get_notifications_api'),
+    path('api/notifications/mark-read/<int:notification_id>/', views.mark_notification_read_api, name='mark_notification_read_api'),
+    path('api/notifications/mark-all-read/', views.mark_all_notifications_read_api, name='mark_all_notifications_read_api'),
 ]

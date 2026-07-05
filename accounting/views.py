@@ -2,18 +2,54 @@ from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib import messages
 from django.views.decorators.http import require_POST
 from django.urls import reverse
+from django.http import HttpResponse
+# FIX (CRIT-01/02/03): Імпорт transaction та F для атомарних операцій
+from django.db import transaction
+from django.db.models import F
 from main.decorators import login_required_session, role_required
 from main.models import User, ServiceStation, Booking
 from main.views import get_current_user
 from .models import Employee, SalaryBalance, Transaction
 import datetime
+import re
 from decimal import Decimal, InvalidOperation
 import calendar
+import csv
+import json
+
 
 
 def _redirect_to_dashboard(station_pk):
     """Перенаправлення на дашборд бухгалтерії для конкретної СТО."""
     return redirect(reverse('accounting:dashboard') + f'?station_id={station_pk}')
+
+
+# FIX (ARCH-08): Спільна utility-функція для парсингу діапазону дат
+def _parse_date_range(request):
+    """Парсить діапазон дат з GET-параметрів, дефолт — поточний місяць."""
+    today = datetime.date.today()
+    first_day = today.replace(day=1)
+    _, last_day_num = calendar.monthrange(today.year, today.month)
+    last_day = today.replace(day=last_day_num)
+
+    start_date_str = request.GET.get('start_date')
+    end_date_str = request.GET.get('end_date')
+
+    start_date = first_day
+    end_date = last_day
+
+    if start_date_str:
+        try:
+            start_date = datetime.datetime.strptime(start_date_str, "%Y-%m-%d").date()
+        except ValueError:
+            pass
+    if end_date_str:
+        try:
+            end_date = datetime.datetime.strptime(end_date_str, "%Y-%m-%d").date()
+        except ValueError:
+            pass
+
+    return start_date, end_date
 
 
 @login_required_session
@@ -39,28 +75,13 @@ def dashboard_view(request):
     if not selected_station:
         selected_station = stations.first()
 
-    # Задаємо діапазон дат. За замовчуванням беремо поточний місяць
-    today = datetime.date.today()
-    first_day = today.replace(day=1)
-    _, last_day_num = calendar.monthrange(today.year, today.month)
-    last_day = today.replace(day=last_day_num)
+    # FIX (ARCH-08): Використовуємо спільну utility-функцію
+    start_date, end_date = _parse_date_range(request)
 
-    start_date_str = request.GET.get('start_date')
-    end_date_str = request.GET.get('end_date')
-
-    start_date = first_day
-    end_date = last_day
-
-    if start_date_str:
-        try:
-            start_date = datetime.datetime.strptime(start_date_str, "%Y-%m-%d").date()
-        except ValueError:
-            pass
-    if end_date_str:
-        try:
-            end_date = datetime.datetime.strptime(end_date_str, "%Y-%m-%d").date()
-        except ValueError:
-            pass
+    # Отримуємо фільтри з GET-запиту
+    t_type = request.GET.get('type', '')
+    category = request.GET.get('category', '')
+    employee_id_filter = request.GET.get('employee_id', '')
 
     # Працівники цієї станції
     employees = Employee.objects.filter(station=selected_station).select_related('salary_balance')
@@ -68,10 +89,10 @@ def dashboard_view(request):
     # Отримуємо всі фінансові записи цієї станції
     all_transactions = Transaction.objects.filter(station=selected_station).select_related('employee', 'booking')
     
-    # Фільтруємо транзакції за обраний період часу
+    # Фільтруємо транзакції за обраний період часу (базовий список транзакцій для метрик і графіків)
     period_transactions = all_transactions.filter(date__range=[start_date, end_date])
 
-    # Розрахунок загальних фінансових показників з правильною ініціалізацією Decimal
+    # Розрахунок загальних фінансових показників для карток метрик
     total_income = sum(
         (t.amount for t in period_transactions if t.type == 'income'),
         Decimal('0.00')
@@ -82,14 +103,24 @@ def dashboard_view(request):
     )
     net_profit = total_income - total_expense
 
-    # Сума невиплачених зарплат активним працівникам
-    unpaid_salaries = sum(
-        sb.current_balance 
-        for sb in SalaryBalance.objects.filter(
-            employee__station=selected_station, 
-            employee__is_active=True
-        )
-    )
+    # Формуємо дані для лінійного графіка динаміки фінансів за днями
+    daily_data = {}
+    curr_d = start_date
+    while curr_d <= end_date:
+        daily_data[curr_d.strftime("%d.%m")] = {'income': Decimal('0.00'), 'expense': Decimal('0.00')}
+        curr_d += datetime.timedelta(days=1)
+
+    for t in period_transactions:
+        t_date_str = t.date.strftime("%d.%m")
+        if t_date_str in daily_data:
+            if t.type == 'income':
+                daily_data[t_date_str]['income'] += t.amount
+            else:
+                daily_data[t_date_str]['expense'] += t.amount
+
+    chart_dates = list(daily_data.keys())
+    chart_incomes = [float(daily_data[d]['income']) for d in chart_dates]
+    chart_expenses = [float(daily_data[d]['expense']) for d in chart_dates]
 
     # Групуємо витрати за категоріями для побудови діаграми
     expense_categories = {}
@@ -115,6 +146,43 @@ def dashboard_view(request):
                 round((expense_categories[cat]['amount'] / total_expense) * 100)
             )
 
+    # Дані для кругової діаграми
+    category_labels = []
+    category_values = []
+    for cat_code, cat_data in expense_categories.items():
+        if cat_data['amount'] > 0:
+            category_labels.append(cat_data['label'])
+            category_values.append(float(cat_data['amount']))
+
+    # Застосовуємо розширені фільтри до списку транзакцій, що відображається в таблиці
+    filtered_transactions = period_transactions
+    if t_type and t_type in ['income', 'expense']:
+        filtered_transactions = filtered_transactions.filter(type=t_type)
+    if category and category != 'all':
+        filtered_transactions = filtered_transactions.filter(category=category)
+    if employee_id_filter and employee_id_filter != 'all':
+        try:
+            filtered_transactions = filtered_transactions.filter(employee_id=int(employee_id_filter))
+        except ValueError:
+            pass
+
+    # Окремий запис для виплати заробітних плат (архів виплат)
+    salary_payouts = all_transactions.filter(category='salary', date__range=[start_date, end_date])
+    if employee_id_filter and employee_id_filter != 'all':
+        try:
+            salary_payouts = salary_payouts.filter(employee_id=int(employee_id_filter))
+        except ValueError:
+            pass
+
+    # Сума невиплачених зарплат активним працівникам
+    unpaid_salaries = sum(
+        sb.current_balance 
+        for sb in SalaryBalance.objects.filter(
+            employee__station=selected_station, 
+            employee__is_active=True
+        )
+    )
+
     categories_choices = Transaction.TRANSACTION_CATEGORIES
 
     context = {
@@ -122,7 +190,8 @@ def dashboard_view(request):
         'stations': stations,
         'selected_station': selected_station,
         'employees': employees,
-        'transactions': period_transactions[:100],  # Відображаємо останні 100 операцій
+        'transactions': filtered_transactions[:100],  # Показуємо до 100 відфільтрованих записів
+        'salary_payouts': salary_payouts[:100],        # До 100 записів архіву виплат
         'total_income': total_income,
         'total_expense': total_expense,
         'net_profit': net_profit,
@@ -131,6 +200,18 @@ def dashboard_view(request):
         'end_date': end_date.strftime("%Y-%m-%d"),
         'categories_choices': categories_choices,
         'expense_categories': expense_categories.values(),
+        
+        # Параметри фільтрації для збереження стану полів
+        'selected_type': t_type,
+        'selected_category': category,
+        'selected_employee_id': employee_id_filter,
+        
+        # Дані для передачі у скрипт Chart.js
+        'chart_dates_json': json.dumps(chart_dates),
+        'chart_incomes_json': json.dumps(chart_incomes),
+        'chart_expenses_json': json.dumps(chart_expenses),
+        'category_labels_json': json.dumps(category_labels),
+        'category_values_json': json.dumps(category_values),
     }
 
     return render(request, 'accounting/dashboard.html', context)
@@ -220,6 +301,10 @@ def fire_employee_view(request, employee_id):
 @role_required('station')
 @require_POST
 def pay_salary_view(request):
+    """
+    FIX (CRIT-01): Виплата зарплати з атомарним блокуванням
+    через select_for_update() та F() для запобігання race condition.
+    """
     user = get_current_user(request)
     employee_id = request.POST.get('employee_id')
     employee = get_object_or_404(Employee, pk=employee_id, station__user=user)
@@ -235,27 +320,42 @@ def pay_salary_view(request):
         messages.error(request, "Сума виплати має бути більшою за нуль.")
         return _redirect_to_dashboard(employee.station.pk)
 
-    balance = employee.salary_balance
-    if amount > balance.current_balance:
-        messages.error(request, f"Сума виплати ({amount} грн) перевищує доступний баланс ({balance.current_balance} грн).")
-        return _redirect_to_dashboard(employee.station.pk)
-
     try:
-        # Збільшуємо загальну суму виплачених коштів
-        balance.total_paid += amount
-        balance.save()
+        with transaction.atomic():
+            # SELECT ... FOR UPDATE — блокує рядок від конкурентних змін
+            balance = SalaryBalance.objects.select_for_update().get(
+                employee=employee
+            )
+            if amount > balance.current_balance:
+                messages.error(
+                    request,
+                    f"Сума виплати ({amount} грн) перевищує "
+                    f"доступний баланс ({balance.current_balance} грн)."
+                )
+                return _redirect_to_dashboard(employee.station.pk)
 
-        # Фіксуємо виплату в журналі витрат СТО
-        Transaction.objects.create(
-            station=employee.station,
-            type='expense',
-            category='salary',
-            amount=amount,
-            description=f"Виплата зарплати працівнику: {employee.full_name} ({employee.position})",
-            employee=employee,
-            date=datetime.date.today()
+            # F() — атомарне оновлення у БД без race condition
+            balance.total_paid = F('total_paid') + amount
+            balance.save(update_fields=['total_paid'])
+
+            Transaction.objects.create(
+                station=employee.station,
+                type='expense',
+                category='salary',
+                amount=amount,
+                description=(
+                    f"Виплата зарплати працівнику: "
+                    f"{employee.full_name} ({employee.position})"
+                ),
+                employee=employee,
+                date=datetime.date.today()
+            )
+
+        messages.success(
+            request,
+            f"Виплата {amount} грн працівнику {employee.full_name} "
+            f"успішно проведена."
         )
-        messages.success(request, f"Виплата {amount} грн працівнику {employee.full_name} успішно проведена.")
     except Exception as e:
         messages.error(request, f"Помилка при виплаті зарплати: {e}")
 
@@ -321,24 +421,21 @@ def add_transaction_view(request):
 @role_required('station')
 @require_POST
 def complete_booking_view(request):
+    """
+    FIX (CRIT-02, CRIT-03): Завершення ремонту з атомарним блокуванням.
+    select_for_update() для booking та salary_balance.
+    """
     user = get_current_user(request)
     booking_id = request.POST.get('booking_id')
-    booking = get_object_or_404(Booking, pk=booking_id, station__user=user)
-
-    # Перевірка поточного статусу — не дозволяти повторне завершення або завершення скасованих
-    if booking.status == 'completed':
-        messages.warning(request, f"Заявка #{booking.pk} вже була завершена раніше.")
-        return redirect(reverse('profile') + '?tab=bookings')
-
-    if booking.status == 'cancelled':
-        messages.error(request, f"Неможливо завершити скасовану заявку #{booking.pk}.")
-        return redirect(reverse('profile') + '?tab=bookings')
 
     actual_price_str = request.POST.get('actual_price')
     employee_id = request.POST.get('employee_id')
 
     if not actual_price_str:
-        messages.error(request, "Будь ласка, вкажіть фактичну вартість ремонту.")
+        messages.error(
+            request,
+            "Будь ласка, вкажіть фактичну вартість ремонту."
+        )
         return redirect('profile')
 
     try:
@@ -348,50 +445,158 @@ def complete_booking_view(request):
         return redirect('profile')
 
     if actual_price <= 0:
-        messages.error(request, "Вартість ремонту повинна бути більшою за нуль.")
+        messages.error(
+            request,
+            "Вартість ремонту повинна бути більшою за нуль."
+        )
         return redirect('profile')
 
     try:
-        employee = None
-        if employee_id:
-            employee = get_object_or_404(Employee, pk=employee_id, station=booking.station)
+        with transaction.atomic():
+            # FIX (CRIT-02): Блокуємо рядок booking від паралельних змін
+            booking = Booking.objects.select_for_update().get(
+                pk=booking_id, station__user=user
+            )
 
-        # 1. Позначаємо ремонт у заявці як виконаний
-        booking.status = 'completed'
-        booking.save()
+            # Перевірка поточного статусу
+            if booking.status == 'completed':
+                messages.warning(
+                    request,
+                    f"Заявка #{booking.pk} вже була завершена раніше."
+                )
+                return redirect(reverse('profile') + '?tab=bookings')
 
-        # 2. Записуємо вартість робіт у доходи СТО
-        desc = f"Завершено ремонт за заявкою #{booking.id} ({booking.service_name or 'Загальні роботи'})"
-        if employee:
-            desc += f". Виконавець: {employee.full_name}."
+            if booking.status == 'cancelled':
+                messages.error(
+                    request,
+                    f"Неможливо завершити скасовану заявку #{booking.pk}."
+                )
+                return redirect(reverse('profile') + '?tab=bookings')
 
-        transaction = Transaction.objects.create(
-            station=booking.station,
-            type='income',
-            category='service',
-            amount=actual_price,
-            description=desc,
-            booking=booking,
-            employee=employee,
-            date=datetime.date.today()
+            employee = None
+            if employee_id:
+                employee = get_object_or_404(
+                    Employee, pk=employee_id, station=booking.station
+                )
+
+            # 1. Позначаємо ремонт як виконаний
+            booking.status = 'completed'
+            booking.save(update_fields=['status'])
+
+            # 2. Записуємо вартість робіт у доходи СТО
+            desc = (
+                f"Завершено ремонт за заявкою #{booking.id} "
+                f"({booking.service_name or 'Загальні роботи'})"
+            )
+            if employee:
+                desc += f". Виконавець: {employee.full_name}."
+
+            tx = Transaction.objects.create(
+                station=booking.station,
+                type='income',
+                category='service',
+                amount=actual_price,
+                description=desc,
+                booking=booking,
+                employee=employee,
+                date=datetime.date.today()
+            )
+
+            # 3. Нараховуємо майстру комісію
+            if employee and employee.commission_percent > 0:
+                commission = actual_price * (
+                    employee.commission_percent / Decimal('100.00')
+                )
+                commission = commission.quantize(Decimal('0.01'))
+
+                # FIX (CRIT-03): Атомарне оновлення балансу
+                sb = SalaryBalance.objects.select_for_update().get(
+                    employee=employee
+                )
+                sb.total_earned = F('total_earned') + commission
+                sb.save(update_fields=['total_earned'])
+
+                tx.description += f" Нараховано комісію: {commission} грн."
+                tx.save(update_fields=['description'])
+
+        messages.success(
+            request,
+            f"Ремонт за заявкою #{booking.id} успішно завершено. "
+            f"Суму {actual_price} грн внесено в дохід СТО."
         )
-
-        # 3. Нараховуємо майстру його відсоток від вартості виконаних послуг
-        if employee and employee.commission_percent > 0:
-            commission = actual_price * (employee.commission_percent / Decimal('100.00'))
-            commission = commission.quantize(Decimal('0.01'))
-
-            # Додаємо нараховану комісію до зароблених грошей працівника
-            sb = employee.salary_balance
-            sb.total_earned += commission
-            sb.save()
-
-            # Додаємо відомості про нараховану комісію до журналу транзакцій
-            transaction.description += f" Нараховано комісію: {commission} грн."
-            transaction.save()
-
-        messages.success(request, f"Ремонт за заявкою #{booking.id} успішно завершено. Суму {actual_price} грн внесено в дохід СТО.")
+    except Booking.DoesNotExist:
+        messages.error(request, "Заявку не знайдено.")
     except Exception as e:
         messages.error(request, f"Помилка при завершенні ремонту: {e}")
 
     return redirect(reverse('profile') + '?tab=bookings')
+
+
+@login_required_session
+@role_required('station')
+def export_transactions_csv(request):
+    """
+    FIX (SEC-06, ARCH-08): Експорт CSV з санітизацією імені файлу
+    та використанням спільної _parse_date_range.
+    """
+    user = get_current_user(request)
+    if not user:
+        return redirect('login')
+
+    station_id = request.GET.get('station_id')
+    if not station_id:
+        messages.error(request, "Не вказано СТО для експорту.")
+        return redirect('profile')
+
+    station = get_object_or_404(ServiceStation, pk=int(station_id), user=user)
+
+    # FIX (ARCH-08): Використовуємо спільну utility
+    start_date, end_date = _parse_date_range(request)
+
+    t_type = request.GET.get('type')
+    category = request.GET.get('category')
+    employee_id_filter = request.GET.get('employee_id')
+
+    transactions = Transaction.objects.filter(
+        station=station, date__range=[start_date, end_date]
+    ).select_related('employee', 'booking')
+
+    if t_type and t_type in ['income', 'expense']:
+        transactions = transactions.filter(type=t_type)
+    if category and category != 'all':
+        transactions = transactions.filter(category=category)
+    if employee_id_filter and employee_id_filter != 'all':
+        try:
+            transactions = transactions.filter(
+                employee_id=int(employee_id_filter)
+            )
+        except ValueError:
+            pass
+
+    # FIX (SEC-06): Санітизація імені файлу
+    safe_name = re.sub(r'[^\w\s-]', '', station.name).strip()[:50]
+    response = HttpResponse(content_type='text/csv; charset=utf-8-sig')
+    response['Content-Disposition'] = (
+        f'attachment; filename="{safe_name}_report_'
+        f'{start_date}_{end_date}.csv"'
+    )
+
+    writer = csv.writer(response)
+    writer.writerow([
+        'Дата', 'Тип операції', 'Категорія', 'Сума (грн)',
+        'Опис', 'ID Заявки', 'Співробітник'
+    ])
+
+    for t in transactions:
+        writer.writerow([
+            t.date.strftime("%d.%m.%Y"),
+            t.get_type_display(),
+            t.get_category_display(),
+            t.amount,
+            t.description or '',
+            t.booking.id if t.booking else '',
+            t.employee.full_name if t.employee else ''
+        ])
+
+    return response
+

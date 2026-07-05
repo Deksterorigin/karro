@@ -16,7 +16,9 @@ SESSION_COOKIE_SECURE = not DEBUG
 SESSION_COOKIE_SAMESITE = 'Lax'
 
 # Захист CSRF
-CSRF_COOKIE_HTTPONLY = True
+# FIX (CRIT-04): False дозволяє JS читати CSRF cookie для AJAX-запитів.
+# Це стандартна конфігурація Django — cookie не містить sensitive data.
+CSRF_COOKIE_HTTPONLY = False
 CSRF_COOKIE_SECURE = not DEBUG
 CSRF_COOKIE_SAMESITE = 'Lax'
 

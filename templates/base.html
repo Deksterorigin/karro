@@ -12,6 +12,9 @@
     
     
     <link rel="stylesheet" href="{% static 'css/base.css' %}">
+    {% if request.session.user_id and request.session.user_role == 'station' %}
+        <link rel="stylesheet" href="{% static 'css/notifications.css' %}">
+    {% endif %}
 
     {% block extra_css %}{% endblock %}
 </head>
@@ -36,6 +39,10 @@
             {% endif %}
             <a href="/#about" data-i18n="home.btn_about">Про проєкт</a>
             <a href="/#author" data-i18n="home.author_label">Власникам СТО</a>
+            <!-- Доступ до бухгалтерії лише для власників СТО -->
+            {% if request.session.user_role == 'station' %}
+                <a href="{% url 'accounting:dashboard' %}" data-i18n="profile.nav_accounting">Бухгалтерія</a>
+            {% endif %}
         </nav>
 
         <div class="header-right">
@@ -45,6 +52,28 @@
                     <option value="en">EN</option>
                 </select>
             </div>
+            
+            {% if request.session.user_id and request.session.user_role == 'station' %}
+                <!-- Сповіщення для власників СТО -->
+                <div class="notification-bell-container">
+                    <button id="notification-bell-btn" class="notification-bell-btn" aria-label="Notifications">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path>
+                            <path d="M13.73 21a2 2 0 0 1-3.46 0"></path>
+                        </svg>
+                        <span id="notification-badge" class="notification-badge" style="display: none;">0</span>
+                    </button>
+                    <div id="notification-dropdown" class="notification-dropdown" style="display: none;">
+                        <div class="notification-dropdown-header">
+                            <span data-i18n="notifications.title">Сповіщення</span>
+                            <button id="mark-all-read-btn" class="mark-all-read-btn" data-i18n="notifications.mark_all_read">Позначити все як прочитане</button>
+                        </div>
+                        <div id="notification-list" class="notification-list">
+                            <!-- Елементи додаються динамічно -->
+                        </div>
+                    </div>
+                </div>
+            {% endif %}
             
             {% if request.session.user_id %}
                 <a href="{% url 'profile' %}" class="user-chip">
@@ -86,6 +115,9 @@
     </footer>
 
     <script src="{% static 'js/i18n.js' %}"></script>
+    {% if request.session.user_id and request.session.user_role == 'station' %}
+        <script src="{% static 'js/notifications.js' %}"></script>
+    {% endif %}
     {% block extra_js %}{% endblock %}
 </body>
 </html>

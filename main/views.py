@@ -1,14 +1,19 @@
 import logging
 import os
 import re
+from collections import defaultdict
 from datetime import date
+from time import time
 from urllib.parse import urlencode
 
 import requests
 from django.conf import settings as django_settings
 from django.contrib import messages
 from django.contrib.auth.hashers import make_password, check_password
-from django.shortcuts import render, redirect
+# FIX (ARCH-09): Підключаємо стандартні Django-валідатори паролів
+from django.contrib.auth.password_validation import validate_password
+from django.core.exceptions import ValidationError
+from django.shortcuts import render, redirect, get_object_or_404
 from django.urls import reverse
 from django.utils import timezone
 from django.views.decorators.http import require_POST
@@ -16,9 +21,27 @@ from django.views.decorators.http import require_POST
 from django.http import JsonResponse
 import json
 from .decorators import login_required_session
-from .models import User, Car, Review, ServiceStation, Service, Booking
+from .models import User, Car, Review, ServiceStation, Service, Booking, Notification
 
 logger = logging.getLogger(__name__)
+
+# FIX (SEC-01): Простий in-memory rate limiter для захисту від brute-force
+_login_attempts = defaultdict(list)
+MAX_LOGIN_ATTEMPTS = 5
+LOGIN_LOCKOUT_SECONDS = 300  # 5 хвилин
+
+
+def _check_login_rate_limit(identifier: str) -> bool:
+    """Повертає True якщо IP заблоковано через перевищення кількості спроб."""
+    now = time()
+    _login_attempts[identifier] = [
+        t for t in _login_attempts[identifier]
+        if now - t < LOGIN_LOCKOUT_SECONDS
+    ]
+    if len(_login_attempts[identifier]) >= MAX_LOGIN_ATTEMPTS:
+        return True
+    _login_attempts[identifier].append(now)
+    return False
 
 # Дозволені формати та обмеження розміру для зображень
 ALLOWED_IMAGE_TYPES = {
@@ -77,6 +100,8 @@ def _save_file(instance, field_name: str, uploaded_file):
 
 def _set_session_data(request, user):
     """Записує ідентифікаційні дані користувача в сесію."""
+    # FIX (SEC-02): Ротація session ID для захисту від session fixation
+    request.session.cycle_key()
     request.session['user_id'] = user.user_id
     request.session['user_name'] = user.full_name
     request.session['user_role'] = user.role
@@ -115,12 +140,24 @@ def login_view(request):
         return redirect('profile')
 
     if request.method == 'POST':
+        # FIX (SEC-01): Захист від brute-force
+        ip = request.META.get('REMOTE_ADDR', '')
+        if _check_login_rate_limit(ip):
+            messages.error(
+                request,
+                'Забагато спроб входу. Спробуйте через 5 хвилин.'
+            )
+            return render(request, 'main/login.html')
+
         email = request.POST.get('email', '').strip().lower()
         password = request.POST.get('password', '')
 
         try:
             user = User.objects.get(email=email)
-            if check_password(password, user.password):
+            # FIX (SEC-05): Перевірка is_active перед логіном
+            if not user.is_active:
+                messages.error(request, 'Ваш акаунт заблоковано.')
+            elif check_password(password, user.password):
                 _set_session_data(request, user)
                 return redirect('profile')
             else:
@@ -153,8 +190,12 @@ def register_view(request):
             messages.error(request, 'Невірна роль.')
             return render(request, 'main/login.html', ctx)
 
-        if len(password) < 6:
-            messages.error(request, 'Пароль має бути не менше 6 символів.')
+        # FIX (ARCH-09): Використовуємо Django password validators
+        try:
+            validate_password(password)
+        except ValidationError as e:
+            for error in e.messages:
+                messages.error(request, error)
             return render(request, 'main/login.html', ctx)
 
         if password != password2:
@@ -258,11 +299,17 @@ def profile_view(request):
 
             if not check_password(old_password, user.password):
                 messages.error(request, 'Поточний пароль введено невірно.')
-            elif len(new_password) < 6:
-                messages.error(request, 'Новий пароль має бути не менше 6 символів.')
             elif new_password != new_password2:
                 messages.error(request, 'Нові паролі не збігаються.')
             else:
+                # FIX (ARCH-09): Використовуємо Django password validators
+                try:
+                    validate_password(new_password)
+                except ValidationError as e:
+                    for error in e.messages:
+                        messages.error(request, error)
+                    return redirect('profile')
+
                 user.password = make_password(new_password)
                 user.save(update_fields=['password'])
                 messages.success(request, 'Пароль успішно змінено.')
@@ -510,6 +557,21 @@ def create_booking_api(request):
             return JsonResponse({'status': 'error', 'message': 'Бажаний час візиту обов\'язковий'}, status=400)
 
         client = User.objects.get(user_id=user_id)
+
+        # FIX (CRIT-05): Перевірка ролі — тільки клієнти можуть створювати заявки
+        if client.role != 'client':
+            return JsonResponse(
+                {'status': 'error', 'message': 'Тільки клієнти можуть створювати заявки'},
+                status=403
+            )
+
+        # FIX (SEC-05): Перевірка is_active
+        if not client.is_active:
+            return JsonResponse(
+                {'status': 'error', 'message': 'Ваш акаунт заблоковано'},
+                status=403
+            )
+
         station = ServiceStation.objects.get(pk=station_id)
 
         # Перевірка чи автомобіль належить поточному клієнту
@@ -541,13 +603,20 @@ def create_booking_api(request):
                 'message': f'СТО працює з {opening_str} до {closing_str}. Будь ласка, оберіть інший час.'
             }, status=400)
 
-        Booking.objects.create(
+        booking = Booking.objects.create(
             client=client,
             station=station,
             car=car,
             service_name=service_name,
             description=description,
             scheduled_time=scheduled_dt
+        )
+        
+        # Створення сповіщення для власника СТО
+        Notification.objects.create(
+            recipient=station.user,
+            booking=booking,
+            message=f"Нова заявка #{booking.id}: {client.full_name} на {scheduled_dt.strftime('%d.%m.%Y %H:%M')}"
         )
         return JsonResponse({"status": "success", "message": "Заявку успішно створено"})
     except User.DoesNotExist:
@@ -585,3 +654,57 @@ def client_profile_view(request, client_id):
         'cars': cars,
     }
     return render(request, 'main/client_detail.html', context)
+
+
+@login_required_session
+def get_notifications_api(request):
+    """Отримання списку останніх сповіщень та кількості непрочитаних для поточного користувача."""
+    user = get_current_user(request)
+    if not user:
+        return JsonResponse({'status': 'error', 'message': 'Користувач не авторизований'}, status=401)
+        
+    notifications = Notification.objects.filter(recipient=user).order_by('-created_at')[:10]
+    unread_count = Notification.objects.filter(recipient=user, is_read=False).count()
+    
+    data = []
+    for n in notifications:
+        data.append({
+            'id': n.id,
+            'message': n.message,
+            'is_read': n.is_read,
+            'created_at': n.created_at.strftime('%d.%m.%Y %H:%M'),
+            'booking_id': n.booking.id if n.booking else None
+        })
+        
+    return JsonResponse({
+        'status': 'success',
+        'unread_count': unread_count,
+        'notifications': data
+    })
+
+
+@require_POST
+@login_required_session
+def mark_notification_read_api(request, notification_id):
+    """Позначення сповіщення як прочитаного."""
+    user = get_current_user(request)
+    if not user:
+        return JsonResponse({'status': 'error', 'message': 'Користувач не авторизований'}, status=401)
+        
+    notification = get_object_or_404(Notification, id=notification_id, recipient=user)
+    notification.is_read = True
+    notification.save(update_fields=['is_read'])
+    
+    return JsonResponse({'status': 'success'})
+
+
+@require_POST
+@login_required_session
+def mark_all_notifications_read_api(request):
+    """Позначення всіх сповіщень користувача як прочитаних."""
+    user = get_current_user(request)
+    if not user:
+        return JsonResponse({'status': 'error', 'message': 'Користувач не авторизований'}, status=401)
+        
+    Notification.objects.filter(recipient=user, is_read=False).update(is_read=True)
+    return JsonResponse({'status': 'success'})

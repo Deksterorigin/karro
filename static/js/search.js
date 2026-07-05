@@ -1,6 +1,13 @@
 let map;
 let markers = {};
 
+// FIX (SEC-04): Функція екранування HTML для захисту від XSS
+function escapeHtml(text) {
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
+}
+
 function initMap() {
     // Center of Ukraine with standard zoom
     map = L.map('map', { zoomControl: true }).setView([49.0, 31.5], 6);
@@ -32,11 +39,16 @@ function initMap() {
     STATIONS.forEach(s => {
         const marker = L.marker([s.lat, s.lng], { icon: pinIcon }).addTo(map);
 
+        // FIX (SEC-04): Екранування всіх user-controlled даних
+        const escapedName = escapeHtml(s.name);
+        const escapedCity = s.city ? escapeHtml(s.city) + ', ' : '';
+        const escapedAddress = escapeHtml(s.address);
+
         marker.bindPopup(`
             <div style="font-family: 'Inter', sans-serif; min-width: 180px; padding: 4px;">
-                <div style="font-weight: 700; font-size: 0.95rem; margin-bottom: 4px; color: var(--text);">${s.name}</div>
-                <div style="font-size: 0.75rem; color: var(--text-muted); line-height: 1.3;">${s.city ? s.city + ', ' : ''}${s.address}</div>
-                ${s.rating ? `<div style="margin-top: 8px; color: var(--accent); font-weight: 700; font-size: 0.85rem; display: flex; align-items: center; gap: 2px;">★ ${s.rating}</div>` : ''}
+                <div style="font-weight: 700; font-size: 0.95rem; margin-bottom: 4px; color: var(--text);">${escapedName}</div>
+                <div style="font-size: 0.75rem; color: var(--text-muted); line-height: 1.3;">${escapedCity}${escapedAddress}</div>
+                ${s.rating ? `<div style="margin-top: 8px; color: var(--accent); font-weight: 700; font-size: 0.85rem; display: flex; align-items: center; gap: 2px;">★ ${escapeHtml(String(s.rating))}</div>` : ''}
             </div>
         `);
 

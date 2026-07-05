@@ -49,6 +49,13 @@ document.addEventListener('DOMContentLoaded', function() {
         const name = mapContainer.dataset.name;
         const address = mapContainer.dataset.address;
 
+        // FIX (SEC-04): Функція екранування HTML
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+
         const map = L.map('station-map', { zoomControl: false, scrollWheelZoom: false }).setView([lat, lng], 15);
 
         // Light theme Voyager tile layer
@@ -71,10 +78,11 @@ document.addEventListener('DOMContentLoaded', function() {
             popupAnchor: [0, -32]
         });
 
+        // FIX (SEC-04): Екранування user-controlled даних
         L.marker([lat, lng], { icon: pinIcon }).addTo(map).bindPopup(`
             <div style="font-family: 'Inter', sans-serif; padding: 4px;">
-                <div style="font-weight: 700; font-size: 0.9rem; color: var(--text);">${name}</div>
-                <div style="font-size: 0.75rem; color: var(--text-muted);">${address}</div>
+                <div style="font-weight: 700; font-size: 0.9rem; color: var(--text);">${escapeHtml(name)}</div>
+                <div style="font-size: 0.75rem; color: var(--text-muted);">${escapeHtml(address)}</div>
             </div>
         `).openPopup();
 

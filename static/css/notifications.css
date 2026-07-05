@@ -1,0 +1,166 @@
+/* Стилі для системи сповіщень */
+
+.notification-bell-container {
+    position: relative;
+    display: inline-block;
+}
+
+.notification-bell-btn {
+    background: none;
+    border: none;
+    cursor: pointer;
+    position: relative;
+    padding: 0.5rem;
+    color: var(--text-muted);
+    border-radius: var(--radius-sm);
+    transition: all var(--transition-fast);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.notification-bell-btn:hover {
+    color: var(--accent);
+    background: var(--surface-hover);
+}
+
+.notification-bell-btn svg {
+    width: 20px;
+    height: 20px;
+}
+
+.notification-badge {
+    position: absolute;
+    top: 2px;
+    right: 2px;
+    background-color: var(--error);
+    color: #ffffff;
+    border-radius: 50%;
+    font-size: 0.75rem;
+    font-weight: 700;
+    min-width: 16px;
+    height: 16px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0 4px;
+    border: 2px solid var(--surface);
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+/* Випадаюче вікно сповіщень */
+.notification-dropdown {
+    position: absolute;
+    right: 0;
+    top: calc(100% + 10px);
+    width: 320px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-md);
+    box-shadow: var(--shadow-lg);
+    z-index: 1000;
+    display: none;
+    flex-direction: column;
+    overflow: hidden;
+    animation: slideDown var(--transition-fast);
+}
+
+@keyframes slideDown {
+    from {
+        opacity: 0;
+        transform: translateY(-8px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.notification-dropdown-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0.75rem 1rem;
+    border-bottom: 1px solid var(--border);
+    font-weight: 600;
+    font-size: 0.9rem;
+    background: var(--bg);
+}
+
+.mark-all-read-btn {
+    background: none;
+    border: none;
+    color: var(--accent);
+    font-size: 0.75rem;
+    font-weight: 600;
+    cursor: pointer;
+    padding: 0;
+    transition: color var(--transition-fast);
+}
+
+.mark-all-read-btn:hover {
+    color: var(--accent-hover);
+    text-decoration: underline;
+}
+
+.notification-list {
+    max-height: 350px;
+    overflow-y: auto;
+}
+
+.notification-item {
+    display: block;
+    padding: 0.85rem 1rem;
+    border-bottom: 1px solid var(--border);
+    text-decoration: none;
+    color: var(--text);
+    transition: background var(--transition-fast);
+    font-size: 0.85rem;
+    cursor: pointer;
+}
+
+.notification-item:last-child {
+    border-bottom: none;
+}
+
+.notification-item:hover {
+    background: var(--surface-hover);
+}
+
+.notification-item.unread {
+    background: var(--accent-dim);
+    font-weight: 500;
+}
+
+.notification-item.unread:hover {
+    background: rgba(0, 82, 204, 0.08);
+}
+
+.notification-item-text {
+    line-height: 1.4;
+    margin-bottom: 0.25rem;
+    color: var(--text);
+}
+
+.notification-item-time {
+    font-size: 0.75rem;
+    color: var(--text-faint);
+}
+
+.notification-empty {
+    padding: 2rem 1rem;
+    text-align: center;
+    color: var(--text-muted);
+    font-size: 0.85rem;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.notification-empty svg {
+    color: var(--text-faint);
+    width: 28px;
+    height: 28px;
+    margin-bottom: 0.25rem;
+}

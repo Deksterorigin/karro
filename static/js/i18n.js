@@ -230,6 +230,11 @@ const TRANSLATIONS = {
     'acc.comm_notice':          { uk: 'Обраному співробітнику буде нараховано його відсоток комісії.', en: 'Selected employee will automatically earn their commission.' },
     'acc.btn_complete_repair':  { uk: 'Завершити ремонт',  en: 'Complete Repair & Log Revenue' },
     'acc.btn_save':             { uk: 'Зберегти',         en: 'Save' },
+    
+    // Сповіщення / Notifications
+    'notifications.title':           { uk: 'Сповіщення',       en: 'Notifications' },
+    'notifications.mark_all_read':   { uk: 'Позначити все як прочитане', en: 'Mark all as read' },
+    'notifications.empty':           { uk: 'Немає нових сповіщень', en: 'No new notifications' },
 };
 
 // Робота з мовою інтерфейсу
