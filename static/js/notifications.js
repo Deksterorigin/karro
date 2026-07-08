@@ -104,7 +104,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     fetch(`/api/notifications/mark-read/${item.id}/`, {
                         method: 'POST',
                         headers: {
-                            'X-CSRFToken': getCookie('csrftoken'),
+                            'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]')?.value || getCookie('csrftoken'),
                             'Content-Type': 'application/json'
                         }
                     })
@@ -131,7 +131,7 @@ document.addEventListener('DOMContentLoaded', () => {
         fetch('/api/notifications/mark-all-read/', {
             method: 'POST',
             headers: {
-                'X-CSRFToken': getCookie('csrftoken'),
+                'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]')?.value || getCookie('csrftoken'),
                 'Content-Type': 'application/json'
             }
         })

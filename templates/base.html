@@ -18,7 +18,7 @@
 
     {% block extra_css %}{% endblock %}
 </head>
-<body>
+<body class="{% block body_class %}{% endblock %}">
 
     <header>
         <a href="{% url 'home' %}" class="logo">
