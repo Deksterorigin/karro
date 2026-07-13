@@ -698,59 +698,115 @@
         border-radius: var(--radius-sm);
     }
 
-    /* Responsive */
-    @media (max-width: 900px) {
+    /* ── Responsive UI/UX Improvements ── */
+    @media (max-width: 1024px) {
+        .hero-container {
+            padding: 4rem 1.5rem;
+        }
+        .hero-content {
+            gap: 2rem;
+            grid-template-columns: 1.1fr 0.9fr;
+        }
+        .hero-title {
+            font-size: 3rem;
+        }
+        .works-grid {
+            grid-template-columns: repeat(2, 1fr);
+            gap: 1.5rem;
+        }
+        .recommendations-grid {
+            grid-template-columns: repeat(2, 1fr);
+            gap: 1.5rem;
+        }
+    }
+
+    @media (max-width: 768px) {
+        .hero-container {
+            padding: 3rem 1rem;
+            text-align: center;
+        }
         .hero-content {
             grid-template-columns: 1fr;
-            text-align: center;
             gap: 3rem;
         }
         .hero-left {
             align-items: center;
         }
+        .hero-title {
+            font-size: 2.5rem;
+        }
+        .hero-desc {
+            font-size: 1rem;
+            margin: 0 auto;
+        }
         .hero-search-box {
-            justify-content: center;
+            padding: 0.5rem;
+            border-radius: var(--radius-md);
+            margin-top: 1.5rem;
+        }
+        .search-input-group {
+            min-width: 100%;
+            padding: 0.5rem 0;
         }
         .search-input-group:not(:last-of-type) {
             border-right: none;
             border-bottom: 1px solid var(--border);
+            padding-bottom: 0.75rem;
+            margin-bottom: 0.25rem;
         }
-        .works-grid {
-            grid-template-columns: repeat(2, 1fr);
+        .hero-search-box .btn-search {
+            width: 100%;
+            padding: 0.85rem;
+            height: 48px;
+            justify-content: center;
         }
-        .recommendations-grid {
-            grid-template-columns: repeat(2, 1fr);
+        .hero-card-preview {
+            transform: none !important;
+            margin: 0 auto;
         }
         .garage-layout {
             grid-template-columns: 1fr;
             text-align: center;
-            gap: 4rem;
+            gap: 3rem;
         }
         .garage-left {
             align-items: center;
         }
         .author-card {
             flex-direction: column;
+            align-items: center;
             text-align: center;
-            padding: 2rem;
+            padding: 2rem 1.5rem;
+            gap: 1.5rem;
+        }
+        .author-avatar {
+            width: 80px;
+            height: 80px;
+            font-size: 2rem;
+        }
+        .section-header {
+            margin-bottom: 2rem;
+            text-align: center;
+        }
+        .section-title {
+            font-size: 1.75rem;
         }
     }
 
-    @media (max-width: 600px) {
-        .works-grid {
+    @media (max-width: 480px) {
+        .hero-title {
+            font-size: 2rem;
+            line-height: 1.25;
+        }
+        .works-grid, .recommendations-grid {
             grid-template-columns: 1fr;
+            gap: 1rem;
         }
-        .recommendations-grid {
-            grid-template-columns: 1fr;
+        .work-card {
+            padding: 1.5rem;
         }
-        .hero-search-box {
-            flex-direction: column;
-        }
-        .search-input-group {
-            min-width: 100%;
-        }
-        .hero-search-box .btn-search {
-            width: 100%;
-            padding: 0.8rem;
+        /* Добавляем компактность карточкам */
+        .hero-card-preview {
+            max-width: 100%;
         }
     }

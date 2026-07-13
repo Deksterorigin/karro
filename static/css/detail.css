@@ -674,38 +674,97 @@
         font-weight: 500;
     }
 
-    /* Responsive adjustments */
-    @media (max-width: 900px) {
+    /* ── Responsive UI/UX Adjustments ── */
+    @media (max-width: 1024px) {
         .detail-grid-layout {
             grid-template-columns: 1fr;
+            gap: 1.5rem;
         }
 
         .details-sidebar {
             position: static;
         }
+    }
+
+    @media (max-width: 768px) {
+        .back-bar, .station-hero, .detail-grid-layout {
+            padding-left: 1.5rem;
+            padding-right: 1.5rem;
+        }
 
         .hero-top-layout {
             flex-direction: column;
             gap: 1.5rem;
+            align-items: flex-start;
         }
-    }
 
-    @media (max-width: 600px) {
-        .back-bar, .station-hero, .detail-grid-layout {
-            padding-left: 1.25rem;
-            padding-right: 1.25rem;
+        .hero-rating-widget {
+            align-self: flex-start;
+            flex-direction: row;
+            align-items: center;
+            gap: 1.5rem;
+            padding: 1rem 1.5rem;
+            width: 100%;
+            justify-content: flex-start;
         }
 
         .gallery-grid-layout {
-            grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+            grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+            gap: 1rem;
+        }
+    }
+
+    @media (max-width: 480px) {
+        .back-bar, .station-hero, .detail-grid-layout {
+            padding-left: 1rem;
+            padding-right: 1rem;
+        }
+
+        .hero-name {
+            font-size: 2rem;
+        }
+
+        .hero-meta-list {
+            gap: 0.75rem;
+        }
+
+        .hero-rating-widget {
+            flex-direction: column;
+            align-items: flex-start;
+            gap: 0.5rem;
+            padding: 1rem;
+        }
+
+        .gallery-grid-layout {
+            grid-template-columns: repeat(2, 1fr);
+            gap: 0.75rem;
         }
 
         .section-head-bar {
-            padding: 1.5rem 1.5rem 0;
+            padding: 1.25rem 1.25rem 0;
         }
 
         .section-body-content {
-            padding: 0 1.5rem 1.5rem;
+            padding: 0 1.25rem 1.25rem;
+        }
+
+        .service-row-item {
+            flex-direction: column;
+            align-items: flex-start;
+            gap: 0.5rem;
+            padding: 1rem 0;
+        }
+
+        .svc-price-text {
+            align-self: flex-end;
+            font-size: 1.1rem;
+        }
+
+        /* Адаптация модального окна для телефонов */
+        .modal-box {
+            width: 92%;
+            padding: 1.5rem;
+            margin: 0 auto;
         }
     }
 

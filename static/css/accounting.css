@@ -865,3 +865,180 @@ body:not(.dark-theme) .moon-icon { display: block; }
     height: 18px;
     accent-color: var(--accent);
 }
+
+/* ── РЕСПОНСИВНІ СТИЛІ БУХГАЛТЕРІЇ СТО ── */
+@media (max-width: 1024px) {
+    .accounting-container {
+        padding: 1.5rem;
+    }
+    .dashboard-top-bar {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 1.5rem;
+    }
+    .header-actions-section {
+        width: 100%;
+        flex-wrap: wrap;
+        gap: 0.75rem;
+    }
+    .header-actions-section button,
+    .header-actions-section a {
+        flex: 1;
+        min-width: 160px;
+    }
+    .main-filters-form {
+        grid-template-columns: repeat(2, 1fr);
+        gap: 1.25rem;
+    }
+}
+
+@media (max-width: 768px) {
+    .metrics-dashboard-grid {
+        grid-template-columns: repeat(2, 1fr);
+        gap: 1rem;
+    }
+    .analytics-charts-grid {
+        grid-template-columns: 1fr;
+        gap: 1.5rem;
+    }
+    .canvas-wrapper {
+        height: 260px;
+        position: relative;
+    }
+    .main-filters-form {
+        grid-template-columns: 1fr;
+        gap: 1rem;
+    }
+}
+
+@media (max-width: 480px) {
+    .accounting-container {
+        padding: 1rem;
+    }
+    .metrics-dashboard-grid {
+        grid-template-columns: 1fr;
+        gap: 0.75rem;
+    }
+    .dashboard-top-bar {
+        padding: 0.5rem 0 1rem;
+    }
+    .dashboard-main-title {
+        font-size: 1.75rem;
+    }
+    .header-actions-section button,
+    .header-actions-section a {
+        width: 100%;
+        flex: none;
+        height: 46px;
+    }
+
+    /* Перетворення таблиць на вертикальні картки (Card Stack) */
+    .table-card-wrapper {
+        border: none;
+        box-shadow: none;
+        background: transparent;
+        padding: 0;
+    }
+    
+    .dashboard-data-table {
+        display: block;
+        width: 100%;
+    }
+    
+    .dashboard-data-table thead {
+        display: none; /* Приховуємо заголовки колонок */
+    }
+    
+    .dashboard-data-table tbody {
+        display: flex;
+        flex-direction: column;
+        gap: 1rem;
+    }
+    
+    .dashboard-data-table tr {
+        display: block;
+        background: var(--surface);
+        border: 1px solid var(--border);
+        border-radius: var(--radius-lg);
+        padding: 1.25rem;
+        box-shadow: var(--shadow-sm);
+        transition: all var(--transition-normal);
+    }
+    
+    .dashboard-data-table tr:hover {
+        box-shadow: var(--shadow-md);
+        border-color: var(--border-hover);
+    }
+    
+    .dashboard-data-table td {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 0.65rem 0;
+        border-bottom: 1px dashed var(--border);
+        font-size: 0.9rem;
+        text-align: left !important;
+    }
+    
+    .dashboard-data-table td:last-child {
+        border-bottom: none;
+        padding-bottom: 0;
+        margin-top: 0.5rem;
+    }
+    
+    /* Додаємо метки колонок ліворуч */
+    .dashboard-data-table td::before {
+        content: attr(data-label);
+        font-weight: 700;
+        color: var(--text-faint);
+        font-size: 0.8rem;
+        text-transform: uppercase;
+        letter-spacing: 0.03em;
+        margin-right: 1rem;
+    }
+    
+    /* Вирівнювання дій */
+    .dashboard-data-table td[data-label="Дії"] {
+        flex-direction: column;
+        align-items: stretch;
+        gap: 0.5rem;
+    }
+    
+    .dashboard-data-table td[data-label="Дії"]::before {
+        margin-bottom: 0.5rem;
+    }
+
+    .actions-row-buttons {
+        width: 100%;
+        justify-content: flex-start;
+        flex-wrap: wrap;
+        gap: 0.5rem;
+    }
+    
+    .actions-row-buttons button,
+    .actions-row-buttons form,
+    .actions-row-buttons a {
+        flex: 1;
+    }
+    
+    .btn-table-pay {
+        width: 100%;
+        text-align: center;
+        padding: 0.6rem;
+    }
+
+    .btn-table-edit, .btn-table-danger {
+        width: 100%;
+        height: 38px;
+    }
+    
+    /* Таби */
+    .tabs-header-buttons {
+        flex-direction: column;
+        gap: 0.5rem;
+    }
+    .tab-button {
+        width: 100%;
+        justify-content: center;
+    }
+}

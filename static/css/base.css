@@ -271,20 +271,210 @@
             font-weight: 700;
         }
 
-        @media (max-width: 768px) {
-            header {
-                padding: 1rem;
-                flex-direction: column;
-                gap: 1rem;
-            }
+        /* --- Mobile Menu Elements & Drawer CSS --- */
+        .mobile-only {
+            display: none !important;
+        }
+
+        .menu-backdrop {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            background: rgba(9, 13, 22, 0.4);
+            backdrop-filter: blur(8px);
+            z-index: 1090;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity var(--transition-normal);
+        }
+
+        .menu-backdrop.active {
+            opacity: 1;
+            pointer-events: auto;
+        }
+
+        .menu-toggle {
+            display: none;
+            flex-direction: column;
+            justify-content: space-between;
+            width: 24px;
+            height: 18px;
+            background: transparent;
+            border: none;
+            cursor: pointer;
+            padding: 0;
+            z-index: 1110;
+        }
+
+        .menu-toggle span {
+            width: 100%;
+            height: 2px;
+            background-color: var(--text-muted);
+            border-radius: 2px;
+            transition: all var(--transition-fast);
+        }
+
+        .menu-toggle.active span:nth-child(1) {
+            transform: translateY(8px) rotate(45deg);
+            background-color: var(--text);
+        }
+
+        .menu-toggle.active span:nth-child(2) {
+            opacity: 0;
+        }
+
+        .menu-toggle.active span:nth-child(3) {
+            transform: translateY(-8px) rotate(-45deg);
+            background-color: var(--text);
+        }
+
+        @media (max-width: 1024px) {
             nav {
-                width: 100%;
-                justify-content: center;
-                gap: 1rem;
-                flex-wrap: wrap;
+                gap: 1.25rem;
             }
-            .header-right {
-                width: 100%;
-                justify-content: center;
+            header {
+                padding: 1rem 1.5rem;
             }
+        }
+
+        @media (max-width: 768px) {
+            .menu-toggle {
+                display: flex;
+            }
+
+            .mobile-only {
+                display: flex !important;
+            }
+
+            form.mobile-only {
+                display: block !important;
+            }
+
+            body.menu-open {
+                overflow: hidden;
+            }
+
+            header {
+                padding: 0.75rem 1.5rem;
+            }
+
+            nav {
+                position: fixed;
+                top: 0;
+                right: 0;
+                width: 300px;
+                height: 100vh;
+                background: var(--surface);
+                box-shadow: -10px 0 30px rgba(0, 0, 0, 0.15);
+                z-index: 1100;
+                flex-direction: column;
+                align-items: flex-start;
+                justify-content: flex-start;
+                padding: 6rem 2rem 2rem;
+                gap: 1.25rem;
+                transform: translateX(100%);
+                transition: transform var(--transition-normal);
+                overflow-y: auto;
+            }
+
+            nav.active {
+                transform: translateX(0);
+            }
+
+            nav a {
+                font-size: 1.1rem;
+                font-weight: 600;
+                width: 100%;
+                padding: 0.6rem 0;
+                border-bottom: 1px solid var(--border);
+                color: var(--text-muted);
+            }
+
+            nav a:hover {
+                color: var(--accent);
+            }
+
+            .mobile-nav-divider {
+                width: 100%;
+                height: 1px;
+                background-color: var(--border);
+                margin: 0.5rem 0;
+            }
+
+            .header-right .lang-select-wrap,
+            .header-right .user-chip,
+            .header-right form[action*="logout"],
+            .header-right a[href*="login"] {
+                display: none !important;
+            }
+
+            .lang-select-wrap.mobile-only select {
+                width: 100%;
+                padding: 0.6rem 1rem;
+                font-size: 0.9375rem;
+                border-radius: var(--radius-sm);
+                background: var(--bg);
+                border: 1px solid var(--border);
+                color: var(--text);
+                appearance: auto;
+            }
+
+            .alerts-container {
+                padding: 0 1rem;
+                margin: 1rem auto 0;
+            }
+
+            footer {
+                padding: 2rem 1rem;
+                font-size: 0.8rem;
+            }
+        }
+
+        /* --- Dark Mode Variable Overrides --- */
+        html.dark {
+            --bg: #090D16;
+            --surface: #121824;
+            --surface-hover: #1B2336;
+            --border: #212C42;
+            --border-hover: #2E3E5C;
+            --text: #F8FAFC;
+            --text-muted: #94A3B8;
+            --text-faint: #64748B;
+            --accent: #0052CC;
+            --accent-hover: #0040A3;
+            --accent-dim: rgba(0, 82, 204, 0.05);
+            --shadow-sm: 0 4px 6px -1px rgba(0, 0, 0, 0.3), 0 2px 4px -2px rgba(0, 0, 0, 0.3);
+            --shadow-md: 0 10px 15px -3px rgba(0, 0, 0, 0.4), 0 4px 6px -4px rgba(0, 0, 0, 0.4);
+            --shadow-lg: 0 20px 25px -5px rgba(0, 0, 0, 0.5), 0 8px 10px -6px rgba(0, 0, 0, 0.5);
+        }
+
+        html.dark header, html.dark footer {
+            background: #121824;
+        }
+
+        /* --- Theme Toggle Button --- */
+        .theme-toggle-btn {
+            background: none;
+            border: none;
+            cursor: pointer;
+            width: 36px;
+            height: 36px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: var(--radius-sm);
+            color: var(--text-muted);
+            transition: all var(--transition-fast);
+        }
+
+        .theme-toggle-btn:hover {
+            background: var(--surface-hover);
+            color: var(--text);
+        }
+
+        .theme-toggle-btn svg {
+            width: 20px;
+            height: 20px;
         }

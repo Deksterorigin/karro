@@ -1399,3 +1399,86 @@
             padding-bottom: 0.25rem;
         }
     }
+
+    @media (max-width: 768px) {
+        body.profile-body .profile-sidebar {
+            padding: 1rem 1rem 0;
+            gap: 1rem;
+        }
+        
+        body.profile-body .sidebar-brand {
+            display: none;
+        }
+
+        body.profile-body .profile-summary {
+            margin-bottom: 0.5rem;
+        }
+
+        body.profile-body .nav-list {
+            display: flex;
+            flex-direction: row;
+            overflow-x: auto;
+            width: 100%;
+            gap: 0.5rem;
+            padding-bottom: 0.5rem;
+            border-bottom: 1px solid var(--border);
+            -ms-overflow-style: none;
+            scrollbar-width: none;
+        }
+
+        body.profile-body .nav-list::-webkit-scrollbar {
+            display: none;
+        }
+
+        body.profile-body .nav-item {
+            white-space: nowrap;
+            padding: 0.5rem 1rem;
+            font-size: 0.85rem;
+            justify-content: center;
+        }
+
+        body.profile-body .profile-content {
+            padding: 1rem;
+        }
+
+        /* Адаптация формы личных данных */
+        .form-row {
+            grid-template-columns: 1fr !important;
+            gap: 1rem !important;
+        }
+        
+        /* Увеличение тач-зон для кнопок сохранения */
+        .profile-content button[type="submit"] {
+            width: 100%;
+            padding: 0.85rem;
+            min-height: 44px;
+        }
+    }
+
+    @media (max-width: 480px) {
+        body.profile-body .profile-summary {
+            flex-direction: column;
+            align-items: center;
+            text-align: center;
+            gap: 1rem;
+        }
+
+        body.profile-body .booking-card {
+            padding: 1.25rem;
+        }
+
+        body.profile-body .booking-card .item-title {
+            font-size: 1rem;
+        }
+
+        body.profile-body .booking-desc-box {
+            padding: 0.75rem;
+            font-size: 0.875rem;
+        }
+
+        /* Адаптация списка автомобилей */
+        .cars-grid-layout {
+            grid-template-columns: 1fr !important;
+            gap: 1rem !important;
+        }
+    }

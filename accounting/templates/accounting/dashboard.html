@@ -232,25 +232,25 @@
                         <tbody>
                             {% for emp in employees %}
                                 <tr class="{% if not emp.is_active %}fired-employee-row{% endif %}">
-                                    <td>
+                                    <td data-label="Співробітник">
                                         <div class="employee-identity">
                                             <strong>{{ emp.full_name }}</strong>
                                             <span>{{ emp.phone|default:"Немає телефону" }}</span>
                                         </div>
                                     </td>
-                                    <td>
+                                    <td data-label="Посада">
                                         <span class="badge badge-position">{{ emp.position }}</span>
                                     </td>
-                                    <td>
+                                    <td data-label="Ставка / Відсоток">
                                         <div class="employee-rate-info">
                                             <span>Ставка: <strong>{{ emp.base_salary }} ₴</strong></span>
                                             <span>Комісія: <strong>{{ emp.commission_percent }}%</strong></span>
                                         </div>
                                     </td>
-                                    <td>
+                                    <td data-label="Баланс до виплати">
                                         <strong class="salary-current-balance">{{ emp.salary_balance.current_balance }} ₴</strong>
                                     </td>
-                                    <td class="text-right">
+                                    <td data-label="Дії" class="text-right">
                                         <div class="actions-row-buttons">
                                             {% if emp.is_active %}
                                                 {% if emp.salary_balance.current_balance > 0 %}
@@ -305,10 +305,10 @@
                         <tbody>
                             {% for tx in transactions %}
                                 <tr>
-                                    <td class="tx-date-cell">
+                                    <td data-label="Дата" class="tx-date-cell">
                                         {{ tx.date|date:"d.m.Y" }}
                                     </td>
-                                    <td>
+                                    <td data-label="Категорія та виконавець">
                                         <div class="tx-category-block">
                                             <strong>{{ tx.get_category_display }}</strong>
                                             {% if tx.employee %}
@@ -319,13 +319,13 @@
                                             {% endif %}
                                         </div>
                                     </td>
-                                    <td class="tx-desc-cell">
+                                    <td data-label="Опис операції" class="tx-desc-cell">
                                         {{ tx.description|default:"—" }}
                                         {% if tx.booking %}
                                             <span class="tx-booking-ref">Заявка #{{ tx.booking.id }}</span>
                                         {% endif %}
                                     </td>
-                                    <td class="text-right">
+                                    <td data-label="Сума (грн)" class="text-right">
                                         <strong class="transaction-amount-label {% if tx.type == 'income' %}income-style{% else %}expense-style{% endif %}">
                                             {% if tx.type == 'income' %}+{% else %}-{% endif %}{{ tx.amount }} ₴
                                         </strong>
@@ -361,11 +361,11 @@
                         <tbody>
                             {% for tx in salary_payouts %}
                                 <tr>
-                                    <td class="tx-date-cell">{{ tx.date|date:"d.m.Y" }}</td>
-                                    <td><strong>{{ tx.employee.full_name }}</strong></td>
-                                    <td><span class="badge badge-position">{{ tx.employee.position }}</span></td>
-                                    <td class="tx-desc-cell">{{ tx.description }}</td>
-                                    <td class="text-right"><strong class="salary-payout-amount-value">-{{ tx.amount }} ₴</strong></td>
+                                    <td data-label="Дата виплати" class="tx-date-cell">{{ tx.date|date:"d.m.Y" }}</td>
+                                    <td data-label="Співробітник"><strong>{{ tx.employee.full_name }}</strong></td>
+                                    <td data-label="Посада"><span class="badge badge-position">{{ tx.employee.position }}</span></td>
+                                    <td data-label="Призначення платежу" class="tx-desc-cell">{{ tx.description }}</td>
+                                    <td data-label="Сума (грн)" class="text-right"><strong class="salary-payout-amount-value">-{{ tx.amount }} ₴</strong></td>
                                 </tr>
                             {% empty %}
                                 <tr>

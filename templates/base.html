@@ -10,6 +10,7 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     
+    <script src="{% static 'js/theme_init.js' %}"></script>
     
     <link rel="stylesheet" href="{% static 'css/base.css' %}">
     {% if request.session.user_id and request.session.user_role == 'station' %}
@@ -20,17 +21,19 @@
 </head>
 <body class="{% block body_class %}{% endblock %}">
 
+    <div id="menu-backdrop" class="menu-backdrop"></div>
+
     <header>
         <a href="{% url 'home' %}" class="logo">
             <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                 <polygon points="12 2 2 7 12 12 22 7 12 2"></polygon>
                 <polyline points="2 17 12 22 22 17"></polyline>
-                <polyline points="2 12 12 17 22 12"></polyline>
+                <polyline points="2 12 17 22 12"></polyline>
             </svg>
             Karro
         </a>
 
-        <nav>
+        <nav id="main-nav">
             <a href="{% url 'search:search_stations' %}" data-i18n="home.btn_find">Найти СТО</a>
             {% if request.session.user_id %}
                 <a href="{% url 'profile' %}" data-i18n="nav.my_profile">Цифровий гараж</a>
@@ -43,9 +46,46 @@
             {% if request.session.user_role == 'station' %}
                 <a href="{% url 'accounting:dashboard' %}" data-i18n="profile.nav_accounting">Бухгалтерія</a>
             {% endif %}
+
+            <!-- Мобильные элементы внутри шторки -->
+            <div class="mobile-nav-divider mobile-only"></div>
+            {% if request.session.user_id %}
+                <a href="{% url 'profile' %}" class="user-chip mobile-only" style="margin-top: 0.5rem; justify-content: flex-start; width: 100%;">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="width: 16px; height: 16px;"><circle cx="12" cy="7" r="4"/><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/></svg>
+                    <span>{{ request.session.user_name }}</span>
+                </a>
+                <form method="POST" action="{% url 'logout' %}" class="mobile-only" style="width: 100%; margin-top: 0.5rem; display: block;">
+                    {% csrf_token %}
+                    <button type="submit" class="btn-outline" style="width: 100%;" data-i18n="nav.logout">Вийти</button>
+                </form>
+            {% else %}
+                <a href="{% url 'login' %}" class="btn-outline mobile-only" style="width: 100%; margin-top: 0.5rem;" data-i18n="nav.login">Увійти</a>
+            {% endif %}
+            <div class="lang-select-wrap mobile-only" style="margin-top: 1rem; width: 100%;">
+                <select id="lang-select-mobile" style="width: 100%;">
+                    <option value="uk">UA</option>
+                    <option value="en">EN</option>
+                </select>
+            </div>
         </nav>
 
         <div class="header-right">
+            <button id="theme-toggle" class="theme-toggle-btn" aria-label="Toggle Theme">
+                <svg class="sun-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display: none;">
+                    <circle cx="12" cy="12" r="5"></circle>
+                    <line x1="12" y1="1" x2="12" y2="3"></line>
+                    <line x1="12" y1="21" x2="12" y2="23"></line>
+                    <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line>
+                    <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line>
+                    <line x1="1" y1="12" x2="3" y2="12"></line>
+                    <line x1="21" y1="12" x2="23" y2="12"></line>
+                    <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line>
+                    <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line>
+                </svg>
+                <svg class="moon-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display: none;">
+                    <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path>
+                </svg>
+            </button>
             <div class="lang-select-wrap">
                 <select id="lang-select">
                     <option value="uk">UA</option>
@@ -87,6 +127,13 @@
             {% else %}
                 <a href="{% url 'login' %}" class="btn-outline" data-i18n="nav.login">Увійти</a>
             {% endif %}
+
+            <!-- Кнопка бургер-меню для мобильных/планшетов -->
+            <button id="menu-toggle" class="menu-toggle" aria-label="Toggle Menu" aria-expanded="false">
+                <span></span>
+                <span></span>
+                <span></span>
+            </button>
         </div>
     </header>
 
@@ -115,9 +162,11 @@
     </footer>
 
     <script src="{% static 'js/i18n.js' %}"></script>
+    <script src="{% static 'js/navigation.js' %}"></script>
     {% if request.session.user_id and request.session.user_role == 'station' %}
         <script src="{% static 'js/notifications.js' %}"></script>
     {% endif %}
+    <script src="{% static 'js/theme_toggle.js' %}"></script>
     {% block extra_js %}{% endblock %}
 </body>
 </html>
