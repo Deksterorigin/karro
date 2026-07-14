@@ -45,6 +45,48 @@ const TRANSLATIONS = {
     'home.footer':            { uk: '© 2026 <span>Karro</span> · Навчальний проєкт · ZPI-21 · Летінський О.',
                                 en: '© 2026 <span>Karro</span> · Educational Project · ZPI-21 · Letinskyi O.' },
 
+    // Testimonials
+    'home.testimonials_label': { uk: 'Відгуки', en: 'Testimonials' },
+    'home.testimonials_title': { uk: 'Що кажуть наші користувачі', en: 'What our users say' },
+    'home.testimonials_sub':   { uk: 'Дивіться, що говорять про нас наші клієнти та партнери.', en: 'See what our customers and partners have to say about us.' },
+
+    // Testimonial cards
+    'home.t1_text': { uk: 'Цей сервіс повністю змінив те, як я доглядаю за своєю машиною. Завдяки цифровому гаражу я завжди бачу всю історію обслуговування, а знайти перевірене СТО поруч тепер справа кількох хвилин!', en: 'This service completely changed how I take care of my car. Thanks to the digital garage, I can always see the service history, and finding a trusted station nearby is now a matter of minutes!' },
+    'home.t1_name': { uk: 'Олена Ковальчук', en: 'Olena Kovalchuk' },
+    'home.t1_role': { uk: 'Власниця Audi A4', en: 'Audi A4 Owner' },
+
+    'home.t2_text': { uk: 'Дуже зручний пошук автосервісів! Знайшов шиномонтаж біля роботи за п\'ять хвилин, ціни співпали з прайсом на сайті, а відгуки допомогли не помилитися з вибором.', en: 'Very convenient service station search! Found a tire shop near my work in five minutes, the prices matched the price list on the site, and the reviews helped me make the right choice.' },
+    'home.t2_name': { uk: 'Максим Шевченко', en: 'Maksym Shevchenko' },
+    'home.t2_role': { uk: 'Водій BMW X5', en: 'BMW X5 Driver' },
+
+    'home.t3_text': { uk: 'Зареєстрував своє СТО на Karro. Кількість клієнтів помітно зросла, а вбудований кабінет допомагає зручно відстежувати доходи та керувати роботою майстрів. Рекомендую!', en: 'Registered my service station on Karro. The number of customers has grown noticeably, and the built-in cabinet helps easily track revenues and manage mechanics. Recommended!' },
+    'home.t3_name': { uk: 'Дмитро Лисенко', en: 'Dmytro Lysenko' },
+    'home.t3_role': { uk: 'Власник "AutoMaster"', en: 'Owner of "AutoMaster"' },
+
+    'home.t4_text': { uk: 'Зручний інтерфейс та прозорість цін. Більше не треба обдзвонювати десятки СТО — просто ввів послугу, вибрав найкращий варіант за відгуками і записався.', en: 'Convenient interface and price transparency. No more calling dozens of stations — just enter the service, choose the best option based on reviews, and book.' },
+    'home.t4_name': { uk: 'Олександр Бойко', en: 'Oleksandr Boyko' },
+    'home.t4_role': { uk: 'Водій Renault Megane', en: 'Renault Megane Driver' },
+
+    'home.t5_text': { uk: 'Завжди скептично ставився до онлайн-відгуків, але на Karro вони дійсно чесні. Вже вдруге користуюсь послугами рекомендованих автосервісів і дуже задоволений якістю.', en: 'I have always been skeptical of online reviews, but on Karro they are truly honest. This is the second time I use the recommended auto services and I am very satisfied with the quality.' },
+    'home.t5_name': { uk: 'Ірина Мороз', en: 'Iryna Moroz' },
+    'home.t5_role': { uk: 'Власниця Ford Fiesta', en: 'Ford Fiesta Owner' },
+
+    'home.t6_text': { uk: 'Для власників автосервісів це чудовий інструмент. Проста реєстрація, ведення бухгалтерії та прозорий облік робіт значно полегшили менеджмент нашої станції.', en: 'For service station owners, this is an excellent tool. Simple registration, bookkeeping, and transparent work tracking have significantly simplified our station management.' },
+    'home.t6_name': { uk: 'Сергій Кравченко', en: 'Serhiy Kravchenko' },
+    'home.t6_role': { uk: 'Власник СТО "СТО Лівобережна"', en: 'Owner of "STO Livoberezhna"' },
+
+    'home.t7_text': { uk: 'Мій автомобіль потребував складної комп\'ютерної діагностики. Завдяки Karro знайшов спеціалізований сервіс у Львові з відмінним рейтингом. Двигун працює ідеально!', en: 'My car required complex computer diagnostics. Thanks to Karro, I found a specialized service in Lviv with an excellent rating. The engine runs perfectly now!' },
+    'home.t7_name': { uk: 'Андрій Мельник', en: 'Andriy Melnyk' },
+    'home.t7_role': { uk: 'Водій Volkswagen Passat', en: 'VW Passat Driver' },
+
+    'home.t8_text': { uk: 'Цифровий гараж із розшифровкою VIN-коду — це просто знахідка. Дуже зручно зберігати всю історію ремонту авто в одному місці та показувати її при продажу.', en: 'The digital garage with VIN code decoding is a real lifesaver. It is very convenient to store all car repair history in one place and show it when selling.' },
+    'home.t8_name': { uk: 'Тетяна Петренко', en: 'Tetyana Petrenko' },
+    'home.t8_role': { uk: 'Власниця Hyundai Tucson', en: 'Hyundai Tucson Owner' },
+
+    'home.t9_text': { uk: 'Чудова служба підтримки та постійні оновлення. Karro реально спрощує життя як звичайним водіям, так і власникам бізнесу.', en: 'Excellent support team and constant updates. Karro truly simplifies life for both regular drivers and business owners.' },
+    'home.t9_name': { uk: 'Ярослав Козак', en: 'Yaroslav Kozak' },
+    'home.t9_role': { uk: 'Водій Skoda Octavia', en: 'Skoda Octavia Driver' },
+
     // Вхід та реєстрація
     'login.tab_login':        { uk: 'Вхід',               en: 'Login' },
     'login.tab_register':     { uk: 'Реєстрація',         en: 'Register' },

@@ -25,7 +25,7 @@ document.addEventListener('DOMContentLoaded', function() {
         function updateStars(n) {
             labels.forEach(l => {
                 const r = parseInt(l.dataset.rating);
-                l.style.color = r <= n ? 'var(--accent)' : 'var(--border-hover)';
+                l.style.color = r <= n ? '#F59E0B' : 'var(--border-hover)';
             });
         }
     }

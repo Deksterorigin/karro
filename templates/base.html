@@ -12,9 +12,9 @@
     
     <script src="{% static 'js/theme_init.js' %}"></script>
     
-    <link rel="stylesheet" href="{% static 'css/base.css' %}">
+    <link rel="stylesheet" href="{% static 'css/base.css' %}?v=1.4">
     {% if request.session.user_id and request.session.user_role == 'station' %}
-        <link rel="stylesheet" href="{% static 'css/notifications.css' %}">
+        <link rel="stylesheet" href="{% static 'css/notifications.css' %}?v=1.4">
     {% endif %}
 
     {% block extra_css %}{% endblock %}
@@ -25,10 +25,10 @@
 
     <header>
         <a href="{% url 'home' %}" class="logo">
-            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                <polygon points="12 2 2 7 12 12 22 7 12 2"></polygon>
-                <polyline points="2 17 12 22 22 17"></polyline>
-                <polyline points="2 12 17 22 12"></polyline>
+            <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="color: var(--accent);">
+                <circle cx="12" cy="12" r="10"></circle>
+                <circle cx="12" cy="12" r="3"></circle>
+                <path d="M12 2v7M12 15v7M2 12h7M15 12h7"></path>
             </svg>
             Karro
         </a>

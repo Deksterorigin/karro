@@ -8,11 +8,11 @@ let categoryChart = null;
 
 // Функція ініціалізації та оновлення графіків
 function initCharts() {
-    const isDark = document.body.classList.contains('dark-theme');
+    const isDark = document.documentElement.classList.contains('dark');
     
     // Кольори шрифтів та сіток залежно від обраної теми
-    const textColor = isDark ? '#94a3b8' : '#555555';
-    const gridColor = isDark ? '#212c42' : '#e5e7eb';
+    const textColor = isDark ? '#94a3b8' : '#475569';
+    const gridColor = isDark ? '#1e293b' : '#E2E8F0';
     
     // 1. Графік динаміки доходів та витрат СТО
     const trendCtx = document.getElementById('financeTrendChart');
@@ -259,31 +259,29 @@ function toggleCategories(txType) {
     }
 }
 
-// Запуск при завантаженні DOM
 document.addEventListener('DOMContentLoaded', () => {
     // 1. Обробка перемикача тем
-    const body = document.body;
     const themeToggleBtn = document.getElementById('theme-toggle-btn');
-    const savedTheme = localStorage.getItem('karro_theme');
-    
-    // Встановлюємо збережену тему за замовчуванням
-    if (savedTheme === 'dark') {
-        body.classList.add('dark-theme');
-    } else if (savedTheme === 'light') {
-        body.classList.remove('dark-theme');
-    }
     
     // Ініціалізуємо графіки з урахуванням теми
     initCharts();
     
+    // Слухаємо глобальну зміну теми
+    window.addEventListener('themeChanged', () => {
+        initCharts();
+    });
+    
     if (themeToggleBtn) {
         themeToggleBtn.addEventListener('click', () => {
-            body.classList.toggle('dark-theme');
-            const isDark = body.classList.contains('dark-theme');
-            localStorage.setItem('karro_theme', isDark ? 'dark' : 'light');
-            
-            // Оновлюємо колірну схему графіків Chart.js
-            initCharts();
+            const globalToggle = document.getElementById('theme-toggle');
+            if (globalToggle) {
+                globalToggle.click();
+            } else {
+                document.documentElement.classList.toggle('dark');
+                const isDark = document.documentElement.classList.contains('dark');
+                localStorage.setItem('karro_theme', isDark ? 'dark' : 'light');
+                window.dispatchEvent(new CustomEvent('themeChanged', { detail: isDark ? 'dark' : 'light' }));
+            }
         });
     }
     

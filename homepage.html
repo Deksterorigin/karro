@@ -1,0 +1,434 @@
+
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title data-i18n-title="home.title">Karro — Знайди свій автосервіс</title>
+    <link rel="icon" type="image/svg+xml" href="/static/favicon.svg">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    
+    <script src="/static/js/theme_init.js"></script>
+    
+    <link rel="stylesheet" href="/static/css/base.css">
+    
+
+    
+    <link rel="stylesheet" href="/static/css/home.css">
+
+</head>
+<body class="">
+
+    <div id="menu-backdrop" class="menu-backdrop"></div>
+
+    <header>
+        <a href="/" class="logo">
+            <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="color: var(--accent);">
+                <circle cx="12" cy="12" r="10"></circle>
+                <circle cx="12" cy="12" r="3"></circle>
+                <path d="M12 2v7M12 15v7M2 12h7M15 12h7"></path>
+            </svg>
+            Karro
+        </a>
+
+        <nav id="main-nav">
+            <a href="/search/" data-i18n="home.btn_find">Найти СТО</a>
+            
+                <a href="/login/" data-i18n="nav.my_profile">Цифровий гараж</a>
+            
+            <a href="/#about" data-i18n="home.btn_about">Про проєкт</a>
+            <a href="/#author" data-i18n="home.author_label">Власникам СТО</a>
+            <!-- Доступ до бухгалтерії лише для власників СТО -->
+            
+
+            <!-- Мобильные элементы внутри шторки -->
+            <div class="mobile-nav-divider mobile-only"></div>
+            
+                <a href="/login/" class="btn-outline mobile-only" style="width: 100%; margin-top: 0.5rem;" data-i18n="nav.login">Увійти</a>
+            
+            <div class="lang-select-wrap mobile-only" style="margin-top: 1rem; width: 100%;">
+                <select id="lang-select-mobile" style="width: 100%;">
+                    <option value="uk">UA</option>
+                    <option value="en">EN</option>
+                </select>
+            </div>
+        </nav>
+
+        <div class="header-right">
+            <button id="theme-toggle" class="theme-toggle-btn" aria-label="Toggle Theme">
+                <svg class="sun-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display: none;">
+                    <circle cx="12" cy="12" r="5"></circle>
+                    <line x1="12" y1="1" x2="12" y2="3"></line>
+                    <line x1="12" y1="21" x2="12" y2="23"></line>
+                    <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line>
+                    <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line>
+                    <line x1="1" y1="12" x2="3" y2="12"></line>
+                    <line x1="21" y1="12" x2="23" y2="12"></line>
+                    <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line>
+                    <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line>
+                </svg>
+                <svg class="moon-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display: none;">
+                    <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path>
+                </svg>
+            </button>
+            <div class="lang-select-wrap">
+                <select id="lang-select">
+                    <option value="uk">UA</option>
+                    <option value="en">EN</option>
+                </select>
+            </div>
+            
+            
+            
+            
+                <a href="/login/" class="btn-outline" data-i18n="nav.login">Увійти</a>
+            
+
+            <!-- Кнопка бургер-меню для мобильных/планшетов -->
+            <button id="menu-toggle" class="menu-toggle" aria-label="Toggle Menu" aria-expanded="false">
+                <span></span>
+                <span></span>
+                <span></span>
+            </button>
+        </div>
+    </header>
+
+    <div class="alerts-container">
+        
+    </div>
+
+    <main class="main-content">
+        
+<!-- ── HERO SECTION ── -->
+<section class="hero-section" id="hero">
+    <div class="hero-container">
+        <div class="hero-grid">
+            <div class="hero-text-wrapper">
+                <div class="hero-badge">
+                    <span class="dot"></span>
+                    <span data-i18n="home.badge">Навчальний проєкт · ZPI-21</span>
+                </div>
+                
+                <h1 class="hero-title">
+                    Karro —<br>
+                    <span data-i18n="home.h1_line2">твій</span> 
+                    <span class="highlight" data-i18n="home.h1_accent">автосервіс</span> 
+                    <span data-i18n="home.h1_line3">поруч</span>
+                </h1>
+                
+                <p class="hero-description" data-i18n="home.sub">
+                    Знаходь перевірені СТО, порівнюй ціни на послуги та читай відгуки реальних клієнтів.
+                </p>
+                
+                <!-- Prominent search form -->
+                <form method="GET" action="/search/" class="hero-search-card">
+                    <div class="search-field">
+                        <label for="city-input" data-i18n="search.label_city">Місто</label>
+                        <div class="input-with-icon">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z"/><circle cx="12" cy="10" r="3"/></svg>
+                            <input id="city-input" type="text" name="city" placeholder="Київ, Львів…" data-i18n-placeholder="ph.city">
+                        </div>
+                    </div>
+                    
+                    <div class="search-field-divider"></div>
+                    
+                    <div class="search-field">
+                        <label for="service-input" data-i18n="search.label_service">Послуга</label>
+                        <div class="input-with-icon">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg>
+                            <input id="service-input" type="text" name="service" placeholder="Заміна масла…" data-i18n-placeholder="ph.service">
+                        </div>
+                    </div>
+                    
+                    <button type="submit" class="search-btn">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
+                        <span data-i18n="home.btn_find">Знайти СТО</span>
+                    </button>
+                </form>
+            </div>
+
+            <div class="hero-image-wrapper">
+                <div class="hero-main-image-container">
+                    <img src="/static/images/hero_banner.png" alt="Karro Premium Auto Service" class="hero-banner-image">
+                    <div class="hero-card-floating">
+                        <div class="floating-header">
+                            <span class="badge-status">Рекомендовано</span>
+                            <span class="price-indicator">450+ грн</span>
+                        </div>
+                        <h4 class="floating-title">AutoMaster Service</h4>
+                        <div class="floating-rating">
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+                            <span>4.9 (42 відгуки)</span>
+                        </div>
+                        <div class="floating-progress-track">
+                            <div class="floating-progress-fill" style="width: 75%;"></div>
+                        </div>
+                        <div class="floating-meta">
+                            <span>Завантаженість: Середня</span>
+                            <span>1.2 км</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ── HOW IT WORKS ── -->
+<section class="section-works" id="about">
+    <div class="container-width">
+        <div class="section-header-centered">
+            <span class="subtitle-text" data-i18n="home.about_label">Як це працює</span>
+            <h2 class="title-text" data-i18n="home.about_title">Навіщо створено Karro?</h2>
+        </div>
+    
+        <div class="works-steps-grid">
+            <div class="step-card">
+                <div class="step-badge">01</div>
+                <div class="step-icon-wrap">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
+                </div>
+                <h3 class="step-title" data-i18n="home.f1_title">Пошук СТО</h3>
+                <p class="step-desc" data-i18n="home.f1_desc">Знаходь автосервіси за адресою, назвою або рейтингом клієнтів.</p>
+            </div>
+    
+            <div class="step-card">
+                <div class="step-badge">02</div>
+                <div class="step-icon-wrap">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+                </div>
+                <h3 class="step-title" data-i18n="home.f2_title">Відгуки та рейтинг</h3>
+                <p class="step-desc" data-i18n="home.f2_desc">Читай чесні оцінки від реальних клієнтів перед вибором сервісу.</p>
+            </div>
+    
+            <div class="step-card">
+                <div class="step-badge">03</div>
+                <div class="step-icon-wrap">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M9 21V9"/></svg>
+                </div>
+                <h3 class="step-title" data-i18n="home.f3_title">Ціни на послуги</h3>
+                <p class="step-desc" data-i18n="home.f3_desc">Переглядай повний прайс кожного СТО до запису.</p>
+            </div>
+    
+            <div class="step-card">
+                <div class="step-badge">04</div>
+                <div class="step-icon-wrap">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="1" y="3" width="15" height="13" rx="2"/><path d="M16 8h4l3 3v5h-7V8z"/><circle cx="5.5" cy="18.5" r="2.5"/><circle cx="18.5" cy="18.5" r="2.5"/></svg>
+                </div>
+                <h3 class="step-title" data-i18n="home.f4_title">Мої автомобілі</h3>
+                <p class="step-desc" data-i18n="home.f4_desc">Зберігай VIN-коди своїх авто та відстежуй сервісну історію.</p>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ── RECOMMENDED AUTO SERVICES SECTION ── -->
+<section class="section-recommendations">
+    <div class="container-width">
+        <div class="section-header-centered">
+            <span class="subtitle-text">Рекомендуємо СТО</span>
+            <h2 class="title-text">Популярні напрямки обслуговування</h2>
+        </div>
+    
+        <div class="categories-grid">
+            <!-- Detailing Card -->
+            <div class="category-card">
+                <div class="category-img-container">
+                    <img src="/static/images/detailing_service.png" alt="Детейлінг та Кузовний ремонт" class="category-img">
+                    <div class="category-overlay">
+                        <span class="tag-accent">Детейлінг & Кузов</span>
+                    </div>
+                </div>
+                <div class="category-body">
+                    <div class="category-meta">
+                        <h3 class="category-name">Detailing Lab</h3>
+                        <div class="category-rating">
+                            <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+                            <span>4.8</span>
+                        </div>
+                    </div>
+                    <p class="category-text">Повний спектр догляду за екстер'єром та інтер'єром автомобіля, полірування та відновлення.</p>
+                    <div class="category-address">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
+                        <span>Київ, вул. Окружна 4Б</span>
+                    </div>
+                </div>
+                <div class="category-footer">
+                    <span class="price-from">Від 300 грн</span>
+                    <a href="/search/?city=Київ" class="btn-primary-sm">Знайти в Києві</a>
+                </div>
+            </div>
+    
+            <!-- Diagnostics Card -->
+            <div class="category-card">
+                <div class="category-img-container">
+                    <img src="/static/images/diagnostics_service.png" alt="Комп'ютерна діагностика" class="category-img">
+                    <div class="category-overlay">
+                        <span class="tag-accent">Діагностика Двигуна</span>
+                    </div>
+                </div>
+                <div class="category-body">
+                    <div class="category-meta">
+                        <h3 class="category-name">СТО АвтоКлінік</h3>
+                        <div class="category-rating">
+                            <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+                            <span>4.9</span>
+                        </div>
+                    </div>
+                    <p class="category-text">Комп'ютерна діагностика систем, аналіз помилок, ремонт двигунів та паливних систем будь-якої складності.</p>
+                    <div class="category-address">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
+                        <span>Львів, вул. Зелена 115</span>
+                    </div>
+                </div>
+                <div class="category-footer">
+                    <span class="price-from">Від 250 грн</span>
+                    <a href="/search/?city=Львів" class="btn-primary-sm">Знайти у Львові</a>
+                </div>
+            </div>
+    
+            <!-- Tire Card -->
+            <div class="category-card">
+                <div class="category-img-container">
+                    <img src="/static/images/tire_service.png" alt="Шиномонтаж та Ходова" class="category-img">
+                    <div class="category-overlay">
+                        <span class="tag-accent">Шиномонтаж & Ходова</span>
+                    </div>
+                </div>
+                <div class="category-body">
+                    <div class="category-meta">
+                        <h3 class="category-name">Tire & Wheel Hub</h3>
+                        <div class="category-rating">
+                            <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+                            <span>4.7</span>
+                        </div>
+                    </div>
+                    <p class="category-text">Швидкий шиномонтаж, балансування коліс, діагностика підвіски та заміна амортизаторів/важелів.</p>
+                    <div class="category-address">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
+                        <span>Одеса, вул. Балківська 22</span>
+                    </div>
+                </div>
+                <div class="category-footer">
+                    <span class="price-from">Від 180 грн</span>
+                    <a href="/search/?city=Одеса" class="btn-primary-sm">Знайти в Одесі</a>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ── DIGITAL GARAGE SECTION ── -->
+<section class="section-garage">
+    <div class="container-width">
+        <div class="garage-layout-grid">
+            <div class="garage-info-panel">
+                <span class="subtitle-text">Інновації</span>
+                <h2 class="title-text">Твій Цифровий Гараж</h2>
+                <p class="description-text">
+                    Зберігай інформацію про свої автомобілі у особистому кабінеті. Достатньо ввести 17-значний VIN-код, щоб автоматично розшифрувати марку, модель та рік випуску вашого транспортного засобу та вести його єдину сервісну історію.
+                </p>
+                <div class="cta-wrapper">
+                    
+                        <a href="/login/" class="btn-cta-blue">Спробувати Гараж</a>
+                    
+                </div>
+            </div>
+    
+            <div class="phone-mockup-outer animate-scroll">
+                <div class="phone-case">
+                    <div class="phone-speaker"></div>
+                    <div class="phone-content-screen">
+                        <div class="phone-screen-header">
+                            <span>Мій Гараж</span>
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
+                        </div>
+                        
+                        <div class="phone-car-card">
+                            <div class="phone-car-image-placeholder">
+                                <span>Audi A4 (2020)</span>
+                            </div>
+                            <h4 class="phone-car-name">Audi A4 Premium</h4>
+                            <div class="phone-vin-badge">VIN: WAUZZZ8W1LAXXXXXX</div>
+                        </div>
+                        
+                        <div class="phone-history-timeline">
+                            <h5 class="timeline-heading">Історія обслуговування</h5>
+                            
+                            <div class="timeline-step">
+                                <div class="step-dot"></div>
+                                <div class="step-details">
+                                    <div class="step-title">Заміна мастила</div>
+                                    <div class="step-meta">15.05.2026 · AutoMaster</div>
+                                </div>
+                            </div>
+    
+                            <div class="timeline-step">
+                                <div class="step-dot"></div>
+                                <div class="step-details">
+                                    <div class="step-title">Діагностика ходової</div>
+                                    <div class="step-meta">10.04.2026 · Detailing Lab</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ── FOR BUSINESS / STATION OWNERS CTA ── -->
+<section class="section-business">
+    <div class="container-width">
+        <div class="business-content-card">
+            <span class="subtitle-text">Власникам Автосервісів</span>
+            <h2 class="title-text">Маєте СТО? Зареєструйте її на Karro</h2>
+            <p class="description-text">
+                Отримайте доступ до сотень потенційних клієнтів у вашому місті. Зареєструйте кабінет СТО, додайте перелік ваших послуг та прайс-лист, відповідайте на відгуки клієнтів та керуйте вашим завантаженням через вбудований органайзер.
+            </p>
+            <div class="business-btn-wrapper">
+                <a href="/login/" class="btn-primary">Створити акаунт СТО</a>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ── AUTHOR / DEVELOPER INFO ── -->
+<section class="section-author" id="author">
+    <div class="container-width">
+        <div class="author-profile-card">
+            <div class="avatar-circle">Л</div>
+            <div class="author-info">
+                <span class="subtitle-text" data-i18n="home.author_label">Розробник</span>
+                <h3 class="author-name-text">Летінський О.</h3>
+                <p class="author-bio-text" data-i18n="home.author_bio">
+                    Студент групи ZPI-21. Проектування бази даних, розробка серверної (Django) та клієнтської (Vanilla JS) частин платформи Karro.
+                </p>
+                <div class="technologies-row">
+                    <span class="tech-pill">Python</span>
+                    <span class="tech-pill">Django 4.2</span>
+                    <span class="tech-pill">MySQL</span>
+                    <span class="tech-pill">HTML/CSS</span>
+                    <span class="tech-pill">Vanilla JS</span>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+    </main>
+
+    <footer data-i18n-html="home.footer">
+        © 2026 <span>Karro</span> · Навчальний проєкт · ZPI-21 · Летінський О.
+    </footer>
+
+    <script src="/static/js/i18n.js"></script>
+    <script src="/static/js/navigation.js"></script>
+    
+    <script src="/static/js/theme_toggle.js"></script>
+    
+</body>
+</html>

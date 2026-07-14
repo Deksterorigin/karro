@@ -1,36 +1,7 @@
-/* ═════════════════════════════════════════════
-   Karro Standalone Accounting CSS Design System
-   All comments written in Ukrainian
-   ═════════════════════════════════════════════ */
+/* ==========================================================================
+   Karro Modern Accounting Dashboard Style Sheet
+   ========================================================================== */
 
-/* --- Змінні для темної теми, які перевизначають глобальні змінні :root --- */
-body.dark-theme {
-    --bg: #090d16;
-    --surface: #121824;
-    --surface-hover: #1b2336;
-    --border: #212c42;
-    --border-hover: #2e3e5c;
-    --text: #f8fafc;
-    --text-muted: #94a3b8;
-    --text-faint: #64748b;
-    --accent: #3b82f6;
-    --accent-hover: #60a5fa;
-    --accent-dim: rgba(59, 130, 246, 0.15);
-    --success: #0d9488;
-    --success-dim: rgba(13, 148, 136, 0.15);
-    --error: #f43f5e;
-    --error-dim: rgba(244, 63, 94, 0.15);
-    --shadow-sm: 0 4px 6px -1px rgba(0, 0, 0, 0.3), 0 2px 4px -2px rgba(0, 0, 0, 0.3);
-    --shadow-md: 0 10px 15px -3px rgba(0, 0, 0, 0.4), 0 4px 6px -4px rgba(0, 0, 0, 0.4);
-    --shadow-lg: 0 20px 25px -5px rgba(0, 0, 0, 0.5), 0 8px 10px -6px rgba(0, 0, 0, 0.5);
-}
-
-/* Глобальне налаштування переходу кольорів для зміни теми */
-body {
-    transition: background-color 0.3s ease, color 0.3s ease;
-}
-
-/* --- Основний контейнер бухгалтерії --- */
 .accounting-container {
     max-width: 1400px;
     margin: 2rem auto;
@@ -38,7 +9,7 @@ body {
     display: flex;
     flex-direction: column;
     gap: 2rem;
-    animation: fadeInPage 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+    animation: fadeInPage 0.5s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 @keyframes fadeInPage {
@@ -46,7 +17,7 @@ body {
     to { opacity: 1; transform: translateY(0); }
 }
 
-/* --- Верхня панель управління --- */
+/* --- Header Section --- */
 .dashboard-top-bar {
     display: flex;
     justify-content: space-between;
@@ -64,8 +35,8 @@ body {
     color: var(--text-muted);
     text-decoration: none;
     font-size: 0.875rem;
-    font-weight: 600;
-    transition: color 0.2s ease;
+    font-weight: 700;
+    transition: color var(--transition-fast);
     margin-bottom: 0.5rem;
 }
 
@@ -93,7 +64,7 @@ body {
     flex-wrap: wrap;
 }
 
-/* Перемикач теми */
+/* Theme Toggle Button */
 .btn-theme-toggle {
     width: 44px;
     height: 44px;
@@ -105,7 +76,7 @@ body {
     display: flex;
     align-items: center;
     justify-content: center;
-    transition: all 0.2s ease;
+    transition: all var(--transition-fast);
     box-shadow: var(--shadow-sm);
 }
 
@@ -118,31 +89,30 @@ body {
 .btn-theme-toggle svg {
     width: 20px;
     height: 20px;
-    transition: transform 0.3s ease;
 }
 
-/* Відображення іконок залежно від наявності класу dark-theme на body */
-body.dark-theme .sun-icon { display: block; }
-body.dark-theme .moon-icon { display: none; }
-body:not(.dark-theme) .sun-icon { display: none; }
-body:not(.dark-theme) .moon-icon { display: block; }
+/* Toggle visibility based on system theme */
+html.dark .btn-theme-toggle .sun-icon { display: block; }
+html.dark .btn-theme-toggle .moon-icon { display: none; }
+html:not(.dark) .btn-theme-toggle .sun-icon { display: none; }
+html:not(.dark) .btn-theme-toggle .moon-icon { display: block; }
 
-/* Кнопка експорту у CSV */
+/* CSV Export Button */
 .btn-export-csv {
     display: inline-flex;
     align-items: center;
     gap: 0.5rem;
-    padding: 0.7rem 1.25rem;
-    border-radius: var(--radius-sm);
+    padding: 0.75rem 1.25rem;
+    border-radius: 12px;
     background: var(--surface);
     border: 1px solid var(--border);
     color: var(--text-muted);
     font-size: 0.875rem;
-    font-weight: 600;
+    font-weight: 700;
     text-decoration: none;
     cursor: pointer;
     box-shadow: var(--shadow-sm);
-    transition: all 0.2s ease;
+    transition: all var(--transition-fast);
 }
 
 .btn-export-csv:hover {
@@ -151,46 +121,48 @@ body:not(.dark-theme) .moon-icon { display: block; }
     color: var(--text);
 }
 
-/* Кнопки дій */
-.btn-action-primary, .btn-action-success {
+/* Action Buttons */
+.btn-action-primary, 
+.btn-action-success {
     display: inline-flex;
     align-items: center;
     gap: 0.5rem;
-    padding: 0.7rem 1.25rem;
-    border-radius: var(--radius-sm);
+    padding: 0.75rem 1.25rem;
+    border-radius: 12px;
     border: none;
     font-size: 0.875rem;
-    font-weight: 600;
+    font-weight: 700;
     cursor: pointer;
     box-shadow: var(--shadow-sm);
-    transition: all 0.2s ease;
+    transition: all var(--transition-fast);
+    color: #ffffff;
 }
 
 .btn-action-primary {
     background: var(--accent);
-    color: #ffffff;
 }
 
 .btn-action-primary:hover {
     background: var(--accent-hover);
     transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(37, 99, 235, 0.2);
 }
 
 .btn-action-success {
     background: var(--success);
-    color: #ffffff;
 }
 
 .btn-action-success:hover {
-    background: #257c7a;
+    background: #059669;
     transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(16, 185, 129, 0.2);
 }
 
-/* --- Панель фільтрів --- */
+/* --- Filters Section --- */
 .filters-card {
     background: var(--surface);
     border: 1px solid var(--border);
-    border-radius: var(--radius-lg);
+    border-radius: 20px;
     padding: 1.5rem;
     box-shadow: var(--shadow-sm);
 }
@@ -209,7 +181,6 @@ body:not(.dark-theme) .moon-icon { display: block; }
     flex: 1 1 200px;
 }
 
-/* Окремий збільшений розмір для двох дат, щоб запобігти перекриттю */
 .filter-item.date-range-picker {
     flex: 1.6 1 330px;
 }
@@ -222,27 +193,31 @@ body:not(.dark-theme) .moon-icon { display: block; }
     color: var(--text-muted);
 }
 
-.filter-select, .filter-input-date {
+.filter-select, 
+.filter-input-date {
     background: var(--bg);
     border: 1px solid var(--border);
-    border-radius: var(--radius-sm);
-    padding: 0.6rem 0.85rem;
+    border-radius: 10px;
+    padding: 0.7rem 0.9rem;
     font-family: inherit;
     font-size: 0.9rem;
+    font-weight: 600;
     color: var(--text);
     outline: none;
     width: 100%;
-    transition: border-color 0.2s ease, background-color 0.2s ease;
+    transition: all var(--transition-fast);
 }
 
-.filter-select:focus, .filter-input-date:focus {
+.filter-select:focus, 
+.filter-input-date:focus {
     border-color: var(--accent);
     background: var(--surface);
+    box-shadow: 0 0 0 3px var(--accent-dim);
 }
 
 .single-station-name {
-    font-size: 1rem;
-    font-weight: 700;
+    font-size: 1.1rem;
+    font-weight: 800;
     color: var(--text);
     padding: 0.6rem 0;
     display: inline-block;
@@ -256,22 +231,22 @@ body:not(.dark-theme) .moon-icon { display: block; }
 
 .date-sep {
     color: var(--text-faint);
-    font-weight: bold;
+    font-weight: 800;
 }
 
 .btn-reset-filters {
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    padding: 0.6rem 1.2rem;
-    border-radius: var(--radius-sm);
+    padding: 0.7rem 1.2rem;
+    border-radius: 10px;
     border: 1px solid var(--border);
     color: var(--text-muted);
     font-size: 0.85rem;
-    font-weight: 600;
+    font-weight: 700;
     text-decoration: none;
     background: var(--surface);
-    transition: all 0.2s ease;
+    transition: all var(--transition-fast);
     width: 100%;
     text-align: center;
 }
@@ -279,7 +254,7 @@ body:not(.dark-theme) .moon-icon { display: block; }
 .btn-reset-filters:hover {
     background: var(--error-dim);
     color: var(--error);
-    border-color: rgba(244, 63, 94, 0.2);
+    border-color: rgba(239, 68, 68, 0.2);
 }
 
 .filter-reset-wrapper {
@@ -288,37 +263,39 @@ body:not(.dark-theme) .moon-icon { display: block; }
     align-items: flex-end;
 }
 
-/* --- Картки фінансових метрик --- */
+/* --- Metrics Grid --- */
 .metrics-dashboard-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+    grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
     gap: 1.5rem;
 }
 
 .finance-card {
     background: var(--surface);
     border: 1px solid var(--border);
-    border-radius: var(--radius-lg);
+    border-radius: 20px;
     padding: 1.75rem;
     box-shadow: var(--shadow-sm);
     display: flex;
     align-items: center;
     gap: 1.25rem;
-    transition: transform 0.2s ease, box-shadow 0.2s ease;
+    transition: all var(--transition-normal);
 }
 
 .finance-card:hover {
     transform: translateY(-4px);
     box-shadow: var(--shadow-md);
+    border-color: var(--border-hover);
 }
 
 .card-icon-bg {
     width: 52px;
     height: 52px;
-    border-radius: var(--radius-md);
+    border-radius: 12px;
     display: flex;
     align-items: center;
     justify-content: center;
+    flex-shrink: 0;
 }
 
 .card-icon-bg svg {
@@ -333,7 +310,7 @@ body:not(.dark-theme) .moon-icon { display: block; }
 }
 
 .card-label {
-    font-size: 0.8rem;
+    font-size: 0.75rem;
     font-weight: 700;
     text-transform: uppercase;
     letter-spacing: 0.03em;
@@ -346,7 +323,7 @@ body:not(.dark-theme) .moon-icon { display: block; }
     color: var(--text);
 }
 
-/* Текстурування кольорів карток */
+/* Color Accents for Cards */
 .income-highlight { border-left: 5px solid var(--success); }
 .income-highlight .card-icon-bg { background: var(--success-dim); color: var(--success); }
 
@@ -359,10 +336,10 @@ body:not(.dark-theme) .moon-icon { display: block; }
 .loss-highlight { border-left: 5px solid var(--error); }
 .loss-highlight .card-icon-bg { background: var(--error-dim); color: var(--error); }
 
-.outstanding-highlight { border-left: 5px solid #d97706; }
-.outstanding-highlight .card-icon-bg { background: rgba(217, 119, 6, 0.1); color: #d97706; }
+.outstanding-highlight { border-left: 5px solid #F59E0B; }
+.outstanding-highlight .card-icon-bg { background: rgba(245, 158, 11, 0.08); color: #F59E0B; }
 
-/* --- Графіки аналітики --- */
+/* --- Analytics & Charts --- */
 .analytics-charts-grid {
     display: grid;
     grid-template-columns: 1.3fr 0.7fr;
@@ -378,7 +355,7 @@ body:not(.dark-theme) .moon-icon { display: block; }
 .chart-container-card {
     background: var(--surface);
     border: 1px solid var(--border);
-    border-radius: var(--radius-lg);
+    border-radius: 20px;
     padding: 1.75rem;
     box-shadow: var(--shadow-sm);
     display: flex;
@@ -418,7 +395,7 @@ body:not(.dark-theme) .moon-icon { display: block; }
     opacity: 0.4;
 }
 
-/* --- Таби та Таблиці --- */
+/* --- Tabs & Tables --- */
 .dashboard-tabs-section {
     display: flex;
     flex-direction: column;
@@ -431,7 +408,7 @@ body:not(.dark-theme) .moon-icon { display: block; }
     background: var(--surface);
     border: 1px solid var(--border);
     padding: 0.4rem;
-    border-radius: var(--radius-md);
+    border-radius: 12px;
     align-self: flex-start;
 }
 
@@ -440,14 +417,14 @@ body:not(.dark-theme) .moon-icon { display: block; }
     align-items: center;
     gap: 0.5rem;
     padding: 0.65rem 1.25rem;
-    border-radius: var(--radius-sm);
+    border-radius: 8px;
     border: none;
     background: transparent;
     color: var(--text-muted);
     font-size: 0.9rem;
-    font-weight: 600;
+    font-weight: 700;
     cursor: pointer;
-    transition: all 0.2s ease;
+    transition: all var(--transition-fast);
 }
 
 .tab-button:hover {
@@ -478,7 +455,7 @@ body:not(.dark-theme) .moon-icon { display: block; }
 .table-card-wrapper {
     background: var(--surface);
     border: 1px solid var(--border);
-    border-radius: var(--radius-lg);
+    border-radius: 20px;
     box-shadow: var(--shadow-sm);
     overflow: hidden;
 }
@@ -496,8 +473,8 @@ body:not(.dark-theme) .moon-icon { display: block; }
 
 .dashboard-data-table th {
     background: var(--surface-hover);
-    padding: 1rem 1.25rem;
-    font-weight: 700;
+    padding: 1.1rem 1.25rem;
+    font-weight: 800;
     color: var(--text-muted);
     font-size: 0.75rem;
     text-transform: uppercase;
@@ -509,6 +486,7 @@ body:not(.dark-theme) .moon-icon { display: block; }
     padding: 1.1rem 1.25rem;
     border-bottom: 1px solid var(--border);
     vertical-align: middle;
+    color: var(--text);
 }
 
 .dashboard-data-table tbody tr:last-child td {
@@ -516,7 +494,7 @@ body:not(.dark-theme) .moon-icon { display: block; }
 }
 
 .dashboard-data-table tbody tr {
-    transition: background-color 0.15s ease;
+    transition: background-color var(--transition-fast);
 }
 
 .dashboard-data-table tbody tr:hover {
@@ -526,7 +504,7 @@ body:not(.dark-theme) .moon-icon { display: block; }
 /* Специфічні рядки */
 .fired-employee-row {
     opacity: 0.55;
-    background: rgba(244, 63, 94, 0.02);
+    background: rgba(239, 68, 68, 0.02);
 }
 
 .employee-identity {
@@ -537,17 +515,19 @@ body:not(.dark-theme) .moon-icon { display: block; }
 
 .employee-identity strong {
     color: var(--text);
+    font-weight: 700;
 }
 
 .employee-identity span {
     font-size: 0.75rem;
     color: var(--text-faint);
+    font-weight: 600;
 }
 
 .badge {
     display: inline-flex;
     align-items: center;
-    padding: 0.25rem 0.65rem;
+    padding: 0.3rem 0.75rem;
     border-radius: 20px;
     font-size: 0.75rem;
     font-weight: 700;
@@ -574,6 +554,7 @@ body:not(.dark-theme) .moon-icon { display: block; }
 .salary-current-balance {
     color: var(--accent);
     font-size: 1rem;
+    font-weight: 800;
 }
 
 .actions-row-buttons {
@@ -587,31 +568,33 @@ body:not(.dark-theme) .moon-icon { display: block; }
     background: var(--success);
     color: #ffffff;
     border: none;
-    padding: 0.4rem 0.85rem;
-    border-radius: 6px;
+    padding: 0.45rem 1rem;
+    border-radius: 8px;
     font-size: 0.8rem;
     font-weight: 700;
     cursor: pointer;
-    transition: background-color 0.2s ease;
+    transition: all var(--transition-fast);
 }
 
 .btn-table-pay:hover {
-    background: #257c7a;
+    background: #059669;
+    box-shadow: 0 2px 8px rgba(16, 185, 129, 0.15);
 }
 
-.btn-table-edit, .btn-table-danger {
+.btn-table-edit, 
+.btn-table-danger {
     background: transparent;
     border: 1px solid var(--border);
     color: var(--text-muted);
     padding: 0.4rem;
-    width: 32px;
-    height: 32px;
+    width: 34px;
+    height: 34px;
     display: flex;
     align-items: center;
     justify-content: center;
-    border-radius: 6px;
+    border-radius: 8px;
     cursor: pointer;
-    transition: all 0.2s ease;
+    transition: all var(--transition-fast);
 }
 
 .btn-table-edit:hover {
@@ -629,13 +612,13 @@ body:not(.dark-theme) .moon-icon { display: block; }
 .btn-table-reactivate {
     background: var(--accent-dim);
     color: var(--accent);
-    border: 1px solid rgba(59, 130, 246, 0.2);
-    padding: 0.4rem 0.85rem;
-    border-radius: 6px;
+    border: 1px solid rgba(37, 99, 235, 0.2);
+    padding: 0.45rem 1rem;
+    border-radius: 8px;
     font-size: 0.8rem;
     font-weight: 700;
     cursor: pointer;
-    transition: all 0.2s ease;
+    transition: all var(--transition-fast);
 }
 
 .btn-table-reactivate:hover {
@@ -648,6 +631,7 @@ body:not(.dark-theme) .moon-icon { display: block; }
     padding: 4rem !important;
     color: var(--text-faint);
     font-style: italic;
+    font-weight: 600;
 }
 
 .tx-category-block {
@@ -656,12 +640,17 @@ body:not(.dark-theme) .moon-icon { display: block; }
     gap: 0.25rem;
 }
 
+.tx-category-block strong {
+    font-weight: 700;
+}
+
 .tx-employee-tag {
     display: inline-flex;
     align-items: center;
     gap: 0.25rem;
     font-size: 0.75rem;
-    color: var(--text-faint);
+    color: var(--text-muted);
+    font-weight: 600;
 }
 
 .tx-booking-ref {
@@ -669,23 +658,25 @@ body:not(.dark-theme) .moon-icon { display: block; }
     font-size: 0.75rem;
     background: var(--bg);
     border: 1px solid var(--border);
-    padding: 0.1rem 0.4rem;
-    border-radius: 4px;
+    padding: 0.2rem 0.5rem;
+    border-radius: 6px;
     color: var(--text-muted);
     margin-left: 0.5rem;
+    font-weight: 700;
 }
 
 .transaction-amount-label {
     font-size: 1rem;
+    font-weight: 800;
 }
 
 .income-style { color: var(--success); }
 .expense-style { color: var(--error); }
-.salary-payout-amount-value { color: var(--error); }
+.salary-payout-amount-value { color: var(--error); font-weight: 800; }
 
 .text-right { text-align: right; }
 
-/* --- Модальні вікна --- */
+/* --- Modals Layout --- */
 .acc-modal-overlay {
     position: fixed;
     inset: 0;
@@ -709,7 +700,7 @@ body:not(.dark-theme) .moon-icon { display: block; }
 .acc-modal-content {
     background: var(--surface);
     border: 1px solid var(--border);
-    border-radius: var(--radius-lg);
+    border-radius: 20px;
     width: 100%;
     max-width: 520px;
     box-shadow: var(--shadow-lg);
@@ -734,7 +725,7 @@ body:not(.dark-theme) .moon-icon { display: block; }
 }
 
 .acc-modal-header h3 {
-    font-size: 1.2rem;
+    font-size: 1.25rem;
     font-weight: 800;
     letter-spacing: -0.02em;
     color: var(--text);
@@ -747,7 +738,7 @@ body:not(.dark-theme) .moon-icon { display: block; }
     color: var(--text-faint);
     cursor: pointer;
     line-height: 1;
-    transition: color 0.2s ease;
+    transition: color var(--transition-fast);
 }
 
 .close-modal-btn:hover {
@@ -785,20 +776,25 @@ body:not(.dark-theme) .moon-icon { display: block; }
     color: var(--text-muted);
 }
 
-.form-group input, .form-group select, .form-group textarea {
+.form-group input, 
+.form-group select, 
+.form-group textarea {
     background: var(--bg);
     border: 1px solid var(--border);
-    border-radius: var(--radius-sm);
-    padding: 0.65rem 0.9rem;
+    border-radius: 10px;
+    padding: 0.7rem 0.9rem;
     font-family: inherit;
-    font-size: 0.95rem;
+    font-size: 0.9rem;
+    font-weight: 600;
     color: var(--text);
     outline: none;
-    transition: all 0.2s ease;
+    transition: all var(--transition-fast);
     width: 100%;
 }
 
-.form-group input:focus, .form-group select:focus, .form-group textarea:focus {
+.form-group input:focus, 
+.form-group select:focus, 
+.form-group textarea:focus {
     border-color: var(--accent);
     background: var(--surface);
     box-shadow: 0 0 0 3px var(--accent-dim);
@@ -808,33 +804,35 @@ body:not(.dark-theme) .moon-icon { display: block; }
     background: var(--accent);
     color: #ffffff;
     border: none;
-    border-radius: var(--radius-sm);
+    border-radius: 10px;
     padding: 0.85rem;
     font-weight: 700;
     font-size: 1rem;
     cursor: pointer;
     box-shadow: var(--shadow-sm);
     margin-top: 1rem;
-    transition: all 0.2s ease;
+    transition: all var(--transition-fast);
 }
 
 .btn-form-submit:hover {
     background: var(--accent-hover);
     transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(37, 99, 235, 0.2);
 }
 
 .btn-submit-payout {
     background: var(--success);
 }
 .btn-submit-payout:hover {
-    background: #257c7a;
+    background: #059669;
+    box-shadow: 0 4px 12px rgba(16, 185, 129, 0.2);
 }
 
 .payout-summary-bubble {
     background: var(--accent-dim);
-    border: 1px solid rgba(59, 130, 246, 0.15);
+    border: 1px solid rgba(37, 99, 235, 0.15);
     padding: 1rem;
-    border-radius: var(--radius-sm);
+    border-radius: 10px;
     display: flex;
     justify-content: space-between;
     align-items: center;
@@ -842,6 +840,7 @@ body:not(.dark-theme) .moon-icon { display: block; }
 
 .payout-summary-bubble strong {
     color: var(--text);
+    font-weight: 700;
 }
 
 .max-salary-allow {
@@ -856,7 +855,7 @@ body:not(.dark-theme) .moon-icon { display: block; }
     gap: 0.5rem;
     cursor: pointer;
     font-size: 0.9rem;
-    font-weight: 600;
+    font-weight: 700;
     color: var(--text-muted);
 }
 
@@ -866,7 +865,7 @@ body:not(.dark-theme) .moon-icon { display: block; }
     accent-color: var(--accent);
 }
 
-/* ── РЕСПОНСИВНІ СТИЛІ БУХГАЛТЕРІЇ СТО ── */
+/* --- Responsive Adjustments --- */
 @media (max-width: 1024px) {
     .accounting-container {
         padding: 1.5rem;
@@ -886,10 +885,6 @@ body:not(.dark-theme) .moon-icon { display: block; }
         flex: 1;
         min-width: 160px;
     }
-    .main-filters-form {
-        grid-template-columns: repeat(2, 1fr);
-        gap: 1.25rem;
-    }
 }
 
 @media (max-width: 768px) {
@@ -903,11 +898,13 @@ body:not(.dark-theme) .moon-icon { display: block; }
     }
     .canvas-wrapper {
         height: 260px;
-        position: relative;
     }
     .main-filters-form {
-        grid-template-columns: 1fr;
-        gap: 1rem;
+        flex-direction: column;
+        align-items: stretch;
+    }
+    .filter-item {
+        flex: 1 1 auto;
     }
 }
 
@@ -932,7 +929,7 @@ body:not(.dark-theme) .moon-icon { display: block; }
         height: 46px;
     }
 
-    /* Перетворення таблиць на вертикальні картки (Card Stack) */
+    /* Convert Tables to Cards (Card Stack) on Mobile */
     .table-card-wrapper {
         border: none;
         box-shadow: none;
@@ -946,7 +943,7 @@ body:not(.dark-theme) .moon-icon { display: block; }
     }
     
     .dashboard-data-table thead {
-        display: none; /* Приховуємо заголовки колонок */
+        display: none;
     }
     
     .dashboard-data-table tbody {
@@ -959,7 +956,7 @@ body:not(.dark-theme) .moon-icon { display: block; }
         display: block;
         background: var(--surface);
         border: 1px solid var(--border);
-        border-radius: var(--radius-lg);
+        border-radius: 20px;
         padding: 1.25rem;
         box-shadow: var(--shadow-sm);
         transition: all var(--transition-normal);
@@ -986,7 +983,6 @@ body:not(.dark-theme) .moon-icon { display: block; }
         margin-top: 0.5rem;
     }
     
-    /* Додаємо метки колонок ліворуч */
     .dashboard-data-table td::before {
         content: attr(data-label);
         font-weight: 700;
@@ -997,7 +993,6 @@ body:not(.dark-theme) .moon-icon { display: block; }
         margin-right: 1rem;
     }
     
-    /* Вирівнювання дій */
     .dashboard-data-table td[data-label="Дії"] {
         flex-direction: column;
         align-items: stretch;
@@ -1024,10 +1019,11 @@ body:not(.dark-theme) .moon-icon { display: block; }
     .btn-table-pay {
         width: 100%;
         text-align: center;
-        padding: 0.6rem;
+        padding: 0.65rem;
     }
 
-    .btn-table-edit, .btn-table-danger {
+    .btn-table-edit, 
+    .btn-table-danger {
         width: 100%;
         height: 38px;
     }
