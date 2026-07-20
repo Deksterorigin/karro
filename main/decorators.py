@@ -4,12 +4,12 @@ from django.contrib import messages
 
 def login_required_session(view_func):
     """
-    Перевірка наявності активної сесії користувача.
-    Перенаправляє на сторінку входу, якщо користувач неавторизований.
+    Декоратор для перевірки авторизації.
+    Якщо користувач не авторизований, перенаправляє на сторінку входу.
     """
     @wraps(view_func)
     def wrapper(request, *args, **kwargs):
-        if not request.session.get('user_id'):
+        if not request.user.is_authenticated:
             messages.warning(request, 'Увійдіть в акаунт, щоб отримати доступ до цієї сторінки.')
             return redirect('login')
         return view_func(request, *args, **kwargs)
@@ -17,13 +17,12 @@ def login_required_session(view_func):
 
 def role_required(*roles):
     """
-    Обмеження доступу до функцій за ролями користувачів.
+    Декоратор для обмеження доступу за ролями користувача.
     """
     def decorator(view_func):
         @wraps(view_func)
         def wrapper(request, *args, **kwargs):
-            user_role = request.session.get('user_role')
-            if user_role not in roles:
+            if not request.user.is_authenticated or request.user.role not in roles:
                 messages.error(request, 'У вас немає доступу до цієї дії.')
                 return redirect('profile')
             return view_func(request, *args, **kwargs)

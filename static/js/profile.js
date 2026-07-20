@@ -4,6 +4,11 @@ function showSection(name, btn) {
     const panel = document.getElementById('section-' + name);
     if (panel) panel.classList.add('active');
     if (btn) btn.classList.add('active');
+
+    // Якщо відкрили календар, оновлюємо його розміри
+    if (name === 'calendar' && window.karroCalendar) {
+        window.karroCalendar.render();
+    }
 }
 
 // Синхронізація вибраної мови
@@ -49,7 +54,7 @@ function updateTabCounts() {
 function filterByStatus(status, btnElement) {
     activeFilterStatus = status;
 
-    // Toggle active class on tab buttons
+    // Перемикаємо активний клас для кнопок фільтрації статусу
     document.querySelectorAll('.tab-filter-btn').forEach(btn => {
         btn.classList.remove('active');
     });
@@ -172,5 +177,86 @@ document.addEventListener('DOMContentLoaded', () => {
             searchQuery = e.target.value.toLowerCase().trim();
             applyFilters();
         }, 150));
+    }
+
+    // Ініціалізація FullCalendar
+    const calendarEl = document.getElementById('calendar');
+    const calendarPanel = document.getElementById('section-calendar');
+    if (calendarEl && calendarPanel) {
+        const stationId = calendarPanel.getAttribute('data-station-id');
+        if (stationId) {
+            const calendar = new FullCalendar.Calendar(calendarEl, {
+                initialView: 'timeGridWeek',
+                locale: 'uk',
+                slotMinTime: '08:00',
+                slotMaxTime: '20:00',
+                headerToolbar: {
+                    left: 'prev,next today',
+                    center: 'title',
+                    right: 'dayGridMonth,timeGridWeek,timeGridDay'
+                },
+                buttonText: {
+                    today: 'Сьогодні',
+                    month: 'Місяць',
+                    week: 'Тиждень',
+                    day: 'День'
+                },
+                editable: true, // дозволяє drag-and-drop
+                eventSources: [
+                    {
+                        url: `/api/stations/${stationId}/calendar-events/`,
+                        method: 'GET',
+                        failure: function() {
+                            alert('Помилка завантаження замовлень для календаря');
+                        }
+                    }
+                ],
+                eventDrop: function(info) {
+                    // Користувач перетягнув замовлення
+                    if (!confirm(`Перенести замовлення на ${info.event.start.toLocaleString('uk-UA')}?`)) {
+                        info.revert();
+                        return;
+                    }
+
+                    const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]').value;
+                    const bookingId = info.event.id;
+                    const newStart = info.event.start.toISOString();
+
+                    fetch(`/api/bookings/${bookingId}/reschedule/`, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'X-CSRFToken': csrfToken
+                        },
+                        body: JSON.stringify({
+                            scheduled_time: newStart
+                        })
+                    })
+                    .then(response => response.json().then(data => {
+                        if (!response.ok) throw new Error(data.message || 'Помилка при перенесенні');
+                        return data;
+                    }))
+                    .then(data => {
+                        alert(data.message);
+                        calendar.refetchEvents();
+                    })
+                    .catch(error => {
+                        alert(error.message);
+                        info.revert();
+                    });
+                },
+                eventClick: function(info) {
+                    const props = info.event.extendedProps;
+                    alert(`Замовлення #${info.event.id}\nКлієнт: ${props.clientName}\nАвтомобіль: ${props.car}\nПослуга: ${info.event.title.split(' - ').slice(-1)[0]}\nОпис: ${props.description}\nСтатус: ${props.status}\nБокс: ${props.boxName}`);
+                }
+            });
+
+            window.karroCalendar = calendar;
+            
+            // Якщо вкладка календаря вже відкрита при завантаженні
+            if (calendarPanel.classList.contains('active')) {
+                calendar.render();
+            }
+        }
     }
 });

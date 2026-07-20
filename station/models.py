@@ -3,8 +3,7 @@ from main.models import ServiceStation
 
 class StationPhoto(models.Model):
     """
-    Фотогалерея СТО (приклади робіт або бокси).
-    Завантажується власником СТО на публічну сторінку.
+    Фотогалерея СТО (бокси, приклади робіт тощо).
     """
     photo_id = models.AutoField(primary_key=True)
     station = models.ForeignKey(

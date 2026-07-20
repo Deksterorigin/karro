@@ -48,11 +48,7 @@ class AccountingTestCase(TestCase):
         )
 
     def login_as_owner(self):
-        session = self.client.session
-        session['user_id'] = self.owner.user_id
-        session['user_name'] = self.owner.full_name
-        session['user_role'] = self.owner.role
-        session.save()
+        self.client.force_login(self.owner)
 
     def test_employee_creation_and_balance_signal(self):
         # Додаємо нового працівника

@@ -9,7 +9,7 @@ from .models import StationPhoto
 
 def station_detail(request, station_id):
     """
-    Публічна сторінка СТО з можливістю додавання відгуків та фото.
+    Детальна інформація про СТО.
     """
     station = get_object_or_404(ServiceStation, pk=station_id)
 
@@ -29,7 +29,7 @@ def station_detail(request, station_id):
     if request.method == 'POST':
         action = request.POST.get('action', '')
 
-        # Додавання відгуку клієнтом
+        # Створення нового відгуку клієнтом
         if action == 'add_review':
             if not user:
                 messages.error(request, 'Увійдіть в акаунт, щоб залишити відгук.')
@@ -52,7 +52,7 @@ def station_detail(request, station_id):
                     )
                     messages.success(request, 'Дякуємо за відгук!')
 
-        # Завантаження фото власником
+        # Завантаження фотографій власником СТО
         elif action == 'upload_photo':
             if not is_owner:
                 messages.error(request, 'Тільки власник може завантажувати фото.')
@@ -71,7 +71,7 @@ def station_detail(request, station_id):
                     )
                     messages.success(request, 'Фото завантажено.')
 
-        # Видалення фото власником
+        # Видалення фотографій
         elif action == 'delete_photo':
             if not is_owner:
                 messages.error(request, 'Тільки власник може видаляти фото.')

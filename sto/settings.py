@@ -15,9 +15,7 @@ SESSION_COOKIE_HTTPONLY = True
 SESSION_COOKIE_SECURE = not DEBUG
 SESSION_COOKIE_SAMESITE = 'Lax'
 
-# Захист CSRF
-# FIX (CRIT-04): False дозволяє JS читати CSRF cookie для AJAX-запитів.
-# Це стандартна конфігурація Django — cookie не містить sensitive data.
+# Налаштування CSRF. Дозволяємо доступ з JS для AJAX-запитів.
 CSRF_COOKIE_HTTPONLY = False
 CSRF_COOKIE_SECURE = not DEBUG
 CSRF_COOKIE_SAMESITE = 'Lax'
@@ -30,7 +28,7 @@ if not DEBUG:
     SECURE_HSTS_PRELOAD = True
     SECURE_CONTENT_TYPE_NOSNIFF = True
 
-# Обмеження розміру завантажуваних файлів (захист від DoS)
+# Обмеження розміру завантажуваних файлів
 DATA_UPLOAD_MAX_MEMORY_SIZE = 5 * 1024 * 1024
 FILE_UPLOAD_MAX_MEMORY_SIZE = 5 * 1024 * 1024
 
@@ -166,6 +164,8 @@ LOGGING = {
 }
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
+
+AUTH_USER_MODEL = 'main.User'
 
 # Налаштування інтерфейсу Django Unfold
 UNFOLD = {

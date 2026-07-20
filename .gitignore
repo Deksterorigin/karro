@@ -38,6 +38,9 @@ logs/*.log
 *.swo
 *~
 
+# ── Інструменти розробки (AI) ──
+.agents/
+
 # ── OS ──
 .DS_Store
 Thumbs.db

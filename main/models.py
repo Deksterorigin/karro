@@ -1,12 +1,32 @@
 from django.db import models
 from django.core.validators import MinValueValidator, MaxValueValidator, RegexValidator
+from django.contrib.auth.models import AbstractBaseUser, PermissionsMixin, BaseUserManager
 import datetime
 
 def get_current_year_plus_one():
     return datetime.date.today().year + 1
 
 
-class User(models.Model):
+class UserManager(BaseUserManager):
+    """
+    Менеджер користувачів для кастомної моделі.
+    """
+    def create_user(self, email, full_name, phone, role, password=None, **extra_fields):
+        if not email:
+            raise ValueError('Email є обов\'язковим')
+        email = self.normalize_email(email)
+        user = self.model(email=email, full_name=full_name, phone=phone, role=role, **extra_fields)
+        user.set_password(password)
+        user.save(using=self._db)
+        return user
+
+    def create_superuser(self, email, full_name, phone, role='station', password=None, **extra_fields):
+        extra_fields.setdefault('is_staff', True)
+        extra_fields.setdefault('is_superuser', True)
+        return self.create_user(email, full_name, phone, role, password, **extra_fields)
+
+
+class User(AbstractBaseUser, PermissionsMixin):
 
     ROLE_CHOICES = [
         ('client',  'Клієнт'),
@@ -17,11 +37,16 @@ class User(models.Model):
     full_name = models.CharField(max_length=100, verbose_name='Повне ім\'я')
     phone = models.CharField(max_length=20, unique=True, verbose_name='Телефон')
     email = models.EmailField(max_length=100, unique=True, verbose_name='Email')
-    password = models.CharField(max_length=255)
     role = models.CharField(max_length=10, choices=ROLE_CHOICES, db_index=True, verbose_name='Роль')
     avatar = models.ImageField(upload_to='avatars/', null=True, blank=True, verbose_name='Аватар')
-    is_active = models.BooleanField(default=True, verbose_name='Активен')
+    is_active = models.BooleanField(default=True, verbose_name='Активний')
+    is_staff = models.BooleanField(default=False, verbose_name='Персонал')
     date_joined = models.DateTimeField(auto_now_add=True, verbose_name='Дата реєстрації')
+
+    objects = UserManager()
+
+    USERNAME_FIELD = 'email'
+    REQUIRED_FIELDS = ['full_name', 'phone', 'role']
 
     class Meta:
         db_table = 'user'
@@ -41,8 +66,7 @@ class User(models.Model):
 
 class ServiceStation(models.Model):
     """
-    Профіль станції технічного обслуговування.
-    Прив'язаний до користувача з роллю 'station'.
+    Профіль СТО, пов'язаний з користувачем-власником.
     """
     station_id = models.AutoField(primary_key=True)
     name = models.CharField(max_length=100, verbose_name='Назва СТО')
@@ -73,19 +97,19 @@ class ServiceStation(models.Model):
         return self.name
 
     def avg_rating(self):
-        """Обчислює середній рейтинг СТО."""
+        """Середній рейтинг на основі відгуків."""
         from django.db.models import Avg
         result = Review.objects.filter(station=self).aggregate(avg=Avg('rating'))
         avg = result.get('avg')
         return round(avg, 1) if avg is not None else None
 
     def review_count(self):
-        """Повертає кількість відгуків СТО."""
+        """Кількість залишених відгуків."""
         return Review.objects.filter(station=self).count()
 
 class Car(models.Model):
     """
-    Автомобіль клієнта з валідацією VIN за стандартом ISO 3779.
+    Автомобіль клієнта (з перевіркою VIN-коду).
     """
     vin_validator = RegexValidator(
         regex=r'^[A-HJ-NPR-Z0-9]{17}$',
@@ -121,7 +145,7 @@ class Car(models.Model):
 
 class Service(models.Model):
     """
-    Послуга, що надається конкретною СТО.
+    Послуги, які надає СТО.
     """
     service_id = models.AutoField(primary_key=True)
     service_name = models.CharField(max_length=100, verbose_name='Назва послуги')
@@ -147,7 +171,7 @@ class Service(models.Model):
 
 class Review(models.Model):
     """
-    Відгук клієнта про роботу СТО.
+    Відгук клієнта про обслуговування.
     """
     review_id = models.AutoField(primary_key=True)
     text = models.TextField(verbose_name='Текст відгуку')
@@ -174,10 +198,31 @@ class Review(models.Model):
         return f'Відгук від {self.user.full_name} — оцінка {self.rating}/5'
 
 
+class StationBox(models.Model):
+    """
+    Робочий пост/бокс на СТО.
+    """
+    box_id = models.AutoField(primary_key=True)
+    station = models.ForeignKey(
+        ServiceStation, on_delete=models.CASCADE,
+        related_name='boxes', db_column='station_id', verbose_name='СТО'
+    )
+    name = models.CharField(max_length=50, verbose_name='Назва боксу')
+    is_active = models.BooleanField(default=True, verbose_name='Активний')
+
+    class Meta:
+        db_table = 'station_box'
+        verbose_name = 'Робочий бокс'
+        verbose_name_plural = 'Робочі бокси'
+        ordering = ['name']
+
+    def __str__(self):
+        return f'{self.station.name} — {self.name}'
+
+
 class Booking(models.Model):
     """
-    Заявка на ремонт автомобіля.
-    Клієнт створює заявку, обираючи СТО та описуючи проблему.
+    Запис на ремонт або обслуговування автомобіля.
     """
 
     STATUS_CHOICES = [
@@ -201,6 +246,19 @@ class Booking(models.Model):
         related_name='bookings',
         db_column='station_id',
         verbose_name='СТО',
+    )
+    box = models.ForeignKey(
+        StationBox,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='bookings',
+        db_column='box_id',
+        verbose_name='Робочий бокс',
+    )
+    duration = models.PositiveIntegerField(
+        default=60,
+        verbose_name='Тривалість (хвилин)',
     )
     car = models.ForeignKey(
         Car,
@@ -247,7 +305,7 @@ class Booking(models.Model):
 
 class Notification(models.Model):
     """
-    Сповіщення для користувачів сайту (наприклад, про нові записи для власників СТО).
+    Сповіщення для користувачів про нові записи або зміну статусів.
     """
     recipient = models.ForeignKey(
         User,

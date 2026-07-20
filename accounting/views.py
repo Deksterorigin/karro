@@ -3,7 +3,7 @@ from django.contrib import messages
 from django.views.decorators.http import require_POST
 from django.urls import reverse
 from django.http import HttpResponse
-# FIX (CRIT-01/02/03): Імпорт transaction та F для атомарних операцій
+# Імпортування інструментів для роботи з транзакціями та атомарними запитами
 from django.db import transaction
 from django.db.models import F
 from main.decorators import login_required_session, role_required
@@ -24,7 +24,7 @@ def _redirect_to_dashboard(station_pk):
     return redirect(reverse('accounting:dashboard') + f'?station_id={station_pk}')
 
 
-# FIX (ARCH-08): Спільна utility-функція для парсингу діапазону дат
+# Допоміжна функція для парсингу діапазону дат із параметрів запиту
 def _parse_date_range(request):
     """Парсить діапазон дат з GET-параметрів, дефолт — поточний місяць."""
     today = datetime.date.today()
@@ -75,7 +75,7 @@ def dashboard_view(request):
     if not selected_station:
         selected_station = stations.first()
 
-    # FIX (ARCH-08): Використовуємо спільну utility-функцію
+    # Отримуємо діапазон дат для звітів
     start_date, end_date = _parse_date_range(request)
 
     # Отримуємо фільтри з GET-запиту
@@ -302,8 +302,8 @@ def fire_employee_view(request, employee_id):
 @require_POST
 def pay_salary_view(request):
     """
-    FIX (CRIT-01): Виплата зарплати з атомарним блокуванням
-    через select_for_update() та F() для запобігання race condition.
+    Виплата заробітної плати працівнику СТО.
+    Транзакція виконується атомарно з блокуванням рядка для уникнення race condition.
     """
     user = get_current_user(request)
     employee_id = request.POST.get('employee_id')
@@ -322,7 +322,7 @@ def pay_salary_view(request):
 
     try:
         with transaction.atomic():
-            # SELECT ... FOR UPDATE — блокує рядок від конкурентних змін
+            # Блокуємо рядок балансу у БД від паралельних змін
             balance = SalaryBalance.objects.select_for_update().get(
                 employee=employee
             )
@@ -334,7 +334,7 @@ def pay_salary_view(request):
                 )
                 return _redirect_to_dashboard(employee.station.pk)
 
-            # F() — атомарне оновлення у БД без race condition
+            # Атомарне оновлення значення суми виплат безпосередньо в базі
             balance.total_paid = F('total_paid') + amount
             balance.save(update_fields=['total_paid'])
 
@@ -422,8 +422,8 @@ def add_transaction_view(request):
 @require_POST
 def complete_booking_view(request):
     """
-    FIX (CRIT-02, CRIT-03): Завершення ремонту з атомарним блокуванням.
-    select_for_update() для booking та salary_balance.
+    Завершення замовлення на ремонт СТО.
+    Встановлює відповідний статус, фіксує дохід та нараховує комісію майстру.
     """
     user = get_current_user(request)
     booking_id = request.POST.get('booking_id')
@@ -453,7 +453,7 @@ def complete_booking_view(request):
 
     try:
         with transaction.atomic():
-            # FIX (CRIT-02): Блокуємо рядок booking від паралельних змін
+            # Блокуємо рядок замовлення від паралельних змін іншими процесами
             booking = Booking.objects.select_for_update().get(
                 pk=booking_id, station__user=user
             )
@@ -509,7 +509,7 @@ def complete_booking_view(request):
                 )
                 commission = commission.quantize(Decimal('0.01'))
 
-                # FIX (CRIT-03): Атомарне оновлення балансу
+                # Блокуємо та оновлюємо баланс заробітної плати майстра
                 sb = SalaryBalance.objects.select_for_update().get(
                     employee=employee
                 )
@@ -536,8 +536,7 @@ def complete_booking_view(request):
 @role_required('station')
 def export_transactions_csv(request):
     """
-    FIX (SEC-06, ARCH-08): Експорт CSV з санітизацією імені файлу
-    та використанням спільної _parse_date_range.
+    Експорт фінансових транзакцій СТО у формат CSV.
     """
     user = get_current_user(request)
     if not user:
@@ -550,7 +549,7 @@ def export_transactions_csv(request):
 
     station = get_object_or_404(ServiceStation, pk=int(station_id), user=user)
 
-    # FIX (ARCH-08): Використовуємо спільну utility
+    # Отримуємо обраний діапазон дат з утиліти
     start_date, end_date = _parse_date_range(request)
 
     t_type = request.GET.get('type')
@@ -573,7 +572,7 @@ def export_transactions_csv(request):
         except ValueError:
             pass
 
-    # FIX (SEC-06): Санітизація імені файлу
+    # Очищаємо ім'я файлу від небажаних символів для безпеки
     safe_name = re.sub(r'[^\w\s-]', '', station.name).strip()[:50]
     response = HttpResponse(content_type='text/csv; charset=utf-8-sig')
     response['Content-Disposition'] = (

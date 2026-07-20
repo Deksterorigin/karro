@@ -4,7 +4,7 @@ from main.models import ServiceStation
 
 def search_stations(request):
     """
-    Пошук та фільтрація СТО за містом, послугою та рейтингом.
+    Пошук та фільтрація СТО за обраним містом, назвою послуги та рейтингом.
     """
     city_query = request.GET.get('city', '').strip()
     service_query = request.GET.get('service', '').strip()

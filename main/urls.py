@@ -12,4 +12,7 @@ urlpatterns = [
     path('api/notifications/', views.get_notifications_api, name='get_notifications_api'),
     path('api/notifications/mark-read/<int:notification_id>/', views.mark_notification_read_api, name='mark_notification_read_api'),
     path('api/notifications/mark-all-read/', views.mark_all_notifications_read_api, name='mark_all_notifications_read_api'),
+    path('api/stations/<int:station_id>/available-slots/', views.get_available_slots_api, name='get_available_slots_api'),
+    path('api/stations/<int:station_id>/calendar-events/', views.get_calendar_events_api, name='get_calendar_events_api'),
+    path('api/bookings/<int:booking_id>/reschedule/', views.reschedule_booking_api, name='reschedule_booking_api'),
 ]

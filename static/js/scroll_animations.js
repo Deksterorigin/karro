@@ -1,16 +1,16 @@
 const initScrollAnimations = () => {
     console.log('Initializing scroll animations...');
     
-    // Ensure GSAP and ScrollTrigger are loaded
+    // Перевіряємо, чи завантажені бібліотеки GSAP та ScrollTrigger
     if (typeof gsap === 'undefined' || typeof ScrollTrigger === 'undefined') {
         console.warn('GSAP or ScrollTrigger is not loaded.');
         return;
     }
 
-    // Register ScrollTrigger plugin
+    // Реєструємо плагін ScrollTrigger у GSAP
     gsap.registerPlugin(ScrollTrigger);
 
-    // ── 1. HERO ENTRANCE ANIMATION (On page load) ──
+    // ── 1. АНІМАЦІЯ ПОЯВИ HERO-БЛОКУ (при завантаженні сторінки) ──
     const heroTl = gsap.timeline({ 
         defaults: { 
             ease: 'power2.out', 
@@ -18,7 +18,7 @@ const initScrollAnimations = () => {
         } 
     });
 
-    // Staggered fade and slide-up for hero content
+    // Поступова поява та плавний підйом контенту в Hero-блоці
     heroTl.from('.hero-badge', { opacity: 0, y: 15, delay: 0.1 })
           .from('.hero-title', { opacity: 0, y: 20 }, '-=0.6')
           .from('.hero-description', { opacity: 0, y: 15 }, '-=0.6')
@@ -30,8 +30,8 @@ const initScrollAnimations = () => {
               ease: 'power1.out' 
           }, '-=0.8');
 
-    // ── 2. "HOW IT WORKS" SECTION ANIMATIONS ──
-    // Section Header
+    // ── 2. АНІМАЦІЇ ДЛЯ СЕКЦІЇ "ЯК ЦЕ ПРАЦЮЄ" ──
+    // Заголовок секції
     gsap.from('.section-works .section-header-centered', {
         opacity: 0,
         y: 20,
@@ -44,7 +44,7 @@ const initScrollAnimations = () => {
         }
     });
 
-    // Step Cards
+    // Картки кроків інструкції
     gsap.from('.works-steps-grid .step-card', {
         opacity: 0,
         y: 25,
@@ -59,7 +59,7 @@ const initScrollAnimations = () => {
         }
     });
 
-    // ── 3. BUSINESS CTA SECTION ANIMATION ──
+    // ── 3. АНІМАЦІЯ СЕКЦІЇ ЗАКЛИКУ ДО ДІЇ ДЛЯ БІЗНЕСУ ──
     gsap.from('.section-business .business-content-card', {
         opacity: 0,
         y: 30,
@@ -74,7 +74,7 @@ const initScrollAnimations = () => {
         }
     });
 
-    // ── 4. AUTHOR PROFILE SECTION ANIMATION ──
+    // ── 4. АНІМАЦІЯ СЕКЦІЇ З ПРОФІЛЕМ АВТОРА ──
     gsap.from('.section-author .author-profile-card', {
         opacity: 0,
         y: 25,
@@ -89,7 +89,7 @@ const initScrollAnimations = () => {
     });
 };
 
-// Robust execution whether DOM is loaded or already interactive
+// Безпечний запуск анімації залежно від стану завантаження DOM
 if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', initScrollAnimations);
 } else {

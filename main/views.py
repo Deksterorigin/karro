@@ -9,8 +9,8 @@ from urllib.parse import urlencode
 import requests
 from django.conf import settings as django_settings
 from django.contrib import messages
-from django.contrib.auth.hashers import make_password, check_password
-# FIX (ARCH-09): Підключаємо стандартні Django-валідатори паролів
+from django.contrib.auth import login, logout, authenticate, update_session_auth_hash
+# Стандартна перевірка паролів Django
 from django.contrib.auth.password_validation import validate_password
 from django.core.exceptions import ValidationError
 from django.shortcuts import render, redirect, get_object_or_404
@@ -25,10 +25,10 @@ from .models import User, Car, Review, ServiceStation, Service, Booking, Notific
 
 logger = logging.getLogger(__name__)
 
-# FIX (SEC-01): Простий in-memory rate limiter для захисту від brute-force
+# Тимчасовий лімітатор спроб входу для захисту від брутфорсу
 _login_attempts = defaultdict(list)
 MAX_LOGIN_ATTEMPTS = 5
-LOGIN_LOCKOUT_SECONDS = 300  # 5 хвилин 
+LOGIN_LOCKOUT_SECONDS = 300  # 5 хвилин
 
 def _check_login_rate_limit(identifier: str) -> bool:
     """Повертає True якщо IP заблоковано через перевищення кількості спроб."""
@@ -52,15 +52,10 @@ ALLOWED_IMAGE_TYPES = {
 MAX_IMAGE_SIZE_BYTES = 3 * 1024 * 1024
 
 def get_current_user(request):
-    """Повертає об'єкт користувача з сесії або None."""
-    user_id = request.session.get('user_id')
-    if not user_id:
-        return None
-    try:
-        return User.objects.get(user_id=user_id)
-    except User.DoesNotExist:
-        request.session.flush()
-        return None
+    """Повертає поточного авторизованого користувача або None."""
+    if request.user.is_authenticated:
+        return request.user
+    return None
 
 def is_valid_vin(vin: str) -> bool:
     """Перевірка відповідності VIN-коду стандарту ISO 3779."""
@@ -97,13 +92,7 @@ def _save_file(instance, field_name: str, uploaded_file):
     setattr(instance, field_name, uploaded_file)
     instance.save()
 
-def _set_session_data(request, user):
-    """Записує ідентифікаційні дані користувача в сесію."""
-    # FIX (SEC-02): Ротація session ID для захисту від session fixation
-    request.session.cycle_key()
-    request.session['user_id'] = user.user_id
-    request.session['user_name'] = user.full_name
-    request.session['user_role'] = user.role
+# Раніше тут була функція _set_session_data, тепер використовується стандартний сесійний механізм Django.
 
 def _redirect_to_profile(**query_params):
     """Перенаправляє на профіль із передачею параметрів."""
@@ -135,11 +124,11 @@ def home(request):
 
 def login_view(request):
     """Авторизація користувача за email та паролем."""
-    if request.session.get('user_id'):
+    if request.user.is_authenticated:
         return redirect('profile')
 
     if request.method == 'POST':
-        # FIX (SEC-01): Захист від brute-force
+        # Обмеження кількості спроб входу
         ip = request.META.get('REMOTE_ADDR', '')
         if _check_login_rate_limit(ip):
             messages.error(
@@ -151,24 +140,21 @@ def login_view(request):
         email = request.POST.get('email', '').strip().lower()
         password = request.POST.get('password', '')
 
-        try:
-            user = User.objects.get(email=email)
-            # FIX (SEC-05): Перевірка is_active перед логіном
+        user = authenticate(request, email=email, password=password)
+        if user is not None:
             if not user.is_active:
                 messages.error(request, 'Ваш акаунт заблоковано.')
-            elif check_password(password, user.password):
-                _set_session_data(request, user)
-                return redirect('profile')
             else:
-                messages.error(request, 'Невірний email або пароль.')
-        except User.DoesNotExist:
+                login(request, user)
+                return redirect('profile')
+        else:
             messages.error(request, 'Невірний email або пароль.')
 
     return render(request, 'main/login.html')
 
 def register_view(request):
     """Реєстрація нового користувача в системі."""
-    if request.session.get('user_id'):
+    if request.user.is_authenticated:
         return redirect('profile')
 
     if request.method == 'POST':
@@ -189,7 +175,7 @@ def register_view(request):
             messages.error(request, 'Невірна роль.')
             return render(request, 'main/login.html', ctx)
 
-        # FIX (ARCH-09): Використовуємо Django password validators
+        # Перевірка пароля вбудованими валідаторами
         try:
             validate_password(password)
         except ValidationError as e:
@@ -209,15 +195,15 @@ def register_view(request):
             messages.error(request, 'Такий телефон вже використовується.')
             return render(request, 'main/login.html', ctx)
 
-        user = User.objects.create(
+        user = User.objects.create_user(
+            email=email,
             full_name=full_name,
             phone=phone,
-            email=email,
-            password=make_password(password),
             role=role,
+            password=password,
         )
 
-        _set_session_data(request, user)
+        login(request, user)
         messages.success(request, 'Реєстрація успішна! Ласкаво просимо.')
         return redirect('profile')
 
@@ -265,8 +251,10 @@ def profile_view(request):
         context['is_new_station'] = is_new or (not station)
         if station:
             context['services'] = Service.objects.filter(station=station)
+            from .models import StationBox
+            context['station_boxes'] = StationBox.objects.filter(station=station)
             
-        context['bookings'] = Booking.objects.filter(station__user=user).select_related('client', 'station')
+        context['bookings'] = Booking.objects.filter(station__user=user).select_related('client', 'station', 'box')
         
         from accounting.models import Employee
         context['station_employees'] = Employee.objects.filter(station__user=user, is_active=True)
@@ -287,7 +275,6 @@ def profile_view(request):
                     user.full_name = full_name
                     user.phone = phone
                     user.save(update_fields=['full_name', 'phone'])
-                    request.session['user_name'] = user.full_name
                     messages.success(request, 'Дані успішно оновлено.')
 
         # Оновлення пароля
@@ -296,12 +283,12 @@ def profile_view(request):
             new_password = request.POST.get('new_password', '')
             new_password2 = request.POST.get('new_password2', '')
 
-            if not check_password(old_password, user.password):
+            if not user.check_password(old_password):
                 messages.error(request, 'Поточний пароль введено невірно.')
             elif new_password != new_password2:
                 messages.error(request, 'Нові паролі не збігаються.')
             else:
-                # FIX (ARCH-09): Використовуємо Django password validators
+                # Валідація нового пароля
                 try:
                     validate_password(new_password)
                 except ValidationError as e:
@@ -309,8 +296,9 @@ def profile_view(request):
                         messages.error(request, error)
                     return redirect('profile')
 
-                user.password = make_password(new_password)
+                user.set_password(new_password)
                 user.save(update_fields=['password'])
+                update_session_auth_hash(request, user)
                 messages.success(request, 'Пароль успішно змінено.')
 
         # Оновлення фото профілю
@@ -499,6 +487,46 @@ def profile_view(request):
                 else:
                     messages.error(request, 'Послугу не знайдено.')
 
+        # Додавання боксу
+        elif action == 'add_box':
+            if not user.is_station:
+                messages.error(request, 'Ця дія доступна тільки власникам СТО.')
+            else:
+                station_id = request.POST.get('station_id')
+                box_name = request.POST.get('box_name', '').strip()
+                station = get_object_or_404(ServiceStation, pk=station_id, user=user)
+                if box_name:
+                    from .models import StationBox
+                    StationBox.objects.create(station=station, name=box_name, is_active=True)
+                    messages.success(request, 'Робочий бокс успішно додано.')
+                return _redirect_to_profile(edit_station=station.pk, tab='station')
+
+        # Перемикання активності боксу
+        elif action == 'toggle_box':
+            if not user.is_station:
+                messages.error(request, 'Ця дія доступна тільки власникам СТО.')
+            else:
+                box_id = request.POST.get('box_id')
+                from .models import StationBox
+                box = get_object_or_404(StationBox, pk=box_id, station__user=user)
+                box.is_active = not box.is_active
+                box.save()
+                messages.success(request, f'Статус боксу "{box.name}" оновлено.')
+                return _redirect_to_profile(edit_station=box.station.pk, tab='station')
+
+        # Видалення боксу
+        elif action == 'delete_box':
+            if not user.is_station:
+                messages.error(request, 'Ця дія доступна тільки власникам СТО.')
+            else:
+                box_id = request.POST.get('box_id')
+                from .models import StationBox
+                box = get_object_or_404(StationBox, pk=box_id, station__user=user)
+                station_pk = box.station.pk
+                box.delete()
+                messages.success(request, 'Робочий бокс видалено.')
+                return _redirect_to_profile(edit_station=station_pk, tab='station')
+
         # Оновлення статусу заявки (власник)
         elif action == 'update_booking_status':
             if not user.is_station:
@@ -530,15 +558,14 @@ def profile_view(request):
 @login_required_session
 @require_POST
 def logout_view(request):
-    """Вихід з облікового запису та очищення сесії."""
-    request.session.flush()
+    """Вихід з облікового запису."""
+    logout(request)
     return redirect('home')
 
 @require_POST
 def create_booking_api(request):
     """Створення заявки на ремонт (AJAX)."""
-    user_id = request.session.get('user_id')
-    if not user_id:
+    if not request.user.is_authenticated:
         return JsonResponse({'status': 'error', 'message': 'Unauthorized'}, status=401)
     
     try:
@@ -555,16 +582,16 @@ def create_booking_api(request):
         if not scheduled_time:
             return JsonResponse({'status': 'error', 'message': 'Бажаний час візиту обов\'язковий'}, status=400)
 
-        client = User.objects.get(user_id=user_id)
+        client = request.user
 
-        # FIX (CRIT-05): Перевірка ролі — тільки клієнти можуть створювати заявки
+        # Тільки клієнти мають право оформлювати заявки
         if client.role != 'client':
             return JsonResponse(
                 {'status': 'error', 'message': 'Тільки клієнти можуть створювати заявки'},
                 status=403
             )
 
-        # FIX (SEC-05): Перевірка is_active
+        # Перевірка чи акаунт активний
         if not client.is_active:
             return JsonResponse(
                 {'status': 'error', 'message': 'Ваш акаунт заблоковано'},
@@ -602,13 +629,50 @@ def create_booking_api(request):
                 'message': f'СТО працює з {opening_str} до {closing_str}. Будь ласка, оберіть інший час.'
             }, status=400)
 
+        # Автоматичне знаходження вільного боксу
+        from .models import StationBox
+        boxes = station.boxes.filter(is_active=True)
+        if not boxes.exists():
+            StationBox.objects.create(station=station, name="Бокс 1", is_active=True)
+            boxes = station.boxes.filter(is_active=True)
+
+        duration = int(data.get('duration', 60))
+        slot_start = scheduled_dt
+        slot_end = slot_start + datetime.timedelta(minutes=duration)
+
+        # Отримуємо конфліктуючі замовлення (ті, які перекриваються за часом)
+        conflicting_bookings = Booking.objects.filter(
+            station=station,
+            status__in=['pending', 'confirmed', 'completed'],
+            scheduled_time__lt=slot_end
+        )
+        occupied_box_ids = set()
+        for b in conflicting_bookings:
+            b_end = b.scheduled_time + datetime.timedelta(minutes=b.duration)
+            if b_end > slot_start:
+                occupied_box_ids.add(b.box_id)
+
+        free_box = None
+        for box in boxes:
+            if box.pk not in occupied_box_ids:
+                free_box = box
+                break
+
+        if not free_box:
+            return JsonResponse({
+                'status': 'error',
+                'message': 'Нажаль, на цей час усі бокси вже зайняті. Будь ласка, оберіть інший час.'
+            }, status=400)
+
         booking = Booking.objects.create(
             client=client,
             station=station,
             car=car,
             service_name=service_name,
             description=description,
-            scheduled_time=scheduled_dt
+            scheduled_time=scheduled_dt,
+            box=free_box,
+            duration=duration
         )
         
         # Створення сповіщення для власника СТО
@@ -707,3 +771,224 @@ def mark_all_notifications_read_api(request):
         
     Notification.objects.filter(recipient=user, is_read=False).update(is_read=True)
     return JsonResponse({'status': 'success'})
+
+
+def get_available_slots_api(request, station_id):
+    """Повертає список доступних часових слотів для СТО на вказану дату."""
+    import datetime
+    station = get_object_or_404(ServiceStation, pk=station_id)
+    date_str = request.GET.get('date')
+    duration = int(request.GET.get('duration', 60))
+
+    if not date_str:
+        return JsonResponse({'status': 'error', 'message': 'Параметр date обов\'язковий'}, status=400)
+
+    try:
+        dt_date = datetime.date.fromisoformat(date_str)
+    except ValueError:
+        return JsonResponse({'status': 'error', 'message': 'Невірний формат дати'}, status=400)
+
+    # Отримуємо активні бокси
+    from .models import StationBox
+    boxes = station.boxes.filter(is_active=True)
+    if not boxes.exists():
+        StationBox.objects.create(station=station, name="Бокс 1", is_active=True)
+        boxes = station.boxes.filter(is_active=True)
+
+    # Визначаємо початок та кінець дня
+    start_dt = timezone.make_aware(datetime.datetime.combine(dt_date, datetime.time.min))
+    end_dt = timezone.make_aware(datetime.datetime.combine(dt_date, datetime.time.max))
+
+    bookings = Booking.objects.filter(
+        station=station,
+        scheduled_time__range=(start_dt, end_dt),
+        status__in=['pending', 'confirmed', 'completed']
+    ).select_related('box')
+
+    # Генерація слотів кожні 30 хвилин
+    opening_time = station.opening_time or datetime.time(9, 0)
+    closing_time = station.closing_time or datetime.time(18, 0)
+
+    current_slot = timezone.make_aware(datetime.datetime.combine(dt_date, opening_time))
+    work_end = timezone.make_aware(datetime.datetime.combine(dt_date, closing_time))
+
+    now = timezone.now()
+    available_slots = []
+
+    while current_slot <= work_end - datetime.timedelta(minutes=duration):
+        # Якщо слот у минулому — пропускаємо
+        if current_slot <= now:
+            current_slot += datetime.timedelta(minutes=30)
+            continue
+
+        slot_end = current_slot + datetime.timedelta(minutes=duration)
+        
+        free_box_found = False
+        for box in boxes:
+            conflict = False
+            for b in bookings:
+                if b.box_id == box.pk:
+                    b_start = b.scheduled_time
+                    b_end = b_start + datetime.timedelta(minutes=b.duration)
+                    if b_start < slot_end and b_end > current_slot:
+                        conflict = True
+                        break
+            if not conflict:
+                free_box_found = True
+                break
+
+        if free_box_found:
+            available_slots.append(current_slot.strftime('%H:%M'))
+
+        current_slot += datetime.timedelta(minutes=30)
+
+    return JsonResponse({'status': 'success', 'slots': available_slots})
+
+
+@login_required_session
+def get_calendar_events_api(request, station_id):
+    """Повертає список замовлень для відображення в FullCalendar."""
+    import datetime
+    station = get_object_or_404(ServiceStation, pk=station_id)
+    
+    # Тільки власник СТО або його персонал мають доступ до календаря
+    if station.user != request.user:
+        return JsonResponse({'status': 'error', 'message': 'Forbidden'}, status=403)
+
+    start_str = request.GET.get('start')
+    end_str = request.GET.get('end')
+
+    if not start_str or not end_str:
+        return JsonResponse({'status': 'error', 'message': 'Параметри start та end обов\'язкові'}, status=400)
+
+    try:
+        # FullCalendar передає дати у форматі ISO 8601
+        start_dt = datetime.datetime.fromisoformat(start_str.replace('Z', '+00:00'))
+        end_dt = datetime.datetime.fromisoformat(end_str.replace('Z', '+00:00'))
+    except (ValueError, TypeError):
+        return JsonResponse({'status': 'error', 'message': 'Невірні часові межі'}, status=400)
+
+    bookings = Booking.objects.filter(
+        station=station,
+        scheduled_time__range=(start_dt, end_dt)
+    ).select_related('client', 'car', 'box')
+
+    events = []
+    for b in bookings:
+        if not b.scheduled_time:
+            continue
+        
+        b_end = b.scheduled_time + datetime.timedelta(minutes=b.duration)
+        
+        color = '#3B82F6'  # pending
+        if b.status == 'confirmed':
+            color = '#F59E0B'
+        elif b.status == 'completed':
+            color = '#10B981'
+        elif b.status == 'cancelled':
+            color = '#EF4444'
+
+        events.append({
+            'id': b.id,
+            'title': f'{b.client.full_name} ({b.car.brand} {b.car.model if b.car else ""}) - {b.service_name or "Діагностика"}',
+            'start': b.scheduled_time.isoformat(),
+            'end': b_end.isoformat(),
+            'color': color,
+            'extendedProps': {
+                'clientName': b.client.full_name,
+                'car': f'{b.car.brand} {b.car.model}' if b.car else 'Не вказано',
+                'description': b.description,
+                'status': b.get_status_display(),
+                'boxName': b.box.name if b.box else 'Не визначено',
+            }
+        })
+
+    return JsonResponse(events, safe=False)
+
+
+@require_POST
+@login_required_session
+def reschedule_booking_api(request, booking_id):
+    """Ендпоінт для drag-and-drop зміни часу замовлення в календарі."""
+    import datetime
+    import json
+    booking = get_object_or_404(Booking, pk=booking_id, station__user=request.user)
+
+    try:
+        data = json.loads(request.body)
+        new_start_str = data.get('scheduled_time')
+        if not new_start_str:
+            return JsonResponse({'status': 'error', 'message': 'Час не вказано'}, status=400)
+
+        new_start = datetime.datetime.fromisoformat(new_start_str.replace('Z', '+00:00'))
+        if timezone.is_naive(new_start):
+            new_start = timezone.make_aware(new_start)
+
+        new_end = new_start + datetime.timedelta(minutes=booking.duration)
+    except (ValueError, TypeError, json.JSONDecodeError):
+        return JsonResponse({'status': 'error', 'message': 'Невірний формат дати/даних'}, status=400)
+
+    # Перевірка чи новий час не в минулому
+    if new_start < timezone.now():
+        return JsonResponse({'status': 'error', 'message': 'Неможливо перенести замовлення на минулий час'}, status=400)
+
+    # Робочі години СТО
+    visit_time = new_start.time()
+    station = booking.station
+    if visit_time < station.opening_time or visit_time > station.closing_time:
+        opening_str = station.opening_time.strftime('%H:%M')
+        closing_str = station.closing_time.strftime('%H:%M')
+        return JsonResponse({
+            'status': 'error',
+            'message': f'СТО працює з {opening_str} до {closing_str}. Оберіть робочий час.'
+        }, status=400)
+
+    # Перевірка вільних боксів (виключаючи поточне замовлення)
+    from .models import StationBox
+    boxes = station.boxes.filter(is_active=True)
+    if not boxes.exists():
+        StationBox.objects.create(station=station, name="Бокс 1", is_active=True)
+        boxes = station.boxes.filter(is_active=True)
+
+    conflicting_bookings = Booking.objects.filter(
+        station=station,
+        status__in=['pending', 'confirmed', 'completed'],
+        scheduled_time__lt=new_end
+    ).exclude(pk=booking.pk)
+
+    occupied_box_ids = set()
+    for b in conflicting_bookings:
+        b_end = b.scheduled_time + datetime.timedelta(minutes=b.duration)
+        if b_end > new_start:
+            occupied_box_ids.add(b.box_id)
+
+    # Намагаємося залишити той самий бокс, якщо він вільний, інакше шукаємо перший вільний
+    free_box = None
+    if booking.box_id in boxes.values_list('pk', flat=True) and booking.box_id not in occupied_box_ids:
+        free_box = booking.box
+    else:
+        for box in boxes:
+            if box.pk not in occupied_box_ids:
+                free_box = box
+                break
+
+    if not free_box:
+        return JsonResponse({'status': 'error', 'message': 'Усі робочі бокси зайняті в цей проміжок часу.'}, status=400)
+
+    booking.scheduled_time = new_start
+    booking.box = free_box
+    booking.save(update_fields=['scheduled_time', 'box'])
+
+    # Створюємо сповіщення клієнту про перенесення
+    from .models import Notification
+    Notification.objects.create(
+        recipient=booking.client,
+        booking=booking,
+        message=f"Час вашої заявки #{booking.id} змінено на {new_start.strftime('%d.%m.%Y %H:%M')} (бокс: {free_box.name})"
+    )
+
+    return JsonResponse({
+        'status': 'success',
+        'message': f'Замовлення успішно перенесено на {new_start.strftime("%d.%m.%Y %H:%M")}',
+        'box_name': free_box.name
+    })

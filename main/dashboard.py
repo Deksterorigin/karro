@@ -11,7 +11,7 @@ def dashboard_callback(request, context):
     """
     today = timezone.now().date()
     
-    # Розрахунок показників KPI
+    # Обчислюємо ключові показники (KPI)
     total_users = User.objects.count()
     active_stations = ServiceStation.objects.filter(is_verified=True).count()
     pending_stations = ServiceStation.objects.filter(is_verified=False).count()
@@ -43,14 +43,14 @@ def dashboard_callback(request, context):
         ],
     })
 
-    # Структура даних для графіків
+    # Готуємо дані для графіків
     chart_data = {
         'line': {'labels': [], 'users': [], 'stations': []},
         'donut': {'labels': [], 'data': []},
         'bar': {'data': [0, 0, 0, 0, 0]}
     }
 
-    # Реєстрації по місяцях (лінійний графік)
+    # Динаміка реєстрацій за місяцями (лінійний графік)
     users_by_month = User.objects.annotate(month=TruncMonth('date_joined')).values('month').annotate(c=Count('user_id')).order_by('month')
     stations_by_month = ServiceStation.objects.annotate(month=TruncMonth('created_at')).values('month').annotate(c=Count('station_id')).order_by('month')
     
@@ -73,13 +73,13 @@ def dashboard_callback(request, context):
     chart_data['line']['users'] = [user_dict.get(m, 0) for m in sorted_months]
     chart_data['line']['stations'] = [station_dict.get(m, 0) for m in sorted_months]
 
-    # СТО по містах (кругова діаграма, топ 5)
+    # Розподіл СТО за містами (кругова діаграма, топ 5)
     cities = ServiceStation.objects.exclude(city='').values('city').annotate(c=Count('station_id')).order_by('-c')[:5]
     for c in cities:
         chart_data['donut']['labels'].append(c['city'])
         chart_data['donut']['data'].append(c['c'])
 
-    # Розподіл відгуків за оцінками (стовпчатий графік)
+    # Розподіл оцінок у відгуках (стовпчастий графік)
     reviews = Review.objects.values('rating').annotate(c=Count('review_id'))
     for r in reviews:
         idx = r['rating'] - 1

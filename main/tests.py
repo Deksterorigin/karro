@@ -4,7 +4,7 @@ import datetime
 from django.test import TestCase, Client
 from django.contrib.auth.hashers import make_password
 from django.utils import timezone
-from main.models import User, ServiceStation, Car, Booking, Notification
+from main.models import User, ServiceStation, Car, Booking, Notification, StationBox
 
 class BookingAPITestCase(TestCase):
     def setUp(self):
@@ -48,10 +48,7 @@ class BookingAPITestCase(TestCase):
         return f'{future_date.isoformat()}T{hour:02d}:00:00'
 
     def login_client(self):
-        session = self.client.session
-        session['user_id'] = self.client_user.user_id
-        session['user_name'] = self.client_user.full_name
-        session.save()
+        self.client.force_login(self.client_user)
 
     def test_unauthorized_access(self):
         # Перевірка неавторизованого доступу (має повернути 401)
@@ -169,16 +166,10 @@ class NotificationTestCase(TestCase):
         )
 
     def login_client(self):
-        session = self.client.session
-        session['user_id'] = self.client_user.user_id
-        session['user_name'] = self.client_user.full_name
-        session.save()
+        self.client.force_login(self.client_user)
 
     def login_owner(self):
-        session = self.client.session
-        session['user_id'] = self.station_user.user_id
-        session['user_name'] = self.station_user.full_name
-        session.save()
+        self.client.force_login(self.station_user)
 
     def test_notification_workflow(self):
         # 1. Створюємо заявку від імені клієнта
@@ -257,3 +248,152 @@ class NotificationTestCase(TestCase):
         # Перевіряємо unread_count = 0
         response = self.client.get('/api/notifications/')
         self.assertEqual(response.json()['unread_count'], 0)
+
+
+class BookingCalendarTests(TestCase):
+    """
+    Тести для інтерактивного календаря, робочих боксів та тайм-слотів.
+    """
+    def setUp(self):
+        # Створюємо користувачів
+        self.owner = User.objects.create_user(
+            email='owner@test.com',
+            full_name='Власник СТО',
+            phone='+380991111111',
+            role='station',
+            password='password123'
+        )
+        self.client_user = User.objects.create_user(
+            email='client@test.com',
+            full_name='Клієнт Тест',
+            phone='+380992222222',
+            role='client',
+            password='password123'
+        )
+        
+        # Створюємо СТО
+        self.station = ServiceStation.objects.create(
+            name='Тестова СТО Календар',
+            city='Київ',
+            address='вулиця Тестова, 1',
+            phone='+380441112233',
+            user=self.owner,
+            opening_time='09:00',
+            closing_time='18:00'
+        )
+        
+        # Створюємо бокси (2 активних бокси)
+        self.box1 = StationBox.objects.create(station=self.station, name='Бокс 1', is_active=True)
+        self.box2 = StationBox.objects.create(station=self.station, name='Бокс 2', is_active=True)
+        
+        # Створюємо автомобіль
+        self.car = Car.objects.create(
+            vin_code='12345678901234567',
+            brand='Audi',
+            model='A6',
+            year=2020,
+            user=self.client_user
+        )
+
+    def test_get_available_slots(self):
+        """Перевірка отримання списку вільних часових слотів."""
+        self.client.force_login(self.client_user)
+        
+        # Запит на завтрашній день
+        tomorrow = (timezone.now() + datetime.timedelta(days=1)).date()
+        tomorrow_str = tomorrow.isoformat()
+        
+        response = self.client.get(f'/api/stations/{self.station.pk}/available-slots/?date={tomorrow_str}&duration=60')
+        self.assertEqual(response.status_code, 200)
+        data = response.json()
+        self.assertEqual(data['status'], 'success')
+        self.assertIn('09:00', data['slots'])
+        self.assertIn('10:00', data['slots'])
+
+    def test_booking_box_auto_assignment_and_overbooking(self):
+        """Перевірка автоматичного призначення боксів та запобігання овербукінгу."""
+        self.client.force_login(self.client_user)
+        
+        # Завтра о 10:00
+        tomorrow = (timezone.now() + datetime.timedelta(days=1)).date()
+        scheduled_time = timezone.make_aware(datetime.datetime.combine(tomorrow, datetime.time(10, 0)))
+        scheduled_time_str = scheduled_time.strftime('%Y-%m-%dT%H:%M')
+        
+        # 1. Записуємо першу машину
+        data = {
+            'station_id': self.station.pk,
+            'car_id': self.car.vin_code,
+            'service_name': 'Заміна олії',
+            'description': 'Планове ТО',
+            'scheduled_time': scheduled_time_str,
+            'duration': 60
+        }
+        response = self.client.post('/api/bookings/create/', json.dumps(data), content_type='application/json')
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json()['status'], 'success')
+        
+        # Перевіряємо, що перша заявка отримала якийсь бокс
+        b1 = Booking.objects.get(description='Планове ТО')
+        self.assertIsNotNone(b1.box)
+        
+        # 2. Записуємо другу машину на той самий час (має зайняти другий бокс)
+        car2 = Car.objects.create(
+            vin_code='76543210987654321',
+            brand='BMW',
+            model='X5',
+            year=2021,
+            user=self.client_user
+        )
+        data['car_id'] = car2.vin_code
+        data['description'] = 'Ремонт підвіски'
+        response = self.client.post('/api/bookings/create/', json.dumps(data), content_type='application/json')
+        self.assertEqual(response.status_code, 200)
+        
+        b2 = Booking.objects.get(description='Ремонт підвіски')
+        self.assertIsNotNone(b2.box)
+        self.assertNotEqual(b1.box, b2.box)  # Вони мають бути на різних боксах
+        
+        # 3. Спроба записати третю машину на той самий час (має повернути помилку, бо всього 2 бокси)
+        car3 = Car.objects.create(
+            vin_code='11111111111111111',
+            brand='Opel',
+            model='Astra',
+            year=2015,
+            user=self.client_user
+        )
+        data['car_id'] = car3.vin_code
+        data['description'] = 'Комп\'ютерна діагностика'
+        response = self.client.post('/api/bookings/create/', json.dumps(data), content_type='application/json')
+        self.assertEqual(response.status_code, 400)
+        self.assertIn('усі бокси вже зайняті', response.json()['message'])
+
+    def test_reschedule_booking(self):
+        """Перевірка перенесення часу замовлення в календарі (drag-and-drop)."""
+        self.client.force_login(self.owner) # Робить власник
+        
+        tomorrow = (timezone.now() + datetime.timedelta(days=1)).date()
+        scheduled_time = timezone.make_aware(datetime.datetime.combine(tomorrow, datetime.time(10, 0)))
+        
+        booking = Booking.objects.create(
+            client=self.client_user,
+            station=self.station,
+            car=self.car,
+            service_name='Діагностика',
+            description='Стук попереду',
+            scheduled_time=scheduled_time,
+            duration=60,
+            box=self.box1
+        )
+        
+        # Переносимо на 12:00
+        new_time = timezone.make_aware(datetime.datetime.combine(tomorrow, datetime.time(12, 0)))
+        data = {
+            'scheduled_time': new_time.isoformat()
+        }
+        
+        response = self.client.post(f'/api/bookings/{booking.pk}/reschedule/', json.dumps(data), content_type='application/json')
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json()['status'], 'success')
+        
+        booking.refresh_from_db()
+        self.assertEqual(booking.scheduled_time, new_time)

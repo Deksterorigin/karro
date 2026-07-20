@@ -13,7 +13,7 @@
     <script src="{% static 'js/theme_init.js' %}"></script>
     
     <link rel="stylesheet" href="{% static 'css/base.css' %}?v=1.4">
-    {% if request.session.user_id and request.session.user_role == 'station' %}
+    {% if user.is_authenticated and user.role == 'station' %}
         <link rel="stylesheet" href="{% static 'css/notifications.css' %}?v=1.4">
     {% endif %}
 
@@ -35,7 +35,7 @@
 
         <nav id="main-nav">
             <a href="{% url 'search:search_stations' %}" data-i18n="home.btn_find">Найти СТО</a>
-            {% if request.session.user_id %}
+            {% if user.is_authenticated %}
                 <a href="{% url 'profile' %}" data-i18n="nav.my_profile">Цифровий гараж</a>
             {% else %}
                 <a href="{% url 'login' %}" data-i18n="nav.my_profile">Цифровий гараж</a>
@@ -43,16 +43,16 @@
             <a href="/#about" data-i18n="home.btn_about">Про проєкт</a>
             <a href="/#author" data-i18n="home.author_label">Власникам СТО</a>
             <!-- Доступ до бухгалтерії лише для власників СТО -->
-            {% if request.session.user_role == 'station' %}
+            {% if user.is_authenticated and user.role == 'station' %}
                 <a href="{% url 'accounting:dashboard' %}" data-i18n="profile.nav_accounting">Бухгалтерія</a>
             {% endif %}
 
             <!-- Мобильные элементы внутри шторки -->
             <div class="mobile-nav-divider mobile-only"></div>
-            {% if request.session.user_id %}
+            {% if user.is_authenticated %}
                 <a href="{% url 'profile' %}" class="user-chip mobile-only" style="margin-top: 0.5rem; justify-content: flex-start; width: 100%;">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="width: 16px; height: 16px;"><circle cx="12" cy="7" r="4"/><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/></svg>
-                    <span>{{ request.session.user_name }}</span>
+                    <span>{{ user.full_name }}</span>
                 </a>
                 <form method="POST" action="{% url 'logout' %}" class="mobile-only" style="width: 100%; margin-top: 0.5rem; display: block;">
                     {% csrf_token %}
@@ -93,7 +93,7 @@
                 </select>
             </div>
             
-            {% if request.session.user_id and request.session.user_role == 'station' %}
+            {% if user.is_authenticated and user.role == 'station' %}
                 <!-- Сповіщення для власників СТО -->
                 <div class="notification-bell-container">
                     <button id="notification-bell-btn" class="notification-bell-btn" aria-label="Notifications">
@@ -115,10 +115,10 @@
                 </div>
             {% endif %}
             
-            {% if request.session.user_id %}
+            {% if user.is_authenticated %}
                 <a href="{% url 'profile' %}" class="user-chip">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="7" r="4"/><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/></svg>
-                    {{ request.session.user_name }}
+                    {{ user.full_name }}
                 </a>
                 <form method="POST" action="{% url 'logout' %}" style="display:inline;">
                     {% csrf_token %}
@@ -163,7 +163,7 @@
 
     <script src="{% static 'js/i18n.js' %}"></script>
     <script src="{% static 'js/navigation.js' %}"></script>
-    {% if request.session.user_id and request.session.user_role == 'station' %}
+    {% if user.is_authenticated and user.role == 'station' %}
         <script src="{% static 'js/notifications.js' %}"></script>
     {% endif %}
     <script src="{% static 'js/theme_toggle.js' %}"></script>

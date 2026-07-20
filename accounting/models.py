@@ -149,6 +149,7 @@ class Transaction(models.Model):
         return f"{self.get_type_display()} - {self.amount} грн ({self.date})"
 
 
+# Автоматично створюємо баланс зарплати при додаванні нового працівника
 @receiver(post_save, sender=Employee)
 def create_employee_balance(sender, instance, created, **kwargs):
     if created:

@@ -1,7 +1,7 @@
 let map;
 let markers = {};
 
-// FIX (SEC-04): Функція екранування HTML для захисту від XSS
+// Функція для екранування тексту від XSS-атак
 function escapeHtml(text) {
     const div = document.createElement('div');
     div.textContent = text;
@@ -9,10 +9,10 @@ function escapeHtml(text) {
 }
 
 function initMap() {
-    // Center of Ukraine with standard zoom
+    // Фокусуємо карту на центр України
     map = L.map('map', { zoomControl: true }).setView([49.0, 31.5], 6);
 
-    // Switch to Voyager tile style (light theme)
+    // Підключаємо Voyager плитки для світлої теми карти
     L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}.png', {
         maxZoom: 19,
         attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>'
@@ -22,7 +22,7 @@ function initMap() {
 
     const bounds = [];
 
-    // Premium light brand blue pin marker
+    // Створюємо кастомний синій маркер для СТО
     const pinIcon = L.divIcon({
         html: `
             <svg viewBox="0 0 24 24" width="32" height="32" fill="none" style="filter: drop-shadow(0 4px 8px rgba(0,82,204,0.25));">
@@ -39,7 +39,7 @@ function initMap() {
     STATIONS.forEach(s => {
         const marker = L.marker([s.lat, s.lng], { icon: pinIcon }).addTo(map);
 
-        // FIX (SEC-04): Екранування всіх user-controlled даних
+        // Екрануємо всі дані користувача перед виведенням
         const escapedName = escapeHtml(s.name);
         const escapedCity = s.city ? escapeHtml(s.city) + ', ' : '';
         const escapedAddress = escapeHtml(s.address);
