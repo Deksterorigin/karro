@@ -11,7 +11,7 @@
     crossorigin=""
 >
 
-    <link rel="stylesheet" href="{% static 'css/search.css' %}?v=1.4">
+    <link rel="stylesheet" href="{% static 'css/search.css' %}?v=1.5">
 
 {% endblock %}
 
@@ -55,7 +55,9 @@
             {% for item in station_data %}
             <div class="station-card"
                  id="card-{{ item.station.pk }}"
-                 onclick="focusMarker({{ item.station.pk }}, {% if item.station.latitude %}{{ item.station.latitude|unlocalize }}{% else %}null{% endif %}, {% if item.station.longitude %}{{ item.station.longitude|unlocalize }}{% else %}null{% endif %})">
+                 onclick="window.location.href='{% url 'station:station_detail' item.station.pk %}'"
+                 onmouseenter="focusMarker({{ item.station.pk }}, {% if item.station.latitude %}{{ item.station.latitude|unlocalize }}{% else %}null{% endif %}, {% if item.station.longitude %}{{ item.station.longitude|unlocalize }}{% else %}null{% endif %})"
+                 style="cursor: pointer;">
                 
                 <div class="card-header-inner">
                     <div class="card-left">
@@ -65,7 +67,9 @@
                             </svg>
                         </div>
                         <div class="station-info-text">
-                            <div class="station-name">{{ item.station.name }}</div>
+                            <a href="{% url 'station:station_detail' item.station.pk %}" class="station-name-link" style="text-decoration: none; color: inherit;" onclick="event.stopPropagation()">
+                                <div class="station-name" style="color: var(--accent, #0052CC); transition: color 0.2s;">{{ item.station.name }}</div>
+                            </a>
                             <div class="station-location">
                                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path><circle cx="12" cy="10" r="3"></circle></svg>
                                 {% if item.station.city %}{{ item.station.city }}, {% endif %}{{ item.station.address }}
@@ -100,7 +104,7 @@
                             {{ item.station.phone }}
                         {% endif %}
                     </span>
-                    <a href="/station/{{ item.station.pk }}/" class="btn-detail" onclick="event.stopPropagation()">
+                    <a href="{% url 'station:station_detail' item.station.pk %}" class="btn-detail" onclick="event.stopPropagation()">
                         <span data-i18n="search.btn_detail">Детальніше</span>
                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><polyline points="9 18 15 12 9 6"></polyline></svg>
                     </a>

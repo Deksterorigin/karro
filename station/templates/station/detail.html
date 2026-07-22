@@ -328,6 +328,35 @@
                         <div class="contact-value-str">{{ station.user.full_name }}</div>
                     </div>
                 </div>
+
+                <div class="contact-row-wrapper" style="align-items: flex-start; margin-top: 0.5rem; padding-top: 0.75rem; border-top: 1px solid var(--border);">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="margin-top: 2px; width: 18px; height: 18px;"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+                    <div style="width: 100%;">
+                        <div class="contact-label-title" style="display: flex; justify-content: space-between; align-items: center;">
+                            <span>Графік роботи</span>
+                            {% if is_open_now %}
+                                <span style="color: #10b981; font-weight: 700; font-size: 0.75rem; background: rgba(16, 185, 129, 0.1); padding: 2px 8px; border-radius: 10px;">🟢 Зараз відчинено</span>
+                            {% else %}
+                                <span style="color: #ef4444; font-weight: 700; font-size: 0.75rem; background: rgba(239, 68, 68, 0.1); padding: 2px 8px; border-radius: 10px;">🔴 Зараз зачинено</span>
+                            {% endif %}
+                        </div>
+                        <div class="schedule-mini-list" style="margin-top: 0.6rem; font-size: 0.8rem; display: flex; flex-direction: column; gap: 4px;">
+                            {% for sch in station_schedules %}
+                            <div style="display: flex; justify-content: space-between; align-items: center; color: var(--text-muted);">
+                                <span style="font-weight: 600; min-width: 32px; color: var(--text);">{{ sch.get_day_of_week_display|slice:":3" }}</span>
+                                <span>
+                                    {% if sch.is_working %}
+                                        <strong style="color: var(--text);">{{ sch.opening_time|time:'H:i' }} - {{ sch.closing_time|time:'H:i' }}</strong>
+                                        {% if sch.break_start %}<small style="color:var(--text-muted); margin-left: 4px;">(обід {{ sch.break_start|time:'H:i' }}-{{ sch.break_end|time:'H:i' }})</small>{% endif %}
+                                    {% else %}
+                                        <span style="color: #ef4444; font-weight: 600;">Вихідний</span>
+                                    {% endif %}
+                                </span>
+                            </div>
+                            {% endfor %}
+                        </div>
+                    </div>
+                </div>
             </div>
         </div>
 

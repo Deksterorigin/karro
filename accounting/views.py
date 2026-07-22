@@ -7,9 +7,10 @@ from django.http import HttpResponse
 from django.db import transaction
 from django.db.models import F
 from main.decorators import login_required_session, role_required
-from main.models import User, ServiceStation, Booking
+from main.models import User, ServiceStation, Booking, CarHistory
 from main.views import get_current_user
-from .models import Employee, SalaryBalance, Transaction
+from main.pdf_utils import generate_financial_report_pdf
+from .models import Employee, SalaryBalance, Transaction, SparePart, UsedSparePart
 import datetime
 import re
 from decimal import Decimal, InvalidOperation
@@ -430,6 +431,24 @@ def complete_booking_view(request):
 
     actual_price_str = request.POST.get('actual_price')
     employee_id = request.POST.get('employee_id')
+    mileage_str = request.POST.get('mileage')
+    work_list = request.POST.get('work_list')
+    spare_parts = request.POST.get('spare_parts')
+    used_parts_json = request.POST.get('used_parts_json')
+
+    mileage = None
+    if mileage_str:
+        try:
+            mileage = int(mileage_str)
+        except ValueError:
+            pass
+
+    used_parts_data = []
+    if used_parts_json:
+        try:
+            used_parts_data = json.loads(used_parts_json)
+        except Exception:
+            used_parts_data = []
 
     if not actual_price_str:
         messages.error(
@@ -519,10 +538,77 @@ def complete_booking_view(request):
                 tx.description += f" Нараховано комісію: {commission} грн."
                 tx.save(update_fields=['description'])
 
+            # 4. Обробка вибраних запчастин зі складу (списання та обчислення собівартості)
+            total_parts_cost = Decimal('0.00')
+            parts_summary_lines = []
+
+            for item in used_parts_data:
+                p_id = item.get('part_id')
+                p_qty = int(item.get('qty', 0))
+                if not p_id or p_qty <= 0:
+                    continue
+                try:
+                    sp = SparePart.objects.select_for_update().get(pk=p_id, station=booking.station)
+                    actual_deduct = min(sp.quantity, p_qty) if sp.quantity > 0 else 0
+                    if actual_deduct > 0:
+                        sp.quantity = F('quantity') - actual_deduct
+                        sp.save(update_fields=['quantity'])
+                        sp.refresh_from_db()
+
+                        UsedSparePart.objects.create(
+                            booking=booking,
+                            spare_part=sp,
+                            part_name=sp.name,
+                            quantity=actual_deduct,
+                            cost_price=sp.cost_price,
+                            selling_price=sp.selling_price
+                        )
+
+                        line_cost = sp.cost_price * actual_deduct
+                        line_sell = sp.selling_price * actual_deduct
+                        total_parts_cost += line_cost
+                        parts_summary_lines.append(f"{sp.name} x{actual_deduct} ({line_sell} грн)")
+                except SparePart.DoesNotExist:
+                    continue
+
+            # Фіксуємо собівартість запчастин у витратах СТО
+            if total_parts_cost > 0:
+                Transaction.objects.create(
+                    station=booking.station,
+                    type='expense',
+                    category='spare_parts',
+                    amount=total_parts_cost,
+                    description=f"Списання собівартості запчастин за заявкою #{booking.id}",
+                    booking=booking,
+                    employee=employee,
+                    date=datetime.date.today()
+                )
+
+            # 5. Автоматично створюємо запис в історії обслуговування авто
+            if parts_summary_lines:
+                auto_parts_str = ", ".join(parts_summary_lines)
+                if spare_parts and spare_parts.strip():
+                    spare_parts = f"{auto_parts_str}\n{spare_parts.strip()}"
+                else:
+                    spare_parts = auto_parts_str
+
+            if booking.car:
+                final_works = work_list.strip() if (work_list and work_list.strip()) else (booking.service_name or booking.description or 'Виконано роботи з обслуговування')
+                CarHistory.objects.create(
+                    car=booking.car,
+                    booking=booking,
+                    station=booking.station,
+                    date=datetime.date.today(),
+                    mileage=mileage,
+                    work_list=final_works,
+                    spare_parts=spare_parts.strip() if spare_parts else '',
+                    price=actual_price
+                )
+
         messages.success(
             request,
             f"Ремонт за заявкою #{booking.id} успішно завершено. "
-            f"Суму {actual_price} грн внесено в дохід СТО."
+            f"Суму {actual_price} грн внесено в дохід СТО, а деталі списано зі складу."
         )
     except Booking.DoesNotExist:
         messages.error(request, "Заявку не знайдено.")
@@ -530,6 +616,106 @@ def complete_booking_view(request):
         messages.error(request, f"Помилка при завершенні ремонту: {e}")
 
     return redirect(reverse('profile') + '?tab=bookings')
+
+
+@login_required_session
+@role_required('station')
+@require_POST
+def add_spare_part_view(request):
+    """
+    Додавання нової запчастини на склад СТО.
+    """
+    user = get_current_user(request)
+    station_id = request.POST.get('station_id')
+    station = get_object_or_404(ServiceStation, pk=station_id, user=user)
+
+    name = request.POST.get('name', '').strip()
+    sku = request.POST.get('sku', '').strip()
+    quantity_str = request.POST.get('quantity', '0')
+    cost_price_str = request.POST.get('cost_price', '0.00')
+    selling_price_str = request.POST.get('selling_price', '0.00')
+    min_quantity_str = request.POST.get('min_quantity', '5')
+
+    if not name:
+        messages.error(request, "Будь ласка, вкажіть назву запчастини.")
+        return _redirect_to_dashboard(station.pk)
+
+    try:
+        quantity = max(0, int(quantity_str))
+        cost_price = max(Decimal('0.00'), Decimal(cost_price_str))
+        selling_price = max(Decimal('0.00'), Decimal(selling_price_str))
+        min_quantity = max(0, int(min_quantity_str))
+    except (ValueError, InvalidOperation):
+        messages.error(request, "Некоректні числові дані для запчастини.")
+        return _redirect_to_dashboard(station.pk)
+
+    SparePart.objects.create(
+        station=station,
+        name=name,
+        sku=sku if sku else None,
+        quantity=quantity,
+        cost_price=cost_price,
+        selling_price=selling_price,
+        min_quantity=min_quantity
+    )
+
+    messages.success(request, f"Запчастину '{name}' успішно додано на склад.")
+    return redirect(reverse('profile') + '?tab=inventory')
+
+
+@login_required_session
+@role_required('station')
+@require_POST
+def edit_spare_part_view(request):
+    """
+    Редагування складських залишків та цін запчастини.
+    """
+    user = get_current_user(request)
+    part_id = request.POST.get('part_id')
+    part = get_object_or_404(SparePart, pk=part_id, station__user=user)
+
+    name = request.POST.get('name', '').strip()
+    sku = request.POST.get('sku', '').strip()
+    quantity_str = request.POST.get('quantity')
+    cost_price_str = request.POST.get('cost_price')
+    selling_price_str = request.POST.get('selling_price')
+    min_quantity_str = request.POST.get('min_quantity')
+
+    if name:
+        part.name = name
+    part.sku = sku if sku else None
+
+    try:
+        if quantity_str is not None and quantity_str != '':
+            part.quantity = max(0, int(quantity_str))
+        if cost_price_str is not None and cost_price_str != '':
+            part.cost_price = max(Decimal('0.00'), Decimal(cost_price_str))
+        if selling_price_str is not None and selling_price_str != '':
+            part.selling_price = max(Decimal('0.00'), Decimal(selling_price_str))
+        if min_quantity_str is not None and min_quantity_str != '':
+            part.min_quantity = max(0, int(min_quantity_str))
+        part.save()
+        messages.success(request, f"Запчастину '{part.name}' оновлено.")
+    except (ValueError, InvalidOperation):
+        messages.error(request, "Помилка оновлення даних запчастини.")
+
+    return redirect(reverse('profile') + '?tab=inventory')
+
+
+@login_required_session
+@role_required('station')
+@require_POST
+def delete_spare_part_view(request):
+    """
+    Видалення позиції запчастини зі складу.
+    """
+    user = get_current_user(request)
+    part_id = request.POST.get('part_id')
+    part = get_object_or_404(SparePart, pk=part_id, station__user=user)
+    name = part.name
+    part.delete()
+    messages.success(request, f"Запчастину '{name}' видалено зі складу.")
+    return redirect(reverse('profile') + '?tab=inventory')
 
 
 @login_required_session
@@ -574,28 +760,211 @@ def export_transactions_csv(request):
 
     # Очищаємо ім'я файлу від небажаних символів для безпеки
     safe_name = re.sub(r'[^\w\s-]', '', station.name).strip()[:50]
-    response = HttpResponse(content_type='text/csv; charset=utf-8-sig')
-    response['Content-Disposition'] = (
-        f'attachment; filename="{safe_name}_report_'
-        f'{start_date}_{end_date}.csv"'
+    filename = f"{safe_name}_report_{start_date}_{end_date}.xlsx"
+
+    # Створюємо книжку Excel з ошатним оформленням
+    import openpyxl
+    from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
+    from openpyxl.utils import get_column_letter
+
+    wb = openpyxl.Workbook()
+    ws = wb.active
+    ws.title = "Фінансовий звіт"
+    ws.views.sheetView[0].showGridLines = True
+
+    # 1. Шапка документа
+    ws.merge_cells('A1:G1')
+    title_cell = ws['A1']
+    title_cell.value = f"ФІНАНСОВИЙ ЗВІТ СТО: {station.name.upper()}"
+    title_cell.font = Font(name='Arial', size=14, bold=True, color="FFFFFF")
+    title_cell.fill = PatternFill(start_color="1E293B", end_color="1E293B", fill_type="solid")
+    title_cell.alignment = Alignment(horizontal="center", vertical="center")
+    ws.row_dimensions[1].height = 35
+
+    ws.merge_cells('A2:G2')
+    sub_cell = ws['A2']
+    sub_cell.value = f"Період: {start_date.strftime('%d.%m.%Y')} — {end_date.strftime('%d.%m.%Y')}"
+    sub_cell.font = Font(name='Arial', size=10, italic=True, color="475569")
+    sub_cell.alignment = Alignment(horizontal="center", vertical="center")
+    ws.row_dimensions[2].height = 20
+
+    # 2. Заголовки таблиці
+    headers = ['Дата', 'Тип операції', 'Категорія', 'Сума (грн)', 'Опис', 'ID Заявки', 'Співробітник']
+    header_fill = PatternFill(start_color="0284C7", end_color="0284C7", fill_type="solid")
+    header_font = Font(name='Arial', size=11, bold=True, color="FFFFFF")
+    header_border = Border(
+        left=Side(style='thin', color='CBD5E1'),
+        right=Side(style='thin', color='CBD5E1'),
+        top=Side(style='medium', color='0284C7'),
+        bottom=Side(style='medium', color='0284C7')
     )
 
-    writer = csv.writer(response)
-    writer.writerow([
-        'Дата', 'Тип операції', 'Категорія', 'Сума (грн)',
-        'Опис', 'ID Заявки', 'Співробітник'
-    ])
+    ws.append([]) # Порожній рядок 3
+    ws.append(headers) # Рядок 4
+    ws.row_dimensions[4].height = 26
 
+    for col_idx, h in enumerate(headers, 1):
+        cell = ws.cell(row=4, column=col_idx)
+        cell.fill = header_fill
+        cell.font = header_font
+        cell.alignment = Alignment(horizontal="center", vertical="center")
+        cell.border = header_border
+
+    # 3. Данні транзакцій
+    row_fill_even = PatternFill(start_color="F8FAFC", end_color="F8FAFC", fill_type="solid")
+    row_fill_odd = PatternFill(start_color="FFFFFF", end_color="FFFFFF", fill_type="solid")
+    data_border = Border(
+        left=Side(style='thin', color='E2E8F0'),
+        right=Side(style='thin', color='E2E8F0'),
+        top=Side(style='thin', color='E2E8F0'),
+        bottom=Side(style='thin', color='E2E8F0')
+    )
+
+    total_inc = Decimal('0.00')
+    total_exp = Decimal('0.00')
+
+    current_row = 5
     for t in transactions:
-        writer.writerow([
+        row_data = [
             t.date.strftime("%d.%m.%Y"),
             t.get_type_display(),
             t.get_category_display(),
-            t.amount,
+            float(t.amount),
             t.description or '',
             t.booking.id if t.booking else '',
             t.employee.full_name if t.employee else ''
-        ])
+        ]
+        ws.append(row_data)
+        ws.row_dimensions[current_row].height = 20
+        fill = row_fill_even if current_row % 2 == 0 else row_fill_odd
+
+        for c_idx in range(1, 8):
+            cell = ws.cell(row=current_row, column=c_idx)
+            cell.fill = fill
+            cell.border = data_border
+            cell.font = Font(name='Arial', size=10)
+
+            # Вирівнювання та колір суми
+            if c_idx == 1:
+                cell.alignment = Alignment(horizontal="center")
+            elif c_idx == 4:
+                cell.number_format = '#,##0.00 "грн"'
+                cell.alignment = Alignment(horizontal="right")
+                if t.type == 'income':
+                    cell.font = Font(name='Arial', size=10, bold=True, color="16A34A")
+                    total_inc += t.amount
+                else:
+                    cell.font = Font(name='Arial', size=10, bold=True, color="DC2626")
+                    total_exp += t.amount
+
+        current_row += 1
+
+    # 4. Підсумковий рядок
+    ws.append([])
+    summary_row = current_row + 1
+    ws.cell(row=summary_row, column=3, value="ЧИСТИЙ ПРИБУТОК:").font = Font(name='Arial', size=11, bold=True, color="0F172A")
+    ws.cell(row=summary_row, column=3).alignment = Alignment(horizontal="right")
+    
+    net_cell = ws.cell(row=summary_row, column=4, value=float(total_inc - total_exp))
+    net_cell.font = Font(name='Arial', size=12, bold=True, color="16A34A" if total_inc >= total_exp else "DC2626")
+    net_cell.number_format = '#,##0.00 "грн"'
+    net_cell.border = Border(top=Side(style='thin', color='0F172A'), bottom=Side(style='double', color='0F172A'))
+
+    # Авто-налаштування ширини колонок
+    for col in ws.columns:
+        max_len = 0
+        col_letter = get_column_letter(col[0].column)
+        for cell in col:
+            if cell.row in [1, 2]: # Пропускаємо об'єднані заголовки
+                continue
+            if cell.value:
+                max_len = max(max_len, len(str(cell.value)))
+        ws.column_dimensions[col_letter].width = max(max_len + 4, 14)
+
+    response = HttpResponse(content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
+    response['Content-Disposition'] = f'attachment; filename="{filename}"'
+    wb.save(response)
+    return response
+
+
+@login_required_session
+@role_required('station')
+def export_financial_report_pdf(request):
+    """
+    Формує та повертає Фінансовий звіт СТО за обраний період у форматі PDF.
+    """
+    user = get_current_user(request)
+    if not user:
+        return redirect('login')
+
+    stations = ServiceStation.objects.filter(user=user)
+    if not stations.exists():
+        messages.warning(request, "Будь ласка, спочатку створіть СТО.")
+        return redirect('profile')
+
+    station_id = request.GET.get('station_id')
+    selected_station = None
+    if station_id:
+        try:
+            selected_station = stations.filter(pk=int(station_id)).first()
+        except ValueError:
+            pass
+    if not selected_station:
+        selected_station = stations.first()
+
+    start_date, end_date = _parse_date_range(request)
+
+    # Отримуємо всі операції за період
+    all_transactions = Transaction.objects.filter(station=selected_station).select_related('employee', 'booking')
+    period_transactions = list(all_transactions.filter(date__range=[start_date, end_date]))
+
+    total_income = sum((t.amount for t in period_transactions if t.type == 'income'), Decimal('0.00'))
+    total_expense = sum((t.amount for t in period_transactions if t.type == 'expense'), Decimal('0.00'))
+    net_profit = total_income - total_expense
+    profit_margin = float((net_profit / total_income) * 100) if total_income > 0 else 0.0
+
+    completed_bookings = Booking.objects.filter(
+        station=selected_station,
+        status='completed',
+        created_at__date__range=[start_date, end_date]
+    ).count()
+
+    # Формуємо розбивку за категоріями
+    income_by_category = {}
+    expense_by_category = {}
+
+    for t in period_transactions:
+        cat_disp = t.get_category_display()
+        if t.type == 'income':
+            income_by_category[cat_disp] = income_by_category.get(cat_disp, Decimal('0.00')) + t.amount
+        else:
+            expense_by_category[cat_disp] = expense_by_category.get(cat_disp, Decimal('0.00')) + t.amount
+
+    metrics = {
+        'total_income': total_income,
+        'total_expense': total_expense,
+        'net_profit': net_profit,
+        'profit_margin': profit_margin,
+        'completed_bookings': completed_bookings,
+        'income_by_category': income_by_category,
+        'expense_by_category': expense_by_category,
+    }
+
+    employees = list(Employee.objects.filter(station=selected_station).select_related('salary_balance'))
+
+    # Генерація PDF-байтів
+    pdf_bytes = generate_financial_report_pdf(
+        selected_station, start_date, end_date, period_transactions, metrics, employees
+    )
+
+    safe_name = re.sub(r'[^\w\s-]', '', selected_station.name).strip()[:50]
+    filename = f"financial_report_{safe_name}_{start_date}_{end_date}.pdf"
+
+    response = HttpResponse(pdf_bytes, content_type='application/pdf')
+    if request.GET.get('inline') == '1':
+        response['Content-Disposition'] = f'inline; filename="{filename}"'
+    else:
+        response['Content-Disposition'] = f'attachment; filename="{filename}"'
 
     return response
 

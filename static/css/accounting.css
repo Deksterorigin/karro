@@ -121,6 +121,42 @@ html:not(.dark) .btn-theme-toggle .moon-icon { display: block; }
     color: var(--text);
 }
 
+/* PDF Export & Preview Buttons */
+.btn-export-pdf, .btn-preview-pdf {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.75rem 1.25rem;
+    border-radius: 12px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    color: var(--text);
+    font-size: 0.875rem;
+    font-weight: 700;
+    text-decoration: none;
+    cursor: pointer;
+    box-shadow: var(--shadow-sm);
+    transition: all var(--transition-fast);
+}
+
+.btn-export-pdf {
+    background: #0284c7;
+    border-color: #0284c7;
+    color: #ffffff;
+}
+
+.btn-export-pdf:hover {
+    background: #0369a1;
+    border-color: #0369a1;
+    box-shadow: 0 4px 12px rgba(2, 132, 199, 0.25);
+}
+
+.btn-preview-pdf:hover {
+    background: var(--surface-hover);
+    border-color: #0284c7;
+    color: #0284c7;
+}
+
 /* Action Buttons */
 .btn-action-primary, 
 .btn-action-success {

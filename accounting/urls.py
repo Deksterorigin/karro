@@ -11,6 +11,11 @@ urlpatterns = [
     path('employee/pay/', views.pay_salary_view, name='pay_salary'),
     path('transaction/add/', views.add_transaction_view, name='add_transaction'),
     path('booking/complete/', views.complete_booking_view, name='complete_booking'),
-    # Експорт транзакцій у CSV
+    # Маршрути управління складом запчастин
+    path('inventory/add/', views.add_spare_part_view, name='add_spare_part'),
+    path('inventory/edit/', views.edit_spare_part_view, name='edit_spare_part'),
+    path('inventory/delete/', views.delete_spare_part_view, name='delete_spare_part'),
+    # Експорт транзакцій у CSV та звіту в PDF
     path('export/csv/', views.export_transactions_csv, name='export_csv'),
+    path('export/pdf/', views.export_financial_report_pdf, name='export_pdf'),
 ]

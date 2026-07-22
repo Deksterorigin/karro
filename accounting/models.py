@@ -154,3 +154,111 @@ class Transaction(models.Model):
 def create_employee_balance(sender, instance, created, **kwargs):
     if created:
         SalaryBalance.objects.create(employee=instance)
+
+
+class SparePart(models.Model):
+    """
+    Запчастина або витратний матеріал на складі СТО.
+    """
+    part_id = models.AutoField(primary_key=True)
+    station = models.ForeignKey(
+        ServiceStation,
+        on_delete=models.CASCADE,
+        related_name='spare_parts',
+        verbose_name='СТО'
+    )
+    name = models.CharField(max_length=150, verbose_name='Назва запчастини/матеріалу')
+    sku = models.CharField(
+        max_length=50,
+        blank=True,
+        null=True,
+        verbose_name='Артикул / Каталожний номер'
+    )
+    quantity = models.PositiveIntegerField(default=0, verbose_name='Кількість на складі')
+    cost_price = models.DecimalField(
+        max_digits=10,
+        decimal_places=2,
+        default=0.00,
+        verbose_name='Собівартість (грн)'
+    )
+    selling_price = models.DecimalField(
+        max_digits=10,
+        decimal_places=2,
+        default=0.00,
+        verbose_name='Ціна продажу (грн)'
+    )
+    min_quantity = models.PositiveIntegerField(
+        default=5,
+        verbose_name='Мінімальний залишок'
+    )
+    created_at = models.DateTimeField(auto_now_add=True, verbose_name='Створено')
+    updated_at = models.DateTimeField(auto_now=True, verbose_name='Оновлено')
+
+    class Meta:
+        db_table = 'spare_part'
+        verbose_name = 'Запчастина на складі'
+        verbose_name_plural = 'Запчастини на складі'
+        ordering = ['name']
+
+    def __str__(self):
+        sku_str = f' [{self.sku}]' if self.sku else ''
+        return f'{self.name}{sku_str} — {self.quantity} шт (Закупка: {self.cost_price} грн, Продаж: {self.selling_price} грн)'
+
+    @property
+    def is_low_stock(self):
+        """Перевірка чи не є залишок меншим за мінімальний поріг."""
+        return self.quantity <= self.min_quantity
+
+    @property
+    def margin_amount(self):
+        """Розрахунок чистої націнки в гривнях (Ціна продажу - Собівартість)."""
+        return self.selling_price - self.cost_price
+
+    @property
+    def margin_percent(self):
+        """Розрахунок відсотка націнки від собівартості."""
+        if self.cost_price and self.cost_price > 0:
+            margin = ((self.selling_price - self.cost_price) / self.cost_price) * 100
+            return round(float(margin), 1)
+        return 0.0
+
+
+class UsedSparePart(models.Model):
+    """
+    Запчастини, використані при виконанні конкретної заявки на ремонт.
+    """
+    booking = models.ForeignKey(
+        Booking,
+        on_delete=models.CASCADE,
+        related_name='used_parts',
+        verbose_name='Заявка'
+    )
+    spare_part = models.ForeignKey(
+        SparePart,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='used_instances',
+        verbose_name='Запчастина'
+    )
+    part_name = models.CharField(max_length=150, verbose_name='Назва деталі')
+    quantity = models.PositiveIntegerField(default=1, verbose_name='Використана кількість')
+    cost_price = models.DecimalField(
+        max_digits=10,
+        decimal_places=2,
+        verbose_name='Собівартість на момент використання (грн)'
+    )
+    selling_price = models.DecimalField(
+        max_digits=10,
+        decimal_places=2,
+        verbose_name='Ціна продажу на момент використання (грн)'
+    )
+
+    class Meta:
+        db_table = 'used_spare_part'
+        verbose_name = 'Використана запчастина'
+        verbose_name_plural = 'Використані запчастини'
+
+    def __str__(self):
+        return f'{self.part_name} x{self.quantity} для Заявки #{self.booking_id}'
+

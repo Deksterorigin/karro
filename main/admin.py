@@ -1,7 +1,27 @@
 from django.contrib import admin
 from unfold.admin import ModelAdmin
 from unfold.decorators import action
-from .models import User, ServiceStation, Review, Booking
+from .models import User, ServiceStation, Review, Booking, CarHistory, Car, BookingChatMessage
+
+@admin.register(BookingChatMessage)
+class BookingChatMessageAdmin(ModelAdmin):
+    list_display = ('message_id', 'booking', 'sender', 'text', 'has_image', 'proposed_cost', 'is_approved', 'created_at')
+    list_filter = ('booking', 'sender', 'is_approved', 'created_at')
+    search_fields = ('text', 'sender__full_name', 'booking__id')
+
+    def has_image(self, obj):
+        return bool(obj.image)
+    has_image.boolean = True
+    has_image.short_description = "Фото"
+
+
+@admin.register(CarHistory)
+class CarHistoryAdmin(ModelAdmin):
+    list_display = ('car', 'station', 'date', 'mileage', 'price', 'created_at')
+    list_filter = ('date', 'station')
+    search_fields = ('car__vin_code', 'car__brand', 'car__model', 'work_list', 'spare_parts')
+    list_per_page = 25
+
 
 @admin.register(User)
 class UserAdmin(ModelAdmin):

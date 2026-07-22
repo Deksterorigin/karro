@@ -4,7 +4,8 @@ import datetime
 from django.test import TestCase, Client
 from django.contrib.auth.hashers import make_password
 from django.utils import timezone
-from main.models import User, ServiceStation, Car, Booking, Notification, StationBox
+from decimal import Decimal
+from main.models import User, ServiceStation, Car, Booking, Notification, StationBox, BookingChatMessage
 
 class BookingAPITestCase(TestCase):
     def setUp(self):
@@ -397,3 +398,107 @@ class BookingCalendarTests(TestCase):
         
         booking.refresh_from_db()
         self.assertEqual(booking.scheduled_time, new_time)
+
+
+class BookingChatTestCase(TestCase):
+    def setUp(self):
+        self.client = Client()
+        self.client_user = User.objects.create(
+            full_name='Іван Клієнт',
+            phone='+380509998877',
+            email='client@test.com',
+            password=make_password('password123'),
+            role='client'
+        )
+        self.station_user = User.objects.create(
+            full_name='Петро Механік',
+            phone='+380679998877',
+            email='station@test.com',
+            password=make_password('password123'),
+            role='station'
+        )
+        self.station = ServiceStation.objects.create(
+            user=self.station_user,
+            name='Тестове СТО',
+            city='Київ',
+            address='вул. Центральна, 1'
+        )
+        self.car = Car.objects.create(
+            user=self.client_user,
+            vin_code='1HGBH41JXMN109999',
+            brand='Honda',
+            model='Civic',
+            year=2019
+        )
+        self.booking = Booking.objects.create(
+            client=self.client_user,
+            station=self.station,
+            car=self.car,
+            service_name='Діагностика гальмівної системи',
+            description='Скрип при гальмуванні',
+            status='confirmed',
+            scheduled_time=timezone.now()
+        )
+
+    def login_client(self):
+        self.client.force_login(self.client_user)
+
+    def login_station(self):
+        self.client.force_login(self.station_user)
+
+    def test_send_and_get_chat_messages(self):
+        """Перевірка надсилання та отримання повідомлень у чаті замовлення."""
+        # 1. Механік надсилає повідомлення про зношені колодки з пропозицією додаткової суми
+        self.login_station()
+        response = self.client.post(f'/api/bookings/{self.booking.pk}/chat/', {
+            'text': 'Знайшли проблему: колодки зношені на 90%, потрібно міняти.',
+            'proposed_cost': '850.00'
+        })
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json()['status'], 'success')
+
+        # Перевіряємо що у базі створилося повідомлення
+        msg = BookingChatMessage.objects.filter(booking=self.booking).first()
+        self.assertIsNotNone(msg)
+        self.assertEqual(msg.sender, self.station_user)
+        self.assertEqual(msg.proposed_cost, Decimal('850.00'))
+
+        # Перевіряємо що клієнту відправилося сповіщення Notification
+        notif = Notification.objects.filter(recipient=self.client_user, booking=self.booking).first()
+        self.assertIsNotNone(notif)
+        self.assertIn('Нове повідомлення', notif.message)
+
+        # 2. Клієнт отримує список повідомлень через GET API
+        self.login_client()
+        response_get = self.client.get(f'/api/bookings/{self.booking.pk}/chat/')
+        self.assertEqual(response_get.status_code, 200)
+        data = response_get.json()
+        self.assertEqual(data['status'], 'success')
+        self.assertEqual(len(data['messages']), 1)
+        self.assertEqual(data['messages'][0]['text'], 'Знайшли проблему: колодки зношені на 90%, потрібно міняти.')
+        self.assertFalse(data['messages'][0]['is_me'])
+
+    def test_client_approve_proposed_cost(self):
+        """Перевірка підтвердження клієнтом додаткових робіт / вартості."""
+        msg = BookingChatMessage.objects.create(
+            booking=self.booking,
+            sender=self.station_user,
+            text='Заміна додаткових пильовиків',
+            proposed_cost=Decimal('450.00')
+        )
+
+        self.login_client()
+        response = self.client.post(f'/api/chat-message/{msg.pk}/approval/', {
+            'action': 'approve'
+        })
+        self.assertEqual(response.status_code, 200)
+        self.assertTrue(response.json()['is_approved'])
+
+        msg.refresh_from_db()
+        self.assertTrue(msg.is_approved)
+
+        # Перевіряємо сповіщення СТО
+        notif = Notification.objects.filter(recipient=self.station_user, booking=self.booking).first()
+        self.assertIsNotNone(notif)
+        self.assertIn('підтвердив', notif.message)
+

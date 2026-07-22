@@ -1,6 +1,18 @@
 from django.contrib import admin
 from unfold.admin import ModelAdmin
-from .models import Employee, SalaryBalance, Transaction
+from .models import Employee, SalaryBalance, Transaction, SparePart, UsedSparePart
+
+@admin.register(SparePart)
+class SparePartAdmin(ModelAdmin):
+    list_display = ('name', 'sku', 'station', 'quantity', 'cost_price', 'selling_price', 'min_quantity')
+    list_filter = ('station',)
+    search_fields = ('name', 'sku')
+
+@admin.register(UsedSparePart)
+class UsedSparePartAdmin(ModelAdmin):
+    list_display = ('part_name', 'booking', 'quantity', 'cost_price', 'selling_price')
+    search_fields = ('part_name', 'booking__id')
+
 
 @admin.register(Employee)
 class EmployeeAdmin(ModelAdmin):

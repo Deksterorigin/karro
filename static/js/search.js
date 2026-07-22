@@ -45,10 +45,13 @@ function initMap() {
         const escapedAddress = escapeHtml(s.address);
 
         marker.bindPopup(`
-            <div style="font-family: 'Inter', sans-serif; min-width: 180px; padding: 4px;">
-                <div style="font-weight: 700; font-size: 0.95rem; margin-bottom: 4px; color: var(--text);">${escapedName}</div>
+            <div style="font-family: 'Inter', sans-serif; min-width: 190px; padding: 4px;">
+                <a href="/station/${s.id}/" style="font-weight: 700; font-size: 0.95rem; margin-bottom: 4px; color: var(--accent, #0052CC); text-decoration: none; display: block;">${escapedName} &rarr;</a>
                 <div style="font-size: 0.75rem; color: var(--text-muted); line-height: 1.3;">${escapedCity}${escapedAddress}</div>
-                ${s.rating ? `<div style="margin-top: 8px; color: var(--accent); font-weight: 700; font-size: 0.85rem; display: flex; align-items: center; gap: 2px;">★ ${escapeHtml(String(s.rating))}</div>` : ''}
+                ${s.rating ? `<div style="margin-top: 6px; color: var(--accent); font-weight: 700; font-size: 0.85rem; display: flex; align-items: center; gap: 2px;">★ ${escapeHtml(String(s.rating))}</div>` : ''}
+                <div style="margin-top: 10px;">
+                    <a href="/station/${s.id}/" style="display: inline-block; font-size: 0.75rem; font-weight: 700; color: #ffffff; background: #0052CC; padding: 5px 12px; border-radius: 6px; text-decoration: none;">Переглянути СТО</a>
+                </div>
             </div>
         `);
 

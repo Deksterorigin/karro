@@ -85,6 +85,18 @@ class ServiceStation(models.Model):
     is_verified = models.BooleanField(default=False, verbose_name='Верифікована')
     opening_time = models.TimeField(default='09:00', verbose_name='Час відкриття')
     closing_time = models.TimeField(default='18:00', verbose_name='Час закриття')
+    logo = models.ImageField(
+        upload_to='station_logos/', null=True, blank=True, verbose_name='Логотип СТО'
+    )
+    edrpou = models.CharField(
+        max_length=20, blank=True, null=True, verbose_name='ЄДРПОУ / ІПН'
+    )
+    bank_details = models.TextField(
+        blank=True, null=True, verbose_name='Банківські реквізити (IBAN/Банк)'
+    )
+    legal_address = models.CharField(
+        max_length=255, blank=True, null=True, verbose_name='Юридична адреса'
+    )
     created_at = models.DateTimeField(auto_now_add=True, verbose_name='Дата створення')
 
     class Meta:
@@ -106,6 +118,96 @@ class ServiceStation(models.Model):
     def review_count(self):
         """Кількість залишених відгуків."""
         return Review.objects.filter(station=self).count()
+
+    def get_or_create_schedules(self):
+        """Ініціалізація розкладу для всіх 7 днів тижня, якщо вони ще не створені."""
+        existing = {s.day_of_week: s for s in self.schedules.all()}
+        schedules = []
+        for day in range(7):
+            if day in existing:
+                schedules.append(existing[day])
+            else:
+                # Типове налаштування: Пн-Пт 09:00-18:00, Сб 10:00-16:00, Нд — Вихідний
+                is_work = day < 6
+                open_t = '10:00' if day == 5 else '09:00'
+                close_t = '16:00' if day == 5 else '18:00'
+                sch = StationSchedule.objects.create(
+                    station=self,
+                    day_of_week=day,
+                    is_working=is_work,
+                    opening_time=open_t,
+                    closing_time=close_t
+                )
+                schedules.append(sch)
+        return sorted(schedules, key=lambda x: x.day_of_week)
+
+    def is_open_now(self):
+        """Перевірка чи автосервіс відчинений у поточну хвилину."""
+        from django.utils import timezone
+        now = timezone.localtime()
+        current_day = now.weekday()
+        current_time = now.time()
+
+        sch = self.schedules.filter(day_of_week=current_day).first()
+        if not sch or not sch.is_working:
+            return False
+
+        if sch.opening_time <= current_time <= sch.closing_time:
+            if sch.break_start and sch.break_end:
+                if sch.break_start <= current_time <= sch.break_end:
+                    return False
+            return True
+        return False
+
+    def get_day_schedule(self, day_num):
+        """Отримання розкладу для конкретного дня тижня (0=Пн .. 6=Нд)."""
+        sch = self.schedules.filter(day_of_week=day_num).first()
+        if not sch:
+            self.get_or_create_schedules()
+            sch = self.schedules.filter(day_of_week=day_num).first()
+        return sch
+
+
+class StationSchedule(models.Model):
+    """
+    Графік роботи СТО по днях тижня (0 = Понеділок .. 6 = Неділя).
+    """
+    DAY_CHOICES = (
+        (0, 'Понеділок'),
+        (1, 'Вівторок'),
+        (2, 'Середа'),
+        (3, 'Четвер'),
+        (4, "П'ятниця"),
+        (5, 'Субота'),
+        (6, 'Неділя'),
+    )
+
+    station = models.ForeignKey(
+        ServiceStation,
+        on_delete=models.CASCADE,
+        related_name='schedules',
+        verbose_name='СТО'
+    )
+    day_of_week = models.IntegerField(choices=DAY_CHOICES, verbose_name='День тижня')
+    is_working = models.BooleanField(default=True, verbose_name='Робочий день')
+    opening_time = models.TimeField(default='09:00', verbose_name='Час відкриття')
+    closing_time = models.TimeField(default='18:00', verbose_name='Час закриття')
+    break_start = models.TimeField(null=True, blank=True, verbose_name='Початок обіду')
+    break_end = models.TimeField(null=True, blank=True, verbose_name='Кінець обіду')
+
+    class Meta:
+        db_table = 'station_schedule'
+        verbose_name = 'Графік роботи СТО'
+        verbose_name_plural = 'Графіки роботи СТО'
+        unique_together = ('station', 'day_of_week')
+        ordering = ['day_of_week']
+
+    def __str__(self):
+        day_name = dict(self.DAY_CHOICES).get(self.day_of_week, str(self.day_of_week))
+        if not self.is_working:
+            return f'{self.station.name} — {day_name}: Вихідний'
+        break_str = f' (Обід {self.break_start.strftime("%H:%M")}-{self.break_end.strftime("%H:%M")})' if self.break_start and self.break_end else ''
+        return f'{self.station.name} — {day_name}: {self.opening_time.strftime("%H:%M")}-{self.closing_time.strftime("%H:%M")}{break_str}'
 
 class Car(models.Model):
     """
@@ -333,3 +435,105 @@ class Notification(models.Model):
 
     def __str__(self):
         return f'Сповіщення для {self.recipient.full_name}: {self.message[:30]}'
+
+
+class CarHistory(models.Model):
+    """
+    Історія обслуговування та ремонту автомобіля.
+    Створюється автоматично після успішного завершення заявки.
+    """
+    history_id = models.AutoField(primary_key=True)
+    car = models.ForeignKey(
+        Car,
+        on_delete=models.CASCADE,
+        related_name='history_records',
+        verbose_name='Автомобіль'
+    )
+    booking = models.ForeignKey(
+        Booking,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='car_history_records',
+        verbose_name='Заявка'
+    )
+    station = models.ForeignKey(
+        ServiceStation,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='car_history_records',
+        verbose_name='СТО'
+    )
+    date = models.DateField(default=datetime.date.today, verbose_name='Дата обслуговування')
+    mileage = models.PositiveIntegerField(null=True, blank=True, verbose_name='Пробіг (км)')
+    work_list = models.TextField(verbose_name='Перелік виконаних робіт')
+    spare_parts = models.TextField(null=True, blank=True, verbose_name='Використані запчастини')
+    price = models.DecimalField(
+        max_digits=10,
+        decimal_places=2,
+        validators=[MinValueValidator(0.01)],
+        verbose_name='Підсумкова вартість (грн)'
+    )
+    created_at = models.DateTimeField(auto_now_add=True, verbose_name='Дата запису')
+
+    class Meta:
+        db_table = 'car_history'
+        verbose_name = 'Запис історії обслуговування'
+        verbose_name_plural = 'Історія обслуговування'
+        ordering = ['-date', '-created_at']
+
+    def __str__(self):
+        station_name = self.station.name if self.station else 'СТО'
+        return f'{self.car} — {self.date} ({station_name}): {self.price} грн'
+
+
+class BookingChatMessage(models.Model):
+    """
+    Повідомлення чату всередині замовлення.
+    Дозволяє механіку та клієнту обмінюватися текстом, фотографіями несправностей
+    та оперативно узгоджувати додаткові роботи чи суму деталей.
+    """
+    message_id = models.AutoField(primary_key=True)
+    booking = models.ForeignKey(
+        Booking,
+        on_delete=models.CASCADE,
+        related_name='chat_messages',
+        verbose_name='Заявка'
+    )
+    sender = models.ForeignKey(
+        User,
+        on_delete=models.CASCADE,
+        related_name='sent_chat_messages',
+        verbose_name='Відправник'
+    )
+    text = models.TextField(blank=True, null=True, verbose_name='Текст повідомлення')
+    image = models.ImageField(
+        upload_to='chat_photos/',
+        null=True,
+        blank=True,
+        verbose_name='Фото несправності'
+    )
+    proposed_cost = models.DecimalField(
+        max_digits=10,
+        decimal_places=2,
+        null=True,
+        blank=True,
+        verbose_name='Запропонована додаткова вартість (грн)'
+    )
+    is_approved = models.BooleanField(
+        null=True,
+        blank=True,
+        verbose_name='Статус узгодження клієнтом'
+    )
+    is_read = models.BooleanField(default=False, verbose_name='Прочитано')
+    created_at = models.DateTimeField(auto_now_add=True, verbose_name='Дата створення')
+
+    class Meta:
+        db_table = 'booking_chat_message'
+        verbose_name = 'Повідомлення чату'
+        verbose_name_plural = 'Повідомлення чату'
+        ordering = ['created_at']
+
+    def __str__(self):
+        return f'Чат #{self.booking_id} — {self.sender.full_name} ({self.created_at.strftime("%d.%m %H:%M")})'

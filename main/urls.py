@@ -15,4 +15,7 @@ urlpatterns = [
     path('api/stations/<int:station_id>/available-slots/', views.get_available_slots_api, name='get_available_slots_api'),
     path('api/stations/<int:station_id>/calendar-events/', views.get_calendar_events_api, name='get_calendar_events_api'),
     path('api/bookings/<int:booking_id>/reschedule/', views.reschedule_booking_api, name='reschedule_booking_api'),
+    path('api/bookings/<int:booking_id>/chat/', views.booking_chat_api, name='booking_chat_api'),
+    path('api/chat-message/<int:message_id>/approval/', views.respond_cost_approval_api, name='respond_cost_approval_api'),
+    path('booking/<int:booking_id>/act/pdf/', views.download_act_pdf_view, name='download_act_pdf'),
 ]

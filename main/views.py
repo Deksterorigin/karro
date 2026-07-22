@@ -18,10 +18,11 @@ from django.urls import reverse
 from django.utils import timezone
 from django.views.decorators.http import require_POST
 
-from django.http import JsonResponse
+from django.http import JsonResponse, HttpResponse
 import json
 from .decorators import login_required_session
-from .models import User, Car, Review, ServiceStation, Service, Booking, Notification
+from .models import User, Car, Review, ServiceStation, Service, Booking, Notification, CarHistory, BookingChatMessage
+from .pdf_utils import generate_act_pdf
 
 logger = logging.getLogger(__name__)
 
@@ -225,7 +226,12 @@ def profile_view(request):
             queryset=Booking.objects.filter(client=user).order_by('-scheduled_time', '-created_at').select_related('station'),
             to_attr='bookings_list'
         )
-        client_cars = Car.objects.filter(user=user).prefetch_related(bookings_prefetch)
+        history_prefetch = Prefetch(
+            'history_records',
+            queryset=CarHistory.objects.order_by('-date', '-created_at').select_related('station'),
+            to_attr='history_list'
+        )
+        client_cars = Car.objects.filter(user=user).prefetch_related(bookings_prefetch, history_prefetch)
         context['client_cars'] = client_cars
         context['other_bookings'] = Booking.objects.filter(client=user, car__isnull=True).order_by('-created_at').select_related('station')
         context['cars'] = client_cars
@@ -253,11 +259,16 @@ def profile_view(request):
             context['services'] = Service.objects.filter(station=station)
             from .models import StationBox
             context['station_boxes'] = StationBox.objects.filter(station=station)
+            context['schedules'] = station.get_or_create_schedules()
             
         context['bookings'] = Booking.objects.filter(station__user=user).select_related('client', 'station', 'box')
         
-        from accounting.models import Employee
+        from accounting.models import Employee, SparePart
         context['station_employees'] = Employee.objects.filter(station__user=user, is_active=True)
+        if station:
+            context['station_spare_parts'] = SparePart.objects.filter(station=station)
+        else:
+            context['station_spare_parts'] = SparePart.objects.filter(station__user=user)
 
     if request.method == 'POST':
         action = request.POST.get('action', '')
@@ -300,6 +311,26 @@ def profile_view(request):
                 user.save(update_fields=['password'])
                 update_session_auth_hash(request, user)
                 messages.success(request, 'Пароль успішно змінено.')
+
+        # Оновлення графіку роботи СТО
+        elif action == 'save_schedule':
+            if not user.is_station or not station:
+                messages.error(request, 'Спочатку оберіть або створіть СТО.')
+            else:
+                for day in range(7):
+                    sch = station.get_day_schedule(day)
+                    sch.is_working = request.POST.get(f'is_working_{day}') == 'on'
+                    sch.opening_time = request.POST.get(f'opening_time_{day}', '09:00') or '09:00'
+                    sch.closing_time = request.POST.get(f'closing_time_{day}', '18:00') or '18:00'
+                    
+                    b_start = request.POST.get(f'break_start_{day}', '').strip()
+                    b_end = request.POST.get(f'break_end_{day}', '').strip()
+                    sch.break_start = b_start if b_start else None
+                    sch.break_end = b_end if b_end else None
+                    sch.save()
+
+                messages.success(request, 'Графік роботи СТО успішно збережено.')
+                return redirect('profile')
 
         # Оновлення фото профілю
         elif action == 'upload_avatar':
@@ -620,14 +651,29 @@ def create_booking_api(request):
         if scheduled_dt < timezone.now():
             return JsonResponse({'status': 'error', 'message': 'Неможливо записатися на минулий час'}, status=400)
 
-        visit_time = scheduled_dt.time()
-        if visit_time < station.opening_time or visit_time > station.closing_time:
-            opening_str = station.opening_time.strftime('%H:%M')
-            closing_str = station.closing_time.strftime('%H:%M')
+        visit_day = scheduled_dt.weekday()
+        sch = station.get_day_schedule(visit_day)
+        if not sch or not sch.is_working:
             return JsonResponse({
                 'status': 'error',
-                'message': f'СТО працює з {opening_str} до {closing_str}. Будь ласка, оберіть інший час.'
+                'message': 'СТО не працює в обраний день тижня (Вихідний).'
             }, status=400)
+
+        visit_time = scheduled_dt.time()
+        if visit_time < sch.opening_time or visit_time > sch.closing_time:
+            opening_str = sch.opening_time.strftime('%H:%M')
+            closing_str = sch.closing_time.strftime('%H:%M')
+            return JsonResponse({
+                'status': 'error',
+                'message': f'СТО у цей день працює з {opening_str} до {closing_str}. Будь ласка, оберіть інший час.'
+            }, status=400)
+
+        if sch.break_start and sch.break_end:
+            if sch.break_start <= visit_time < sch.break_end:
+                return JsonResponse({
+                    'status': 'error',
+                    'message': f'У СТО обідня перерва з {sch.break_start.strftime("%H:%M")} до {sch.break_end.strftime("%H:%M")}.'
+                }, status=400)
 
         # Автоматичне знаходження вільного боксу
         from .models import StationBox
@@ -805,9 +851,20 @@ def get_available_slots_api(request, station_id):
         status__in=['pending', 'confirmed', 'completed']
     ).select_related('box')
 
-    # Генерація слотів кожні 30 хвилин
-    opening_time = station.opening_time or datetime.time(9, 0)
-    closing_time = station.closing_time or datetime.time(18, 0)
+    # Генерація слотів з урахуванням розкладу на даний день тижня
+    day_num = dt_date.weekday()
+    sch = station.get_day_schedule(day_num)
+
+    if not sch or not sch.is_working:
+        return JsonResponse({
+            'status': 'success',
+            'slots': [],
+            'is_closed': True,
+            'message': 'СТО не працює у цей день (Вихідний).'
+        })
+
+    opening_time = sch.opening_time
+    closing_time = sch.closing_time
 
     current_slot = timezone.make_aware(datetime.datetime.combine(dt_date, opening_time))
     work_end = timezone.make_aware(datetime.datetime.combine(dt_date, closing_time))
@@ -816,13 +873,21 @@ def get_available_slots_api(request, station_id):
     available_slots = []
 
     while current_slot <= work_end - datetime.timedelta(minutes=duration):
-        # Якщо слот у минулому — пропускаємо
         if current_slot <= now:
             current_slot += datetime.timedelta(minutes=30)
             continue
 
-        slot_end = current_slot + datetime.timedelta(minutes=duration)
-        
+        slot_start_time = current_slot.time()
+        slot_end_dt = current_slot + datetime.timedelta(minutes=duration)
+        slot_end_time = slot_end_dt.time()
+
+        # Враховуємо обідню перерву СТО
+        if sch.break_start and sch.break_end:
+            if not (slot_end_time <= sch.break_start or slot_start_time >= sch.break_end):
+                current_slot += datetime.timedelta(minutes=30)
+                continue
+
+        slot_end = slot_end_dt
         free_box_found = False
         for box in boxes:
             conflict = False
@@ -842,7 +907,11 @@ def get_available_slots_api(request, station_id):
 
         current_slot += datetime.timedelta(minutes=30)
 
-    return JsonResponse({'status': 'success', 'slots': available_slots})
+    return JsonResponse({
+        'status': 'success',
+        'slots': available_slots,
+        'is_closed': False
+    })
 
 
 @login_required_session
@@ -992,3 +1061,181 @@ def reschedule_booking_api(request, booking_id):
         'message': f'Замовлення успішно перенесено на {new_start.strftime("%d.%m.%Y %H:%M")}',
         'box_name': free_box.name
     })
+
+
+@login_required_session
+def booking_chat_api(request, booking_id):
+    """
+    API для отримання та надсилання повідомлень чату замовлення.
+    GET: Повертає список повідомлень чату.
+    POST: Надсилає новий текст, фото або пропозицію додаткових робіт/ціни.
+    """
+    user = get_current_user(request)
+    if not user:
+        return JsonResponse({'status': 'error', 'message': 'Unauthorized'}, status=401)
+
+    booking = get_object_or_404(Booking, pk=booking_id)
+
+    # Перевірка прав доступу: тільки клієнт замовлення або власник СТО
+    is_client = (booking.client_id == user.user_id)
+    is_station_owner = (booking.station and booking.station.user_id == user.user_id)
+
+    if not (is_client or is_station_owner or user.is_superuser):
+        return JsonResponse({'status': 'error', 'message': 'У вас немає доступу до чату цього замовлення.'}, status=403)
+
+    if request.method == 'GET':
+        messages_qs = BookingChatMessage.objects.filter(booking=booking).select_related('sender')
+        
+        # Відмічаємо чужі повідомлення як прочитані
+        unread = messages_qs.filter(is_read=False).exclude(sender=user)
+        unread.update(is_read=True)
+
+        data = []
+        for msg in messages_qs:
+            data.append({
+                'id': msg.pk,
+                'sender_id': msg.sender_id,
+                'sender_name': msg.sender.full_name,
+                'sender_role': msg.sender.role,
+                'is_me': (msg.sender_id == user.user_id),
+                'text': msg.text or '',
+                'image_url': msg.image.url if msg.image else None,
+                'proposed_cost': str(msg.proposed_cost) if msg.proposed_cost is not None else None,
+                'is_approved': msg.is_approved,
+                'created_at': msg.created_at.strftime('%d.%m.%Y %H:%M')
+            })
+
+        return JsonResponse({'status': 'success', 'messages': data})
+
+    elif request.method == 'POST':
+        text = request.POST.get('text', '').strip()
+        image_file = request.FILES.get('image')
+        proposed_cost_str = request.POST.get('proposed_cost', '').strip()
+
+        if not text and not image_file and not proposed_cost_str:
+            return JsonResponse({'status': 'error', 'message': 'Повідомлення не може бути порожнім.'}, status=400)
+
+        proposed_cost = None
+        if proposed_cost_str:
+            try:
+                from decimal import Decimal
+                proposed_cost = Decimal(proposed_cost_str)
+            except Exception:
+                pass
+
+        msg = BookingChatMessage.objects.create(
+            booking=booking,
+            sender=user,
+            text=text if text else None,
+            image=image_file,
+            proposed_cost=proposed_cost
+        )
+
+        # Створюємо сповіщення для протилежної сторони
+        recipient = booking.client if is_station_owner else (booking.station.user if booking.station else None)
+        if recipient and recipient != user:
+            notif_text = f"Нове повідомлення у чаті замовлення #{booking.id}"
+            if image_file:
+                notif_text += " (надіслано фото)"
+            Notification.objects.create(
+                recipient=recipient,
+                booking=booking,
+                message=notif_text
+            )
+
+        return JsonResponse({
+            'status': 'success',
+            'message': {
+                'id': msg.pk,
+                'sender_id': msg.sender_id,
+                'sender_name': msg.sender.full_name,
+                'sender_role': msg.sender.role,
+                'is_me': True,
+                'text': msg.text or '',
+                'image_url': msg.image.url if msg.image else None,
+                'proposed_cost': str(msg.proposed_cost) if msg.proposed_cost is not None else None,
+                'is_approved': msg.is_approved,
+                'created_at': msg.created_at.strftime('%d.%m.%Y %H:%M')
+            }
+        })
+
+    return JsonResponse({'status': 'error', 'message': 'Method not allowed'}, status=405)
+
+
+@login_required_session
+@require_POST
+def respond_cost_approval_api(request, message_id):
+    """
+    API для підтвердження або відхилення додаткової суми клієнтом.
+    """
+    user = get_current_user(request)
+    if not user:
+        return JsonResponse({'status': 'error', 'message': 'Unauthorized'}, status=401)
+
+    msg = get_object_or_404(BookingChatMessage, pk=message_id)
+    booking = msg.booking
+
+    # Перевірка що відповідає саме клієнт
+    if booking.client_id != user.user_id and not user.is_superuser:
+        return JsonResponse({'status': 'error', 'message': 'Тільки клієнт може підтверджувати суму.'}, status=403)
+
+    action = request.POST.get('action') # 'approve' or 'decline'
+    if action == 'approve':
+        msg.is_approved = True
+        msg.save(update_fields=['is_approved'])
+        
+        if booking.station and booking.station.user:
+            Notification.objects.create(
+                recipient=booking.station.user,
+                booking=booking,
+                message=f"Клієнт підтвердив додаткову суму {msg.proposed_cost} грн у чаті замовлення #{booking.id}"
+            )
+        return JsonResponse({'status': 'success', 'is_approved': True, 'message': 'Суму підтверджено.'})
+    elif action == 'decline':
+        msg.is_approved = False
+        msg.save(update_fields=['is_approved'])
+        
+        if booking.station and booking.station.user:
+            Notification.objects.create(
+                recipient=booking.station.user,
+                booking=booking,
+                message=f"Клієнт відхилив додаткову суму {msg.proposed_cost} грн у чаті замовлення #{booking.id}"
+            )
+        return JsonResponse({'status': 'success', 'is_approved': False, 'message': 'Суму відхилено.'})
+
+    return JsonResponse({'status': 'error', 'message': 'Невідома дія.'}, status=400)
+
+
+@login_required_session
+def download_act_pdf_view(request, booking_id):
+    """
+    Генерує та повертає Акт виконаних робіт (PDF) для конкретного замовлення.
+    Доступ дозволено клієнту-власнику замовлення або адміністратору СТО.
+    """
+    user = get_current_user(request)
+    if not user:
+        return redirect('login')
+
+    booking = get_object_or_404(Booking, pk=booking_id)
+
+    # Перевірка прав доступу: замовник, власник СТО або персонал
+    is_owner = (booking.client_id == user.user_id)
+    is_station_admin = (booking.station and booking.station.user_id == user.user_id)
+
+    if not (is_owner or is_station_admin or user.is_staff):
+        messages.error(request, 'У вас немає прав для перегляду даного документа.')
+        return redirect('profile')
+
+    # Створення байтового масиву PDF
+    pdf_bytes = generate_act_pdf(booking)
+
+    filename = f"act_{booking.pk:05d}.pdf"
+    response = HttpResponse(pdf_bytes, content_type='application/pdf')
+
+    # Перевірка режиму перегляду (в браузері чи скачування)
+    if request.GET.get('inline') == '1':
+        response['Content-Disposition'] = f'inline; filename="{filename}"'
+    else:
+        response['Content-Disposition'] = f'attachment; filename="{filename}"'
+
+    return response

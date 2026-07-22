@@ -150,7 +150,9 @@ document.addEventListener('DOMContentLoaded', function() {
                 .then(response => response.json())
                 .then(data => {
                     if (data.status === 'success') {
-                        if (data.slots && data.slots.length > 0) {
+                        if (data.is_closed) {
+                            slotsGrid.innerHTML = `<span class="info-text" style="color: #ef4444; font-weight: 600;">🔴 ${data.message || 'СТО не працює у цей день (Вихідний).'}</span>`;
+                        } else if (data.slots && data.slots.length > 0) {
                             slotsGrid.innerHTML = '';
                             data.slots.forEach(slot => {
                                 const btn = document.createElement('button');
@@ -168,7 +170,7 @@ document.addEventListener('DOMContentLoaded', function() {
                                 slotsGrid.appendChild(btn);
                             });
                         } else {
-                            slotsGrid.innerHTML = '<span class="info-text" style="color: var(--error);">Немає вільних боксів на цю дату. Оберіть іншу.</span>';
+                            slotsGrid.innerHTML = '<span class="info-text" style="color: var(--error);">Немає вільних боксів на цю дату. Оберіть інший день або час.</span>';
                         }
                     } else {
                         slotsGrid.innerHTML = `<span class="info-text" style="color: var(--error);">${data.message || 'Помилка завантаження слотів'}</span>`;

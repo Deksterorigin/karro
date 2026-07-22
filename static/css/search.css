@@ -167,7 +167,6 @@
     background: var(--surface);
     border: 1px solid var(--border);
     border-radius: 16px;
-    overflow: hidden;
     transition: all var(--transition-normal);
     cursor: pointer;
     box-shadow: var(--shadow-sm);
@@ -311,6 +310,7 @@
     padding: 1rem 1.5rem;
     border-top: 1px solid var(--border);
     background: var(--bg);
+    border-radius: 0 0 16px 16px;
 }
 
 .card-phone {

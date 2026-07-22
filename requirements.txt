@@ -4,3 +4,5 @@ Pillow
 python-decouple
 requests
 django-unfold
+reportlab
+openpyxl

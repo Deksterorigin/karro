@@ -117,6 +117,12 @@ function handleStatusSubmit(form, event) {
             if (hiddenIdInput) {
                 hiddenIdInput.value = bookingId;
             }
+            const workInput = document.getElementById('complete_work_list');
+            if (workInput) {
+                const serviceName = form.getAttribute('data-service-name') || '';
+                const description = form.getAttribute('data-description') || '';
+                workInput.value = serviceName || description || '';
+            }
             modal.classList.add('active');
         }
         return false;
@@ -129,6 +135,14 @@ function closeCompleteModal() {
     const modal = document.getElementById('completeBookingModal');
     if (modal) {
         modal.classList.remove('active');
+    }
+}
+
+// Перемикач видимості історії обслуговування авто
+function toggleCarHistory(historyId) {
+    const container = document.getElementById(historyId);
+    if (container) {
+        container.classList.toggle('d-none');
     }
 }
 
@@ -260,3 +274,387 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 });
+
+// Змінна для збереження вибраних запчастин при завершенні ремонту
+let selectedBookingParts = [];
+
+function openAddPartModal() {
+    const modal = document.getElementById('addSparePartModal');
+    if (modal) modal.classList.add('active');
+}
+
+function closeAddPartModal() {
+    const modal = document.getElementById('addSparePartModal');
+    if (modal) modal.classList.remove('active');
+}
+
+function openEditPartModal(id, name, sku, qty, costPrice, sellingPrice, minQty) {
+    const modal = document.getElementById('editSparePartModal');
+    if (modal) {
+        document.getElementById('edit_part_id').value = id;
+        document.getElementById('edit_part_name').value = name;
+        document.getElementById('edit_part_sku').value = sku;
+        document.getElementById('edit_part_quantity').value = qty;
+        document.getElementById('edit_part_cost_price').value = costPrice;
+        document.getElementById('edit_part_selling_price').value = sellingPrice;
+        document.getElementById('edit_part_min_quantity').value = minQty;
+        modal.classList.add('active');
+    }
+}
+
+function closeEditPartModal() {
+    const modal = document.getElementById('editSparePartModal');
+    if (modal) modal.classList.remove('active');
+}
+
+function addPartToBooking() {
+    const select = document.getElementById('complete_part_select');
+    const qtyInput = document.getElementById('complete_part_qty');
+    if (!select || !select.value) return;
+
+    const option = select.options[select.selectedIndex];
+    const partId = parseInt(select.value);
+    const partName = option.getAttribute('data-name');
+    const price = parseFloat(option.getAttribute('data-price')) || 0;
+    const stock = parseInt(option.getAttribute('data-stock')) || 0;
+    const qty = parseInt(qtyInput.value) || 1;
+
+    if (qty > stock) {
+        alert(`На складі є лише ${stock} шт цієї деталі.`);
+        return;
+    }
+
+    const existingIndex = selectedBookingParts.findIndex(p => p.part_id === partId);
+    if (existingIndex >= 0) {
+        selectedBookingParts[existingIndex].qty += qty;
+    } else {
+        selectedBookingParts.push({
+            part_id: partId,
+            name: partName,
+            price: price,
+            qty: qty
+        });
+    }
+
+    renderSelectedParts();
+}
+
+function removePartFromBooking(partId) {
+    selectedBookingParts = selectedBookingParts.filter(p => p.part_id !== partId);
+    renderSelectedParts();
+}
+
+function renderSelectedParts() {
+    const container = document.getElementById('selected_parts_list');
+    const jsonInput = document.getElementById('used_parts_json');
+    if (!container) return;
+
+    container.innerHTML = '';
+    if (selectedBookingParts.length === 0) {
+        jsonInput.value = '[]';
+        return;
+    }
+
+    jsonInput.value = JSON.stringify(selectedBookingParts);
+    selectedBookingParts.forEach(p => {
+        const itemDiv = document.createElement('div');
+        itemDiv.style.cssText = 'display:flex; justify-content:space-between; align-items:center; background:#ffffff; border:1px solid var(--border-color); padding:4px 8px; border-radius:6px; margin-top:4px;';
+        itemDiv.innerHTML = `
+            <span><strong>${p.name}</strong> x${p.qty} (${p.price * p.qty} грн)</span>
+            <button type="button" onclick="removePartFromBooking(${p.part_id})" style="background:none; border:none; color:#ef4444; cursor:pointer; font-size:1.1rem; line-height:1;">&times;</button>
+        `;
+        container.appendChild(itemDiv);
+    });
+}
+
+/* ══ КЛІЄНТСЬКІ СКРИПТИ ЧАТУ ЗАМОВЛЕННЯ ══ */
+let currentChatBookingId = null;
+let chatPollingTimer = null;
+let selectedChatPhotoFile = null;
+
+function openBookingChat(bookingId) {
+    currentChatBookingId = bookingId;
+    const bIdSpan = document.getElementById('chat_booking_id');
+    if (bIdSpan) bIdSpan.textContent = bookingId;
+
+    const modal = document.getElementById('bookingChatModal');
+    if (modal) modal.classList.add('active');
+
+    // Очищаємо інпути
+    const textInput = document.getElementById('chat_text_input');
+    if (textInput) textInput.value = '';
+    const costInput = document.getElementById('chat_proposed_cost');
+    if (costInput) costInput.value = '';
+    clearChatImagePreview();
+
+    // Отримуємо повідомлення
+    fetchBookingMessages();
+
+    // Запускаємо авто-полінг раз на 4 сек
+    if (chatPollingTimer) clearInterval(chatPollingTimer);
+    chatPollingTimer = setInterval(fetchBookingMessages, 4000);
+}
+
+function closeBookingChat() {
+    const modal = document.getElementById('bookingChatModal');
+    if (modal) modal.classList.remove('active');
+    currentChatBookingId = null;
+    if (chatPollingTimer) {
+        clearInterval(chatPollingTimer);
+        chatPollingTimer = null;
+    }
+}
+
+function fetchBookingMessages() {
+    if (!currentChatBookingId) return;
+
+    fetch(`/api/bookings/${currentChatBookingId}/chat/`)
+        .then(response => response.json())
+        .then(data => {
+            if (data.status === 'success') {
+                renderBookingMessages(data.messages);
+            }
+        })
+        .catch(err => console.error('Error fetching chat messages:', err));
+}
+
+function renderBookingMessages(messages) {
+    const container = document.getElementById('chat_messages_container');
+    if (!container) return;
+
+    if (!messages || messages.length === 0) {
+        container.innerHTML = '<div style="text-align:center; color: var(--text-muted); font-size:0.85rem; margin-top:2rem;">Немає повідомлень. Почніть діалог!</div>';
+        return;
+    }
+
+    const isAtBottom = (container.scrollHeight - container.scrollTop <= container.clientHeight + 100);
+
+    let html = '';
+    messages.forEach(msg => {
+        const alignClass = msg.is_me ? 'me' : 'other';
+        const senderBadge = msg.sender_role === 'station' ? '🔧 СТО / Механік' : '👤 Клієнт';
+
+        let imageHtml = '';
+        if (msg.image_url) {
+            imageHtml = `<img src="${msg.image_url}" alt="Дефект" class="chat-defect-photo" onclick="viewChatPhoto('${msg.image_url}')">`;
+        }
+
+        let costHtml = '';
+        if (msg.proposed_cost) {
+            let statusText = '';
+            if (msg.is_approved === true) {
+                statusText = '<span style="color:#10b981; font-weight:bold;">✅ Узгоджено</span>';
+            } else if (msg.is_approved === false) {
+                statusText = '<span style="color:#ef4444; font-weight:bold;">❌ Відхилено</span>';
+            } else {
+                statusText = '<span style="color:#f59e0b; font-weight:bold;">⏳ Очікує узгодження</span>';
+            }
+
+            let actionButtons = '';
+            if (!msg.is_me && msg.is_approved === null) {
+                actionButtons = `
+                    <div class="chat-approval-actions">
+                        <button type="button" class="btn-approve-cost" onclick="respondCostApproval(${msg.id}, 'approve')">Підтвердити</button>
+                        <button type="button" class="btn-decline-cost" onclick="respondCostApproval(${msg.id}, 'decline')">Відхилити</button>
+                    </div>
+                `;
+            }
+
+            costHtml = `
+                <div class="chat-cost-card">
+                    <div>Додаткові роботи / деталі: <strong>+${msg.proposed_cost} грн</strong></div>
+                    <div style="margin-top:2px;">Статус: ${statusText}</div>
+                    ${actionButtons}
+                </div>
+            `;
+        }
+
+        html += `
+            <div class="chat-message-row ${alignClass}">
+                <div class="chat-sender-name">${escapeHtml(msg.sender_name)} (${senderBadge})</div>
+                <div class="chat-bubble">
+                    ${msg.text ? `<div>${escapeHtml(msg.text)}</div>` : ''}
+                    ${imageHtml}
+                    ${costHtml}
+                    <div class="chat-time-stamp">${msg.created_at}</div>
+                </div>
+            </div>
+        `;
+    });
+
+    container.innerHTML = html;
+
+    if (isAtBottom) {
+        container.scrollTop = container.scrollHeight;
+    }
+}
+
+function handleChatPhotoSelected(input) {
+    if (input.files && input.files[0]) {
+        selectedChatPhotoFile = input.files[0];
+        const reader = new FileReader();
+        reader.onload = function(e) {
+            document.getElementById('chat_image_preview_img').src = e.target.result;
+            document.getElementById('chat_image_preview_box').classList.remove('d-none');
+        };
+        reader.readAsDataURL(selectedChatPhotoFile);
+    }
+}
+
+function clearChatImagePreview() {
+    selectedChatPhotoFile = null;
+    const fileInput = document.getElementById('chat_photo_input');
+    if (fileInput) fileInput.value = '';
+    const previewBox = document.getElementById('chat_image_preview_box');
+    if (previewBox) previewBox.classList.add('d-none');
+}
+
+function handleSendChatMessage(event) {
+    event.preventDefault();
+    if (!currentChatBookingId) return;
+
+    const textInput = document.getElementById('chat_text_input');
+    const text = textInput ? textInput.value.trim() : '';
+
+    const costInput = document.getElementById('chat_proposed_cost');
+    const proposedCost = costInput ? costInput.value.trim() : '';
+
+    if (!text && !selectedChatPhotoFile && !proposedCost) {
+        return;
+    }
+
+    const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]').value;
+    const formData = new FormData();
+    formData.append('text', text);
+    if (selectedChatPhotoFile) {
+        formData.append('image', selectedChatPhotoFile);
+    }
+    if (proposedCost) {
+        formData.append('proposed_cost', proposedCost);
+    }
+
+    fetch(`/api/bookings/${currentChatBookingId}/chat/`, {
+        method: 'POST',
+        headers: {
+            'X-CSRFToken': csrfToken
+        },
+        body: formData
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.status === 'success') {
+            textInput.value = '';
+            if (costInput) costInput.value = '';
+            clearChatImagePreview();
+            fetchBookingMessages();
+        } else {
+            alert(data.message || 'Помилка надсилання повідомлення');
+        }
+    })
+    .catch(err => {
+        console.error('Error sending message:', err);
+        alert('Помилка з\'єднання з сервером.');
+    });
+}
+
+function respondCostApproval(messageId, action) {
+    const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]').value;
+    const formData = new FormData();
+    formData.append('action', action);
+
+    fetch(`/api/chat-message/${messageId}/approval/`, {
+        method: 'POST',
+        headers: {
+            'X-CSRFToken': csrfToken
+        },
+        body: formData
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.status === 'success') {
+            fetchBookingMessages();
+        } else {
+            alert(data.message || 'Помилка при узгодженні');
+        }
+    });
+}
+
+function viewChatPhoto(url) {
+    const modal = document.getElementById('photoViewerModal');
+    const img = document.getElementById('photo_viewer_img');
+    if (modal && img) {
+        img.src = url;
+        modal.classList.add('active');
+    }
+}
+
+function closePhotoViewer() {
+    const modal = document.getElementById('photoViewerModal');
+    if (modal) modal.classList.remove('active');
+}
+
+function escapeHtml(text) {
+    if (!text) return '';
+    return text
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;")
+        .replace(/'/g, "&#039;");
+}
+
+// Перемикач активності дня у графіку роботи
+function toggleDayInputs(dayNum) {
+    const checkbox = document.getElementById('is_working_' + dayNum);
+    const row = document.getElementById('inputs_row_' + dayNum);
+    const badge = document.getElementById('status_badge_' + dayNum);
+
+    if (!checkbox || !row) return;
+
+    if (checkbox.checked) {
+        row.style.opacity = '1';
+        row.style.pointerEvents = 'auto';
+        if (badge) {
+            badge.style.background = '#10b981';
+            badge.textContent = 'Робочий';
+        }
+    } else {
+        row.style.opacity = '0.4';
+        row.style.pointerEvents = 'none';
+        if (badge) {
+            badge.style.background = '#ef4444';
+            badge.textContent = 'Вихідний';
+        }
+    }
+}
+
+// Скопіювати розклад понеділка на всі будні дні (Пн - Пт)
+function copyMondayScheduleToWeekdays() {
+    const monCheck = document.getElementById('is_working_0');
+    if (!monCheck) return;
+
+    const isMonWorking = monCheck.checked;
+    const monOpen = document.getElementById('opening_time_0').value;
+    const monClose = document.getElementById('closing_time_0').value;
+    const monBreakStart = document.getElementById('break_start_0').value;
+    const monBreakEnd = document.getElementById('break_end_0').value;
+
+    for (let day = 1; day <= 4; day++) {
+        const check = document.getElementById('is_working_' + day);
+        if (check) check.checked = isMonWorking;
+        
+        const open = document.getElementById('opening_time_' + day);
+        if (open) open.value = monOpen;
+
+        const close = document.getElementById('closing_time_' + day);
+        if (close) close.value = monClose;
+
+        const bStart = document.getElementById('break_start_' + day);
+        if (bStart) bStart.value = monBreakStart;
+
+        const bEnd = document.getElementById('break_end_' + day);
+        if (bEnd) bEnd.value = monBreakEnd;
+
+        toggleDayInputs(day);
+    }
+}

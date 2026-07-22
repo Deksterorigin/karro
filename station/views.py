@@ -107,5 +107,7 @@ def station_detail(request, station_id):
         'user': user,
         'is_owner': is_owner,
         'cars': cars,
+        'station_schedules': station.get_or_create_schedules(),
+        'is_open_now': station.is_open_now(),
     }
     return render(request, 'station/detail.html', context)
