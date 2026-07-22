@@ -238,7 +238,7 @@
                     Зберігай інформацію про свої автомобілі у особистому кабінеті. Достатньо ввести 17-значний VIN-код, щоб автоматично розшифрувати марку, модель та рік випуску вашого транспортного засобу та вести його єдину сервісну історію.
                 </p>
                 <div class="cta-wrapper">
-                    {% if request.session.user_id %}
+                    {% if request.user.is_authenticated %}
                         <a href="{% url 'profile' %}" class="btn-cta-blue">Увійти в кабінет</a>
                     {% else %}
                         <a href="{% url 'login' %}" class="btn-cta-blue">Спробувати Гараж</a>

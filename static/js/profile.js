@@ -432,7 +432,7 @@ function renderBookingMessages(messages) {
     let html = '';
     messages.forEach(msg => {
         const alignClass = msg.is_me ? 'me' : 'other';
-        const senderBadge = msg.sender_role === 'station' ? '🔧 СТО / Механік' : '👤 Клієнт';
+        const senderBadge = msg.sender_role === 'station' ? 'СТО / Механік' : 'Клієнт';
 
         let imageHtml = '';
         if (msg.image_url) {

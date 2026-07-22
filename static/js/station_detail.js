@@ -151,7 +151,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 .then(data => {
                     if (data.status === 'success') {
                         if (data.is_closed) {
-                            slotsGrid.innerHTML = `<span class="info-text" style="color: #ef4444; font-weight: 600;">🔴 ${data.message || 'СТО не працює у цей день (Вихідний).'}</span>`;
+                            slotsGrid.innerHTML = `<span class="info-text" style="color: #ef4444; font-weight: 600;">${data.message || 'СТО не працює у цей день (Вихідний).'}</span>`;
                         } else if (data.slots && data.slots.length > 0) {
                             slotsGrid.innerHTML = '';
                             data.slots.forEach(slot => {

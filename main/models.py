@@ -204,10 +204,13 @@ class StationSchedule(models.Model):
 
     def __str__(self):
         day_name = dict(self.DAY_CHOICES).get(self.day_of_week, str(self.day_of_week))
+        station_name = self.station.name if hasattr(self, 'station') and self.station else 'СТО'
         if not self.is_working:
-            return f'{self.station.name} — {day_name}: Вихідний'
+            return f'{station_name} — {day_name}: Вихідний'
         break_str = f' (Обід {self.break_start.strftime("%H:%M")}-{self.break_end.strftime("%H:%M")})' if self.break_start and self.break_end else ''
-        return f'{self.station.name} — {day_name}: {self.opening_time.strftime("%H:%M")}-{self.closing_time.strftime("%H:%M")}{break_str}'
+        open_str = self.opening_time.strftime("%H:%M") if self.opening_time else "09:00"
+        close_str = self.closing_time.strftime("%H:%M") if self.closing_time else "18:00"
+        return f'{station_name} — {day_name}: {open_str}-{close_str}{break_str}'
 
 class Car(models.Model):
     """
@@ -404,6 +407,13 @@ class Booking(models.Model):
         station_name = self.station.name if self.station else 'Видалена СТО'
         return f'Заявка #{self.pk} — {self.client.full_name} → {station_name} ({self.get_status_display()})'
 
+    @property
+    def approved_chat_costs(self):
+        """Сума всіх додаткових робіт/деталей, підтверджених клієнтом у чаті."""
+        from django.db.models import Sum
+        result = self.chat_messages.filter(is_approved=True).aggregate(total=Sum('proposed_cost'))
+        return result.get('total') or 0
+
 
 class Notification(models.Model):
     """
@@ -485,7 +495,8 @@ class CarHistory(models.Model):
 
     def __str__(self):
         station_name = self.station.name if self.station else 'СТО'
-        return f'{self.car} — {self.date} ({station_name}): {self.price} грн'
+        car_str = str(self.car) if self.car else 'Автомобіль'
+        return f'{car_str} — {self.date} ({station_name}): {self.price} грн'
 
 
 class BookingChatMessage(models.Model):

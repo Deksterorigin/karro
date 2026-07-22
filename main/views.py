@@ -81,8 +81,49 @@ def _validate_image_upload(uploaded_file):
 
     return True, None
 
+def optimize_image(uploaded_file, max_size=(1920, 1080), quality=85):
+    """
+    Стискає та оптимізує завантажене зображення (макс 1920x1080) для економії дискового простору.
+    """
+    if not uploaded_file:
+        return uploaded_file
+    try:
+        from PIL import Image, ImageOps
+        from io import BytesIO
+        from django.core.files.uploadedfile import InMemoryUploadedFile
+
+        img = Image.open(uploaded_file)
+
+        try:
+            img = ImageOps.exif_transpose(img)
+        except Exception:
+            pass
+
+        if img.width > max_size[0] or img.height > max_size[1]:
+            img.thumbnail(max_size, Image.Resampling.LANCZOS)
+
+        output = BytesIO()
+        fmt = img.format if img.format in ['JPEG', 'PNG', 'WEBP'] else 'JPEG'
+        if fmt == 'JPEG' and img.mode in ('RGBA', 'P'):
+            img = img.convert('RGB')
+
+        img.save(output, format=fmt, quality=quality, optimize=True)
+        output.seek(0)
+
+        return InMemoryUploadedFile(
+            output,
+            'ImageField',
+            uploaded_file.name,
+            f'image/{fmt.lower()}',
+            output.getbuffer().nbytes,
+            None
+        )
+    except Exception as e:
+        logger.warning('Image optimization error: %s', e, exc_info=True)
+        return uploaded_file
+
 def _save_file(instance, field_name: str, uploaded_file):
-    """Видаляє старий файл та зберігає новий."""
+    """Видаляє старий файл та зберігає стиснутий новий."""
     old_file = getattr(instance, field_name)
     if old_file:
         try:
@@ -90,7 +131,8 @@ def _save_file(instance, field_name: str, uploaded_file):
                 os.remove(old_file.path)
         except (ValueError, OSError):
             pass
-    setattr(instance, field_name, uploaded_file)
+    optimized = optimize_image(uploaded_file)
+    setattr(instance, field_name, optimized)
     instance.save()
 
 # Раніше тут була функція _set_session_data, тепер використовується стандартний сесійний механізм Django.
@@ -103,20 +145,43 @@ def _redirect_to_profile(**query_params):
     return redirect(url)
 
 def geocode_address(city: str, address: str):
-    """Визначає геокоординати за адресою через Nominatim API."""
-    query = f"{address}, {city}, Україна"
-    try:
-        resp = requests.get(
-            'https://nominatim.openstreetmap.org/search',
-            params={'q': query, 'format': 'json', 'limit': 1},
-            headers={'User-Agent': 'Karro/1.0'},
-            timeout=5,
-        )
-        data = resp.json()
-        if data:
-            return float(data[0]['lat']), float(data[0]['lon'])
-    except Exception:
-        logger.warning('Geocoding failed for address: %s', query, exc_info=True)
+    """
+    Визначає геокоординати за адресою через Nominatim (OpenStreetMap API).
+    Підтримує адреси українською та англійською мовами.
+    """
+    if not address and not city:
+        return None, None
+
+    clean_addr = re.sub(r'\b(вул\.|вулиця|просп\.|проспект|б-р|бульвар|пл\.|площа|пров\.|провулок|буд\.|будинок)\b', '', address, flags=re.IGNORECASE).strip()
+
+    queries = [
+        f"{address}, {city}, Україна" if city else f"{address}, Україна",
+        f"{clean_addr}, {city}, Україна" if city and clean_addr else None,
+        f"{city}, Україна" if city else None
+    ]
+
+    headers = {
+        'User-Agent': 'Karro-STO-App/1.0',
+        'Accept-Language': 'uk,en'
+    }
+
+    for query in queries:
+        if not query:
+            continue
+        try:
+            resp = requests.get(
+                'https://nominatim.openstreetmap.org/search',
+                params={'q': query, 'format': 'json', 'limit': 1},
+                headers=headers,
+                timeout=4,
+            )
+            if resp.status_code == 200:
+                data = resp.json()
+                if data:
+                    return float(data[0]['lat']), float(data[0]['lon'])
+        except Exception as e:
+            logger.warning('Geocoding query failed for "%s": %s', query, e)
+
     return None, None
 
 def home(request):
@@ -413,10 +478,20 @@ def profile_view(request):
                 phone = request.POST.get('station_phone', '').strip()
                 if not name or not address:
                     messages.error(request, 'Назва та адреса СТО обов\'язкові.')
-                elif re.search(r'[А-Яа-яЁёІіЇїЄєҐґ]', address):
-                    messages.error(request, 'Адреса повинна бути тільки англійською мовою.')
                 else:
-                    latitude, longitude = geocode_address(city, address)
+                    lat_str = request.POST.get('latitude', '').strip()
+                    lng_str = request.POST.get('longitude', '').strip()
+
+                    latitude, longitude = None, None
+                    if lat_str and lng_str:
+                        try:
+                            latitude = float(lat_str)
+                            longitude = float(lng_str)
+                        except ValueError:
+                            pass
+
+                    if latitude is None or longitude is None:
+                        latitude, longitude = geocode_address(city, address)
 
                     station = None
                     if station_id_str:
@@ -690,6 +765,7 @@ def create_booking_api(request):
         conflicting_bookings = Booking.objects.filter(
             station=station,
             status__in=['pending', 'confirmed', 'completed'],
+            scheduled_time__gte=slot_start - datetime.timedelta(days=1),
             scheduled_time__lt=slot_end
         )
         occupied_box_ids = set()
@@ -1022,6 +1098,7 @@ def reschedule_booking_api(request, booking_id):
     conflicting_bookings = Booking.objects.filter(
         station=station,
         status__in=['pending', 'confirmed', 'completed'],
+        scheduled_time__gte=new_start - datetime.timedelta(days=1),
         scheduled_time__lt=new_end
     ).exclude(pk=booking.pk)
 
@@ -1110,6 +1187,8 @@ def booking_chat_api(request, booking_id):
     elif request.method == 'POST':
         text = request.POST.get('text', '').strip()
         image_file = request.FILES.get('image')
+        if image_file:
+            image_file = optimize_image(image_file)
         proposed_cost_str = request.POST.get('proposed_cost', '').strip()
 
         if not text and not image_file and not proposed_cost_str:

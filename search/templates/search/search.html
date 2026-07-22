@@ -17,7 +17,9 @@
 
 {% block content %}
 <div class="search-filter-bar">
-    <form method="GET" action="{% url 'search:search_stations' %}" class="search-form">
+    <form method="GET" action="{% url 'search:search_stations' %}" class="search-form" id="searchForm">
+        <input type="hidden" name="lat" id="userLat" value="{{ user_lat|default:'' }}">
+        <input type="hidden" name="lng" id="userLng" value="{{ user_lng|default:'' }}">
         <div class="form-group">
             <label for="city" data-i18n="search.label_city">Місто</label>
             <input id="city" type="text" name="city" placeholder="Київ, Львів…" value="{{ selected_city }}" data-i18n-placeholder="ph.city">
@@ -36,7 +38,10 @@
             </select>
         </div>
         <button type="submit" class="btn-primary" data-i18n="search.btn_find">Знайти</button>
-        {% if selected_city or selected_service or selected_rating %}
+        <button type="button" class="btn-secondary" id="btnNearby" onclick="requestUserLocation()" style="display:inline-flex; align-items:center; gap:4px; padding: 0.65rem 1rem; border-radius: 8px; border: 1px solid var(--border-color, #CBD5E1); background: var(--bg-surface, #FFFFFF); cursor: pointer; font-weight: 600; color: var(--text-main, #0F172A);">
+            Поруч
+        </button>
+        {% if selected_city or selected_service or selected_rating or user_lat %}
             <a href="{% url 'search:search_stations' %}" class="btn-reset" data-i18n="search.btn_reset">Скинути</a>
         {% endif %}
     </form>
@@ -74,6 +79,11 @@
                                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path><circle cx="12" cy="10" r="3"></circle></svg>
                                 {% if item.station.city %}{{ item.station.city }}, {% endif %}{{ item.station.address }}
                             </div>
+                            {% if item.distance_km is not None %}
+                                <div style="font-size:0.75rem; color:#059669; font-weight:600; margin-top:3px; display:inline-flex; align-items:center; gap:3px; background:#ECFDF5; padding:2px 8px; border-radius:12px; width:fit-content;">
+                                    Відстань: {{ item.distance_km }} км
+                                </div>
+                            {% endif %}
                         </div>
                     </div>
                     <div class="card-rating">
@@ -130,7 +140,9 @@
 
 {% block extra_js %}
 <script>
-// Exposing station array to JS
+const USER_LAT = {% if user_lat %}{{ user_lat|unlocalize }}{% else %}null{% endif %};
+const USER_LNG = {% if user_lng %}{{ user_lng|unlocalize }}{% else %}null{% endif %};
+
 const STATIONS = [
     {% for item in station_data %}
     {% if item.station.latitude and item.station.longitude %}
@@ -141,7 +153,8 @@ const STATIONS = [
         address: "{{ item.station.address|escapejs }}",
         lat: {{ item.station.latitude|unlocalize }},
         lng: {{ item.station.longitude|unlocalize }},
-        rating: "{{ item.avg_rating|default:'' }}"
+        rating: "{{ item.avg_rating|default:'' }}",
+        distance: "{{ item.distance_km|default:'' }}"
     },
     {% endif %}
     {% endfor %}

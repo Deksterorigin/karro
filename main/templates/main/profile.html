@@ -168,8 +168,8 @@
                 <div class="form-group" style="max-width: 340px;">
                     <label data-i18n="profile.label_lang">Мова інтерфейсу</label>
                     <select id="profile-lang-select" onchange="switchLang(this.value)">
-                        <option value="uk">🇺🇦 Українська (UA)</option>
-                        <option value="en">🇬🇧 English (EN)</option>
+                        <option value="uk">Українська (UA)</option>
+                        <option value="en">English (EN)</option>
                     </select>
                 </div>
             </div>
@@ -239,16 +239,16 @@
                                         <div class="history-card" style="background: var(--card-bg, #ffffff); border: 1px solid var(--border-color); border-radius: 8px; padding: 0.875rem; margin-bottom: 0.75rem;">
                                             <div class="history-card-header" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem; border-bottom: 1px solid var(--border-color); padding-bottom: 0.375rem;">
                                                 <span style="font-weight: 600; font-size: 0.875rem; color: var(--text-color);">
-                                                    📅 {{ rec.date|date:"d.m.Y" }}
+                                                    {{ rec.date|date:"d.m.Y" }}
                                                 </span>
                                                 <span style="font-weight: 700; font-size: 0.9rem; color: #16a34a;">
                                                     {{ rec.price }} грн
                                                 </span>
                                             </div>
                                             <div style="font-size: 0.8125rem; color: var(--text-muted); margin-bottom: 0.5rem;">
-                                                📍 <strong>СТО:</strong> {% if rec.station %}{{ rec.station.name }}{% else %}СТО{% endif %}
+                                                <strong>СТО:</strong> {% if rec.station %}{{ rec.station.name }}{% else %}СТО{% endif %}
                                                 {% if rec.mileage %}
-                                                    &nbsp;•&nbsp; 🚗 <strong>Пробіг:</strong> {{ rec.mileage }} км
+                                                    &nbsp;•&nbsp; <strong>Пробіг:</strong> {{ rec.mileage }} км
                                                 {% endif %}
                                             </div>
                                             <div style="font-size: 0.85rem; margin-bottom: 0.375rem;">
@@ -391,21 +391,21 @@
                                             </h4>
                                             <div style="margin-top: 0.75rem; display: flex; gap: 0.5rem; align-items: center; flex-wrap: wrap;">
                                                 <button type="button" class="btn-chat-trigger" onclick="openBookingChat('{{ booking.id }}')">
-                                                    💬 Чат замовлення
+                                                    Чат замовлення
                                                 </button>
                                                 <a href="{% url 'download_act_pdf' booking.id %}?inline=1" target="_blank" class="btn-pdf-act" title="Переглянути або завантажити Акт виконаних робіт (PDF)">
-                                                    📄 Акт робіт (PDF)
+                                                    Акт робіт (PDF)
                                                 </a>
                                             </div>
                                             <div class="timeline-station-name">
-                                                СТО: <a href="{% url 'station:station_detail' booking.station.pk %}" class="station-link">"{{ booking.station.name }}"</a>
+                                                СТО: {% if booking.station %}<a href="{% url 'station:station_detail' booking.station.pk %}" class="station-link">"{{ booking.station.name }}"</a>{% else %}Видалена СТО{% endif %}
                                             </div>
                                             <p class="timeline-description">
                                                 <strong>Опис проблеми:</strong> {{ booking.description }}
                                             </p>
                                             <div style="margin-top: 0.75rem; display: flex; gap: 0.5rem; align-items: center;">
                                                 <button type="button" class="btn-chat-trigger" onclick="openBookingChat('{{ booking.id }}')">
-                                                    💬 Чат замовлення
+                                                    Чат замовлення
                                                 </button>
                                             </div>
                                         </div>
@@ -755,11 +755,12 @@
                          data-car-brand="{% if booking.car %}{{ booking.car.brand|lower }}{% else %}{% endif %}"
                          data-car-model="{% if booking.car %}{{ booking.car.model|lower }}{% else %}{% endif %}"
                          data-description="{{ booking.description|lower }}"
-                         data-station-name="{{ booking.station.name|lower }}">
+                         data-station-name="{% if booking.station %}{{ booking.station.name|lower }}{% else %}видалена сто{% endif %}">
                         <div class="item-header">
                             <div class="item-info">
                                 <div class="item-title">
                                     Заявка #{{ booking.id }} (<a href="{% url 'client_profile' booking.client.user_id %}" class="client-profile-link">{{ booking.client.full_name }}</a>)
+                                    {% if booking.station %}
                                     <span class="station-part">
                                         <span class="station-separator">|</span>
                                         <svg class="station-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -768,6 +769,7 @@
                                         </svg>
                                         СТО "{{ booking.station.name }}"
                                     </span>
+                                    {% endif %}
                                 </div>
                             </div>
                             <div class="item-date">
@@ -805,10 +807,10 @@
                                     {% endif %}
                                 </span>
                                 <button type="button" class="btn-chat-trigger" onclick="openBookingChat('{{ booking.id }}')">
-                                    💬 Чат
+                                    Чат
                                 </button>
                                 <a href="{% url 'download_act_pdf' booking.id %}?inline=1" target="_blank" class="btn-pdf-act" title="Переглянути або завантажити Акт виконаних робіт (PDF)">
-                                    📄 Акт PDF
+                                    Акт PDF
                                 </a>
                             </div>
                             
@@ -923,7 +925,7 @@
                     <p class="section-desc">Налаштування робочих днів, годин відкриття/закриття та обідніх перерв для запису клієнтів</p>
                 </div>
                 <button type="button" class="btn-outline" onclick="copyMondayScheduleToWeekdays()" style="font-size: 0.85rem; padding: 6px 12px; background: var(--bg-hover);">
-                    ⚡ Скопіювати Пн на будні (Пн-Пт)
+                    Скопіювати Пн на будні (Пн-Пт)
                 </button>
             </div>
 
@@ -968,7 +970,7 @@
 
                     <div style="margin-top: 1.5rem; text-align: right;">
                         <button type="submit" class="btn-primary" style="padding: 10px 24px; font-weight: 700;">
-                            💾 Зберегти графік роботи
+                            Зберегти графік роботи
                         </button>
                     </div>
                 </form>
@@ -1018,7 +1020,7 @@
                 <!-- Вибір складських запчастин зі списку СТО -->
                 {% if station_spare_parts %}
                 <div class="form-group" style="background: var(--bg-hover, #f8fafc); border: 1px solid var(--border-color); padding: 0.75rem; border-radius: 8px;">
-                    <label style="font-weight: 600; margin-bottom: 0.5rem; display: block; font-size: 0.85rem;">📦 Вибрати деталі зі складу СТО</label>
+                    <label style="font-weight: 600; margin-bottom: 0.5rem; display: block; font-size: 0.85rem;">Вибрати деталі зі складу СТО</label>
                     <div style="display: flex; gap: 0.5rem; margin-bottom: 0.5rem;">
                         <select id="complete_part_select" style="flex: 2; font-size: 0.85rem;">
                             <option value="">-- Оберіть запчастину --</option>
@@ -1147,7 +1149,7 @@
         <div class="acc-modal-content chat-modal-content">
             <div class="acc-modal-header chat-modal-header">
                 <div class="chat-header-info">
-                    <h3 id="chat_modal_title">💬 Чат замовлення #<span id="chat_booking_id"></span></h3>
+                    <h3 id="chat_modal_title">Чат замовлення #<span id="chat_booking_id"></span></h3>
                     <span class="chat-modal-subtitle" id="chat_modal_subtitle">Узгодження деталей та фотофіксація несправностей</span>
                 </div>
                 <button class="close-modal-btn" onclick="closeBookingChat()">&times;</button>
@@ -1166,14 +1168,14 @@
 
                 {% if user.role == "station" %}
                 <div class="chat-proposed-cost-box" id="proposed_cost_input_wrapper">
-                    <label style="font-size: 0.8rem; font-weight: 600; color: var(--text-muted);">💰 Додати додаткові роботи / вартість для узгодження (грн):</label>
+                    <label style="font-size: 0.8rem; font-weight: 600; color: var(--text-muted);">Додати додаткові роботи / вартість для узгодження (грн):</label>
                     <input type="number" id="chat_proposed_cost" step="0.01" min="0" placeholder="наприклад, 450.00" class="chat-cost-input">
                 </div>
                 {% endif %}
 
                 <form id="chat_send_form" onsubmit="handleSendChatMessage(event)" class="chat-send-form">
                     <label for="chat_photo_input" class="btn-chat-attach" title="Прикріпити фото несправності">
-                        📷 Фото
+                        Фото
                         <input type="file" id="chat_photo_input" accept="image/*" onchange="handleChatPhotoSelected(this)" style="display: none;">
                     </label>
 
