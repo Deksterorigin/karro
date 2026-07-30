@@ -1,7 +1,4 @@
-"""
-Модуль інтеграції з каталогами постачальників запчастин (InterCars, Exist.ua, TechnoVector).
-Забезпечує пошук запчастин за артикулом, OEM-номером, назвою чи брендом.
-"""
+# Інтеграція та пошук у каталогах постачальників запчастин (InterCars, Exist.ua, TechnoVector)
 
 import re
 import random
@@ -11,6 +8,7 @@ SUPPLIERS = [
     {'code': 'exist', 'name': 'Exist.ua', 'badge_color': '#16a34a'},
     {'code': 'technovector', 'name': 'TechnoVector / Омега', 'badge_color': '#d97706'},
 ]
+
 
 # Базовий каталог найпопулярніших запчастин та витратних матеріалів
 CATALOG_DATABASE = [
@@ -192,14 +190,10 @@ CATALOG_DATABASE = [
 ]
 
 def search_supplier_parts(query='', supplier_code='all'):
-    """
-    Пошук у каталогах постачальників за назвою, OEM-номером або брендом.
-    """
     clean_query = str(query).strip().lower()
     
     results = []
     for item in CATALOG_DATABASE:
-        # Фільтрація за постачальником
         if supplier_code and supplier_code != 'all' and item['supplier_code'] != supplier_code:
             continue
 
@@ -207,22 +201,22 @@ def search_supplier_parts(query='', supplier_code='all'):
             results.append(item)
             continue
 
-        # Перевірка збігу з урахуванням артикулів та назв
+        # Збіг за артикулом, OEM або назвою
         searchable_text = f"{item['sku']} {item['oem']} {item['part_name']} {item['brand']} {item['category']} {item['compatibility']}".lower()
         
-        # Видаляємо пробіли та дефіси для гнучкого пошуку номерів деталей
         searchable_normalized = re.sub(r'[\s\-\/\.]', '', searchable_text)
         query_normalized = re.sub(r'[\s\-\/\.]', '', clean_query)
 
         if clean_query in searchable_text or query_normalized in searchable_normalized:
             results.append(item)
 
-    # Якщо точного збігу не знайдено, але є запит — генеруємо результати аналогів
+    # Генерація аналогів якщо нічого не знайдено за пошуковим словом
     if not results and len(clean_query) >= 3:
         for supplier in SUPPLIERS:
             if supplier_code != 'all' and supplier['code'] != supplier_code:
                 continue
             
+            cost = float(random.randint(300, 2500))
             synthetic_part = {
                 'sku': f"AUTO-{clean_query[:4].upper()}-{random.randint(100, 999)}",
                 'oem': f"OEM-{random.randint(10000, 99999)}",
@@ -231,13 +225,12 @@ def search_supplier_parts(query='', supplier_code='all'):
                 'category': 'Автозапчастини',
                 'supplier_code': supplier['code'],
                 'supplier_name': supplier['name'],
-                'cost_price': float(random.randint(300, 2500)),
-                'suggested_retail_price': 0.0,
+                'cost_price': cost,
+                'suggested_retail_price': round(cost * 1.35, 2),
                 'stock_qty': random.randint(2, 20),
                 'delivery_days': random.choice([0, 1, 2]),
                 'compatibility': 'Сумісно з більшістю модифікацій'
             }
-            synthetic_part['suggested_retail_price'] = round(synthetic_part['cost_price'] * 1.35, 2)
             results.append(synthetic_part)
 
     return {
@@ -247,3 +240,4 @@ def search_supplier_parts(query='', supplier_code='all'):
         'suppliers': SUPPLIERS,
         'parts': results
     }
+

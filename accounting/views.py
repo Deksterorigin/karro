@@ -2,8 +2,7 @@ from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib import messages
 from django.views.decorators.http import require_POST
 from django.urls import reverse
-from django.http import HttpResponse
-# Імпортування інструментів для роботи з транзакціями та атомарними запитами
+from django.http import HttpResponse, JsonResponse
 from django.db import transaction
 from django.db.models import F, Sum, Case, When, Value, DecimalField
 from main.decorators import login_required_session, role_required
@@ -11,6 +10,7 @@ from main.models import User, ServiceStation, Booking, CarHistory
 from main.views import get_current_user
 from main.pdf_utils import generate_financial_report_pdf
 from .models import Employee, SalaryBalance, Transaction, SparePart, UsedSparePart
+from .supplier_api import search_supplier_parts, SUPPLIERS
 import datetime
 import re
 from decimal import Decimal, InvalidOperation
@@ -18,43 +18,36 @@ import calendar
 import csv
 import json
 import logging
-from django.http import JsonResponse
-from .supplier_api import search_supplier_parts, SUPPLIERS
 
 logger = logging.getLogger(__name__)
 
 
 def _redirect_to_dashboard(station_pk):
-    """Перенаправлення на дашборд бухгалтерії для конкретної СТО."""
     return redirect(reverse('accounting:dashboard') + f'?station_id={station_pk}')
 
 
-# Допоміжна функція для парсингу діапазону дат із параметрів запиту
 def _parse_date_range(request):
-    """Парсить діапазон дат з GET-параметрів, дефолт — поточний місяць."""
     today = datetime.date.today()
     first_day = today.replace(day=1)
     _, last_day_num = calendar.monthrange(today.year, today.month)
     last_day = today.replace(day=last_day_num)
 
-    start_date_str = request.GET.get('start_date')
-    end_date_str = request.GET.get('end_date')
-
     start_date = first_day
     end_date = last_day
 
-    if start_date_str:
+    if start_str := request.GET.get('start_date'):
         try:
-            start_date = datetime.datetime.strptime(start_date_str, "%Y-%m-%d").date()
+            start_date = datetime.datetime.strptime(start_str, "%Y-%m-%d").date()
         except ValueError:
             pass
-    if end_date_str:
+    if end_str := request.GET.get('end_date'):
         try:
-            end_date = datetime.datetime.strptime(end_date_str, "%Y-%m-%d").date()
+            end_date = datetime.datetime.strptime(end_str, "%Y-%m-%d").date()
         except ValueError:
             pass
 
     return start_date, end_date
+
 
 
 @login_required_session

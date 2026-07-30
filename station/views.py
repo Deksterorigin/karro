@@ -8,9 +8,6 @@ from main.views import get_current_user, _validate_image_upload
 from .models import StationPhoto
 
 def station_detail(request, station_id):
-    """
-    Детальна інформація про СТО.
-    """
     station = get_object_or_404(ServiceStation, pk=station_id)
 
     services = Service.objects.filter(station=station)
@@ -29,7 +26,7 @@ def station_detail(request, station_id):
     if request.method == 'POST':
         action = request.POST.get('action', '')
 
-        # Створення нового відгуку клієнтом
+        # Додавання відгуку
         if action == 'add_review':
             if not user:
                 messages.error(request, 'Увійдіть в акаунт, щоб залишити відгук.')
@@ -60,7 +57,7 @@ def station_detail(request, station_id):
                     Review.objects.create(**review_kwargs)
                     messages.success(request, 'Дякуємо за відгук!')
 
-        # Відповідь власника СТО на відгук
+        # Відповідь СТО
         elif action == 'respond_review':
             if not is_owner:
                 messages.error(request, 'Тільки власник СТО може відповідати на відгуки.')
@@ -77,7 +74,7 @@ def station_detail(request, station_id):
                 else:
                     messages.error(request, 'Введіть текст відповіді.')
 
-        # Завантаження фотографій власником СТО
+        # Завантаження фото
         elif action == 'upload_photo':
             if not is_owner:
                 messages.error(request, 'Тільки власник може завантажувати фото.')
@@ -96,7 +93,7 @@ def station_detail(request, station_id):
                     )
                     messages.success(request, 'Фото завантажено.')
 
-        # Видалення фотографій
+        # Видалення фото
         elif action == 'delete_photo':
             if not is_owner:
                 messages.error(request, 'Тільки власник може видаляти фото.')
@@ -118,17 +115,14 @@ def station_detail(request, station_id):
 
         return redirect('station:station_detail', station_id=station.pk)
 
-    cars = None
-    if user and user.is_client:
-        cars = Car.objects.filter(user=user)
+    cars = Car.objects.filter(user=user) if (user and user.is_client) else None
 
-    # Отримуємо розклади без запису в БД на кожен перегляд;
-    # ініціалізуємо лише якщо розклади ще не створені
+    # Перевірка та ініціалізація розкладу при першому виклику
     schedules = list(station.schedules.all())
     if len(schedules) < 7:
         schedules = station.get_or_create_schedules()
 
-    context = {
+    return render(request, 'station/detail.html', {
         'station': station,
         'services': services,
         'photos': photos,
@@ -140,5 +134,5 @@ def station_detail(request, station_id):
         'cars': cars,
         'station_schedules': schedules,
         'is_open_now': station.is_open_now(),
-    }
-    return render(request, 'station/detail.html', context)
+    })
+

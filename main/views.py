@@ -3,24 +3,22 @@ import os
 import re
 from collections import defaultdict
 from datetime import date
-from time import time
+import time
 from urllib.parse import urlencode
 
 import requests
 from django.conf import settings as django_settings
 from django.contrib import messages
 from django.contrib.auth import login, logout, authenticate, update_session_auth_hash
-# Стандартна перевірка паролів Django
 from django.contrib.auth.password_validation import validate_password
 from django.core.exceptions import ValidationError
 from django.shortcuts import render, redirect, get_object_or_404
 from django.urls import reverse
 from django.utils import timezone
 from django.views.decorators.http import require_POST
-
 from django.http import JsonResponse, HttpResponse, StreamingHttpResponse
 import json
-import time
+
 from .decorators import login_required_session
 from .models import User, Car, Review, ServiceStation, Service, Booking, Notification, CarHistory, BookingChatMessage
 from .pdf_utils import generate_act_pdf
@@ -28,30 +26,24 @@ from .vin_decoder import decode_vin
 
 logger = logging.getLogger(__name__)
 
-# Тимчасовий лімітатор спроб входу для захисту від брутфорсу
+# Ліміт спроб авторизації (in-memory)
 _login_attempts = defaultdict(list)
 MAX_LOGIN_ATTEMPTS = 5
-LOGIN_LOCKOUT_SECONDS = 300  # 5 хвилин
+LOGIN_LOCKOUT_SECONDS = 300
 
 def _check_login_rate_limit(identifier: str) -> bool:
-    """
-    Повертає True якщо IP заблоковано через перевищення кількості спроб.
-    Увага: зберігає стан у пам'яті процесу. У production з кількома
-    воркерами краще використовувати Redis або django-axes.
-    """
-    now = time()
+    now = time.time()
     _login_attempts[identifier] = [
         t for t in _login_attempts[identifier]
         if now - t < LOGIN_LOCKOUT_SECONDS
     ]
-    # Спочатку перевіряємо ліміт, тільки потім додаємо спробу
     if len(_login_attempts[identifier]) >= MAX_LOGIN_ATTEMPTS:
         return True
     _login_attempts[identifier].append(now)
-    # Очищуємо порожні записи, щоб словник не ріс нескінченно
     if not _login_attempts[identifier]:
         del _login_attempts[identifier]
     return False
+
 
 # Дозволені формати та обмеження розміру для зображень
 ALLOWED_IMAGE_TYPES = {

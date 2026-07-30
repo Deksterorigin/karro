@@ -4,7 +4,7 @@ import logging
 
 logger = logging.getLogger(__name__)
 
-# Таблиця WMI (перші 3 символи VIN) для розпізнавання бренду та країни
+# Словник WMI для швидкого визначення маркувальних даних автівки за першими символами
 WMI_MAP = {
     'WBA': ('BMW', 'Німеччина'),
     'WBS': ('BMW M', 'Німеччина'),
@@ -49,7 +49,7 @@ WMI_MAP = {
     'UU1': ('Dacia', 'Румунія'),
 }
 
-# 10-й символ VIN вказує на рік випуску (модельний рік)
+# 10-й символ VIN визначає рік випуску (SAE J272)
 YEAR_CODES = {
     'A': 2010, 'B': 2011, 'C': 2012, 'D': 2013, 'E': 2014,
     'F': 2015, 'G': 2016, 'H': 2017, 'J': 2018, 'K': 2019,
@@ -59,25 +59,19 @@ YEAR_CODES = {
 }
 
 def decode_vin(vin_code):
-    """
-    Розшифровка 17-значного VIN-коду з використанням NHTSA API
-    та офлайн-резервуванням за правилами WMI/VIS.
-    """
     if not vin_code:
         return {'status': 'error', 'message': 'VIN-код порожній'}
 
     clean_vin = re.sub(r'[^A-HJ-NPR-Z0-9]', '', str(vin_code).strip().upper())
-    
     if len(clean_vin) != 17:
         return {'status': 'error', 'message': 'VIN-код має містити рівно 17 символів'}
 
-    # 1. Спроба розшифровки через офіційний безкоштовний NHTSA API
+    # Запит до NHTSA API
     nhtsa_url = f'https://vpic.nhtsa.dot.gov/api/vehicles/decodevinvalues/{clean_vin}?format=json'
     try:
-        response = requests.get(nhtsa_url, timeout=3.5)
-        if response.status_code == 200:
-            data = response.json()
-            results = data.get('Results', [])
+        resp = requests.get(nhtsa_url, timeout=3.5)
+        if resp.status_code == 200:
+            results = resp.json().get('Results', [])
             if results:
                 item = results[0]
                 make = item.get('Make', '').strip()
@@ -110,15 +104,14 @@ def decode_vin(vin_code):
                         'body_class': body_class,
                         'source': 'nhtsa'
                     }
-    except Exception as e:
-        logger.warning(f"Неможливо запросити NHTSA API для VIN {clean_vin}: {e}")
+    except Exception as err:
+        logger.warning(f"Помилка отримання даних через NHTSA API ({clean_vin}): {err}")
 
-    # 2. Резервний локальний розшифровщик (offline pattern matching)
+    # Локальний фолбек за WMI кодом
     wmi = clean_vin[:3]
     brand_info = WMI_MAP.get(wmi)
     
     if not brand_info:
-        # Пробуємо за першими 2 символами
         for k, v in WMI_MAP.items():
             if clean_vin.startswith(k[:2]):
                 brand_info = v
@@ -140,5 +133,5 @@ def decode_vin(vin_code):
     }
 
 def _parse_year_fallback(vin):
-    year_char = vin[9]
-    return YEAR_CODES.get(year_char, 2018)
+    return YEAR_CODES.get(vin[9], 2018)
+
