@@ -3,6 +3,7 @@ from unfold.admin import ModelAdmin
 from unfold.decorators import action
 from .models import User, ServiceStation, Review, Booking, CarHistory, Car, BookingChatMessage
 
+
 @admin.register(BookingChatMessage)
 class BookingChatMessageAdmin(ModelAdmin):
     list_display = ('message_id', 'booking', 'sender', 'text', 'has_image', 'proposed_cost', 'is_approved', 'created_at')
@@ -35,6 +36,7 @@ class UserAdmin(ModelAdmin):
         count = queryset.update(is_active=False)
         self.message_user(request, f"Заблоковано {count} користувачів.")
 
+
 @admin.register(ServiceStation)
 class ServiceStationAdmin(ModelAdmin):
     list_display = ('name', 'city', 'phone', 'is_verified', 'created_at')
@@ -46,6 +48,7 @@ class ServiceStationAdmin(ModelAdmin):
     def verify_stations(self, request, queryset):
         count = queryset.update(is_verified=True)
         self.message_user(request, f"Успішно верифіковано {count} СТО.")
+
 
 @admin.register(Review)
 class ReviewAdmin(ModelAdmin):

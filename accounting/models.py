@@ -4,30 +4,20 @@ from django.dispatch import receiver
 from main.models import ServiceStation, Booking
 import datetime
 
+
 class Employee(models.Model):
+    """Модель працівника СТО (механік, майстер-приймальник тощо)."""
+
     employee_id = models.AutoField(primary_key=True)
     station = models.ForeignKey(
-        ServiceStation, 
-        on_delete=models.CASCADE, 
-        verbose_name="СТО", 
-        related_name="employees"
+        ServiceStation, on_delete=models.CASCADE, verbose_name="СТО", related_name="employees"
     )
     full_name = models.CharField(max_length=100, verbose_name="Повне ім'я")
     phone = models.CharField(max_length=20, blank=True, null=True, verbose_name="Телефон")
     email = models.EmailField(max_length=100, blank=True, null=True, verbose_name="Email")
     position = models.CharField(max_length=100, verbose_name="Посада")
-    base_salary = models.DecimalField(
-        max_digits=10, 
-        decimal_places=2, 
-        default=0.00, 
-        verbose_name="Ставка (грн)"
-    )
-    commission_percent = models.DecimalField(
-        max_digits=5, 
-        decimal_places=2, 
-        default=0.00, 
-        verbose_name="Комісія (%)"
-    )
+    base_salary = models.DecimalField(max_digits=10, decimal_places=2, default=0.00, verbose_name="Ставка (грн)")
+    commission_percent = models.DecimalField(max_digits=5, decimal_places=2, default=0.00, verbose_name="Комісія (%)")
     is_active = models.BooleanField(default=True, verbose_name="Активний")
     created_at = models.DateTimeField(auto_now_add=True)
 
@@ -42,23 +32,11 @@ class Employee(models.Model):
 
 
 class SalaryBalance(models.Model):
-    employee = models.OneToOneField(
-        Employee, 
-        on_delete=models.CASCADE, 
-        related_name="salary_balance"
-    )
-    total_earned = models.DecimalField(
-        max_digits=10, 
-        decimal_places=2, 
-        default=0.00, 
-        verbose_name="Всього зароблено"
-    )
-    total_paid = models.DecimalField(
-        max_digits=10, 
-        decimal_places=2, 
-        default=0.00, 
-        verbose_name="Всього виплачено"
-    )
+    """Баланс нарахованої та виплаченої заробітної плати працівника."""
+
+    employee = models.OneToOneField(Employee, on_delete=models.CASCADE, related_name="salary_balance")
+    total_earned = models.DecimalField(max_digits=10, decimal_places=2, default=0.00, verbose_name="Всього зароблено")
+    total_paid = models.DecimalField(max_digits=10, decimal_places=2, default=0.00, verbose_name="Всього виплачено")
     updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
@@ -75,6 +53,8 @@ class SalaryBalance(models.Model):
 
 
 class Transaction(models.Model):
+    """Фінансова транзакція (доходи від послуг/запчастин, витрати на оренду/зарплату)."""
+
     TRANSACTION_TYPES = [
         ('income', 'Дохід'),
         ('expense', 'Витрата'),
@@ -91,54 +71,14 @@ class Transaction(models.Model):
     ]
 
     transaction_id = models.AutoField(primary_key=True)
-    station = models.ForeignKey(
-        ServiceStation, 
-        on_delete=models.CASCADE, 
-        verbose_name="СТО", 
-        related_name="transactions"
-    )
-    type = models.CharField(
-        max_length=10, 
-        choices=TRANSACTION_TYPES, 
-        verbose_name="Тип",
-        db_index=True
-    )
-    category = models.CharField(
-        max_length=20, 
-        choices=TRANSACTION_CATEGORIES, 
-        verbose_name="Категорія"
-    )
-    amount = models.DecimalField(
-        max_digits=10, 
-        decimal_places=2, 
-        verbose_name="Сума (грн)"
-    )
-    description = models.TextField(
-        blank=True, 
-        null=True, 
-        verbose_name="Опис"
-    )
-    date = models.DateField(
-        default=datetime.date.today, 
-        verbose_name="Дата",
-        db_index=True
-    )
-    booking = models.ForeignKey(
-        Booking, 
-        on_delete=models.SET_NULL, 
-        null=True, 
-        blank=True, 
-        verbose_name="Заявка", 
-        related_name="transactions"
-    )
-    employee = models.ForeignKey(
-        Employee, 
-        on_delete=models.SET_NULL, 
-        null=True, 
-        blank=True, 
-        verbose_name="Працівник", 
-        related_name="transactions"
-    )
+    station = models.ForeignKey(ServiceStation, on_delete=models.CASCADE, verbose_name="СТО", related_name="transactions")
+    type = models.CharField(max_length=10, choices=TRANSACTION_TYPES, verbose_name="Тип", db_index=True)
+    category = models.CharField(max_length=20, choices=TRANSACTION_CATEGORIES, verbose_name="Категорія")
+    amount = models.DecimalField(max_digits=10, decimal_places=2, verbose_name="Сума (грн)")
+    description = models.TextField(blank=True, null=True, verbose_name="Опис")
+    date = models.DateField(default=datetime.date.today, verbose_name="Дата", db_index=True)
+    booking = models.ForeignKey(Booking, on_delete=models.SET_NULL, null=True, blank=True, verbose_name="Заявка", related_name="transactions")
+    employee = models.ForeignKey(Employee, on_delete=models.SET_NULL, null=True, blank=True, verbose_name="Працівник", related_name="transactions")
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
@@ -148,10 +88,10 @@ class Transaction(models.Model):
         ordering = ['-date', '-created_at']
 
     def __str__(self):
-        return f"{self.get_type_display()} - {self.amount} грн ({self.date})"
+        return f"{self.get_type_display()} — {self.amount} грн ({self.date})"
 
 
-# Автоматично створюємо баланс зарплати при додаванні нового працівника
+# Авто-створення балансу зарплати при додаванні працівника
 @receiver(post_save, sender=Employee)
 def create_employee_balance(sender, instance, created, **kwargs):
     if created:
@@ -159,42 +99,18 @@ def create_employee_balance(sender, instance, created, **kwargs):
 
 
 class SparePart(models.Model):
-    """
-    Запчастина або витратний матеріал на складі СТО.
-    """
+    """Складський облік запчастин та матеріалів автосервісу."""
+
     part_id = models.AutoField(primary_key=True)
-    station = models.ForeignKey(
-        ServiceStation,
-        on_delete=models.CASCADE,
-        related_name='spare_parts',
-        verbose_name='СТО'
-    )
-    name = models.CharField(max_length=150, verbose_name='Назва запчастини/матеріалу')
-    sku = models.CharField(
-        max_length=50,
-        blank=True,
-        null=True,
-        verbose_name='Артикул / Каталожний номер'
-    )
-    quantity = models.PositiveIntegerField(default=0, verbose_name='Кількість на складі')
-    cost_price = models.DecimalField(
-        max_digits=10,
-        decimal_places=2,
-        default=0.00,
-        verbose_name='Собівартість (грн)'
-    )
-    selling_price = models.DecimalField(
-        max_digits=10,
-        decimal_places=2,
-        default=0.00,
-        verbose_name='Ціна продажу (грн)'
-    )
-    min_quantity = models.PositiveIntegerField(
-        default=5,
-        verbose_name='Мінімальний залишок'
-    )
-    created_at = models.DateTimeField(auto_now_add=True, verbose_name='Створено')
-    updated_at = models.DateTimeField(auto_now=True, verbose_name='Оновлено')
+    station = models.ForeignKey(ServiceStation, on_delete=models.CASCADE, related_name='spare_parts', verbose_name="СТО")
+    name = models.CharField(max_length=150, verbose_name="Назва запчастини/матеріалу")
+    sku = models.CharField(max_length=50, blank=True, null=True, verbose_name="Артикул / Каталожний номер")
+    quantity = models.PositiveIntegerField(default=0, verbose_name="Кількість на складі")
+    cost_price = models.DecimalField(max_digits=10, decimal_places=2, default=0.00, verbose_name="Собівартість (грн)")
+    selling_price = models.DecimalField(max_digits=10, decimal_places=2, default=0.00, verbose_name="Ціна продажу (грн)")
+    min_quantity = models.PositiveIntegerField(default=5, verbose_name="Мінімальний залишок")
+    created_at = models.DateTimeField(auto_now_add=True, verbose_name="Створено")
+    updated_at = models.DateTimeField(auto_now=True, verbose_name="Оновлено")
 
     class Meta:
         db_table = 'spare_part'
@@ -208,17 +124,14 @@ class SparePart(models.Model):
 
     @property
     def is_low_stock(self):
-        """Перевірка чи не є залишок меншим за мінімальний поріг."""
         return self.quantity <= self.min_quantity
 
     @property
     def margin_amount(self):
-        """Розрахунок чистої націнки в гривнях (Ціна продажу - Собівартість)."""
         return self.selling_price - self.cost_price
 
     @property
     def margin_percent(self):
-        """Розрахунок відсотка націнки від собівартості."""
         if self.cost_price and self.cost_price > 0:
             margin = ((self.selling_price - self.cost_price) / self.cost_price) * 100
             return round(float(margin), 1)
@@ -226,35 +139,14 @@ class SparePart(models.Model):
 
 
 class UsedSparePart(models.Model):
-    """
-    Запчастини, використані при виконанні конкретної заявки на ремонт.
-    """
-    booking = models.ForeignKey(
-        Booking,
-        on_delete=models.CASCADE,
-        related_name='used_parts',
-        verbose_name='Заявка'
-    )
-    spare_part = models.ForeignKey(
-        SparePart,
-        on_delete=models.SET_NULL,
-        null=True,
-        blank=True,
-        related_name='used_instances',
-        verbose_name='Запчастина'
-    )
-    part_name = models.CharField(max_length=150, verbose_name='Назва деталі')
-    quantity = models.PositiveIntegerField(default=1, verbose_name='Використана кількість')
-    cost_price = models.DecimalField(
-        max_digits=10,
-        decimal_places=2,
-        verbose_name='Собівартість на момент використання (грн)'
-    )
-    selling_price = models.DecimalField(
-        max_digits=10,
-        decimal_places=2,
-        verbose_name='Ціна продажу на момент використання (грн)'
-    )
+    """Деталі, списані під конкретне замовлення."""
+
+    booking = models.ForeignKey(Booking, on_delete=models.CASCADE, related_name='used_parts', verbose_name="Заявка")
+    spare_part = models.ForeignKey(SparePart, on_delete=models.SET_NULL, null=True, blank=True, related_name='used_instances', verbose_name="Запчастина")
+    part_name = models.CharField(max_length=150, verbose_name="Назва деталі")
+    quantity = models.PositiveIntegerField(default=1, verbose_name="Використана кількість")
+    cost_price = models.DecimalField(max_digits=10, decimal_places=2, verbose_name="Собівартість (грн)")
+    selling_price = models.DecimalField(max_digits=10, decimal_places=2, verbose_name="Ціна продажу (грн)")
 
     class Meta:
         db_table = 'used_spare_part'
@@ -263,4 +155,3 @@ class UsedSparePart(models.Model):
 
     def __str__(self):
         return f'{self.part_name} x{self.quantity} для Заявки #{self.booking_id}'
-

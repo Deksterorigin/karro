@@ -4,14 +4,14 @@ from django.db.models import Count
 from django.db.models.functions import TruncMonth
 from .models import User, ServiceStation, Review, Booking
 
+
 def dashboard_callback(request, context):
     """
-    Панель аналітики для Django Unfold.
-    Збирає показники KPI та дані для побудови графіків Chart.js.
+    Панель аналітики для адмін-панелі Unfold.
+    Збирає ключові показники СТО та готує дані для графіків.
     """
     today = timezone.now().date()
-    
-    # Обчислюємо ключові показники (KPI)
+
     total_users = User.objects.count()
     active_stations = ServiceStation.objects.filter(is_verified=True).count()
     pending_stations = ServiceStation.objects.filter(is_verified=False).count()
@@ -43,17 +43,16 @@ def dashboard_callback(request, context):
         ],
     })
 
-    # Готуємо дані для графіків
     chart_data = {
         'line': {'labels': [], 'users': [], 'stations': []},
         'donut': {'labels': [], 'data': []},
         'bar': {'data': [0, 0, 0, 0, 0]}
     }
 
-    # Динаміка реєстрацій за місяцями (лінійний графік)
+    # Реєстрації по місяцях
     users_by_month = User.objects.annotate(month=TruncMonth('date_joined')).values('month').annotate(c=Count('user_id')).order_by('month')
     stations_by_month = ServiceStation.objects.annotate(month=TruncMonth('created_at')).values('month').annotate(c=Count('station_id')).order_by('month')
-    
+
     months_set = set()
     user_dict = {}
     station_dict = {}
@@ -73,13 +72,13 @@ def dashboard_callback(request, context):
     chart_data['line']['users'] = [user_dict.get(m, 0) for m in sorted_months]
     chart_data['line']['stations'] = [station_dict.get(m, 0) for m in sorted_months]
 
-    # Розподіл СТО за містами (кругова діаграма, топ 5)
+    # Топ міст за кількістю СТО
     cities = ServiceStation.objects.exclude(city='').values('city').annotate(c=Count('station_id')).order_by('-c')[:5]
     for c in cities:
         chart_data['donut']['labels'].append(c['city'])
         chart_data['donut']['data'].append(c['c'])
 
-    # Розподіл оцінок у відгуках (стовпчастий графік)
+    # Оцінки відгуків
     reviews = Review.objects.values('rating').annotate(c=Count('review_id'))
     for r in reviews:
         idx = r['rating'] - 1
@@ -87,5 +86,4 @@ def dashboard_callback(request, context):
             chart_data['bar']['data'][idx] = r['c']
 
     context["chart_data"] = json.dumps(chart_data)
-    
     return context
