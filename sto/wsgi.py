@@ -1,17 +1,11 @@
 """
-WSGI config for sto project.
-
-It exposes the WSGI callable as a module-level variable named ``application``.
-
-For more information on this file, see
-https://docs.djangoproject.com/en/4.2/howto/deployment/wsgi/
+Конфігурація WSGI для проєкту СТО.
 """
 
 import os
-
-# pyrefly: ignore [missing-import]
 from django.core.wsgi import get_wsgi_application
 
 os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'sto.settings')
 
 application = get_wsgi_application()
+

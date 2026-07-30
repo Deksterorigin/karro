@@ -99,9 +99,9 @@
         </nav>
     </aside>
 
-    <!-- ════ CONTENT ════ -->
+    <!-- ════ ОСНОВНИЙ ВМІСТ ════ -->
     <main class="profile-content">
-        <!-- ══ INFO PANEL ══ -->
+        <!-- ══ ПАНЕЛЬ ІНФОРМАЦІЇ ══ -->
         <div class="section-panel active" id="section-info">
             <div class="section-header">
                 <h1 class="section-title" data-i18n="profile.info_title">Особисті дані</h1>
@@ -157,7 +157,7 @@
             </div>
         </div>
 
-        <!-- ══ SETTINGS PANEL ══ -->
+        <!-- ══ ПАНЕЛЬ НАЛАШТУВАНЬ ══ -->
         <div class="section-panel" id="section-settings">
             <div class="section-header">
                 <h1 class="section-title" data-i18n="profile.settings_title">Налаштування</h1>
@@ -175,7 +175,7 @@
             </div>
         </div>
 
-        <!-- ══ CARS PANEL (Client only) ══ -->
+        <!-- ══ ПАНЕЛЬ АВТОМОБІЛІВ (Тільки клієнти) ══ -->
         {% if user.role == "client" %}
         <div class="section-panel" id="section-cars">
             <div class="section-header">
@@ -290,13 +290,17 @@
                     {% csrf_token %}
                     <input type="hidden" name="action" value="add_car">
                     <div class="form-group">
-                        <label data-i18n="profile.label_vin">VIN-код</label>
-                        <input type="text" name="vin_code" placeholder="1HGBH41JXMN109186" style="text-transform: uppercase;" maxlength="17" minlength="17" required>
+                        <label data-i18n="profile.label_vin">VIN-код (17 символів)</label>
+                        <div style="position: relative;">
+                            <input type="text" id="vin-input" name="vin_code" placeholder="1FA6P8CF0H5123456" style="text-transform: uppercase; padding-right: 120px;" maxlength="17" minlength="17" required oninput="autoDecodeVin(this.value)">
+                            <span id="vin-loader" style="display:none; position:absolute; right:12px; top:50%; transform:translateY(-50%); font-size:0.8rem; color:var(--accent); font-weight:700;">🔍 Розшифровка...</span>
+                        </div>
+                        <div id="vin-badge-status" style="display:none; margin-top:0.5rem; padding:0.5rem 0.75rem; border-radius:8px; font-size:0.85rem; font-weight:600;"></div>
                     </div>
                     <div class="form-row">
                         <div class="form-group">
                             <label data-i18n="profile.label_brand">Марка</label>
-                            <input type="text" name="brand" placeholder="Toyota" required>
+                            <input type="text" id="car-brand-input" name="brand" placeholder="Toyota" required>
                         </div>
                         <div class="form-group">
                             <label data-i18n="profile.label_model">Модель</label>
@@ -312,7 +316,7 @@
             </div>
         </div>
 
-        <!-- ══ REVIEWS PANEL (Client only) ══ -->
+        <!-- ══ ПАНЕЛЬ ВІДГУКІВ (Тільки клієнти) ══ -->
         <div class="section-panel" id="section-reviews">
             <div class="section-header">
                 <h1 class="section-title" data-i18n="profile.reviews_title">Мої відгуки</h1>
@@ -342,7 +346,7 @@
             </div>
         </div>
 
-        <!-- ══ CLIENT BOOKINGS PANEL (Client only) ══ -->
+        <!-- ══ ПАНЕЛЬ ЗАЯВОК КЛІЄНТА ══ -->
         <div class="section-panel" id="section-client-bookings">
             <div class="section-header">
                 <h1 class="section-title">Цифровий Гараж</h1>
@@ -477,7 +481,7 @@
         </div>
         {% endif %}
 
-        <!-- ══ STATION PANEL (Owner only) ══ -->
+        <!-- ══ ПАНЕЛЬ СТО (Тільки власник) ══ -->
         {% if user.role == "station" %}
         <div class="section-panel" id="section-station">
             <div class="section-header">
@@ -618,7 +622,7 @@
                 </div>
             </div>
 
-            <!-- Services Management inside Station Panel -->
+            <!-- Управління послугами СТО -->
             <div style="margin-top: 3rem; border-top: 1px solid var(--border); padding-top: 2.5rem;">
                 <div class="section-header" style="margin-bottom: 2rem;">
                     <h2 class="section-title" style="display:flex; align-items:center; gap:0.5rem; font-size: 1.4rem;">
@@ -689,7 +693,7 @@
         </div>
         {% endif %}
 
-        <!-- ══ CALENDAR PANEL (Station only) ══ -->
+        <!-- ══ ПАНЕЛЬ КАЛЕНДАРЯ (Тільки СТО) ══ -->
         {% if user.role == "station" %}
         <div class="section-panel" id="section-calendar" data-station-id="{% if station %}{{ station.pk }}{% endif %}">
             <div class="section-header">
@@ -709,7 +713,7 @@
         </div>
         {% endif %}
 
-        <!-- ══ BOOKINGS PANEL (Station only) ══ -->
+        <!-- ══ ПАНЕЛЬ ЗАЯВОК (Тільки СТО) ══ -->
         {% if user.role == "station" %}
         <div class="section-panel" id="section-bookings">
             <div class="section-header">
@@ -717,7 +721,7 @@
                 <p class="section-desc">Керуй заявками на ремонт</p>
             </div>
 
-            <!-- Booking Search and Filter Row -->
+            <!-- Рядок пошуку та фільтрації замовлень -->
             <div class="booking-filter-bar">
                 <div class="search-box-wrapper">
                     <svg class="search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -741,7 +745,7 @@
             </div>
             
             <div class="list-grid bookings-list-grid">
-                <!-- Local empty state block -->
+                <!-- Порожній стан замовлень -->
                 <div id="no-requests" class="empty-state d-none">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
                     <p>Заявок не знайдено</p>
@@ -841,7 +845,7 @@
         </div>
         {% endif %}
 
-        <!-- ══ INVENTORY PANEL (Station only) ══ -->
+        <!-- ══ ПАНЕЛЬ СКЛАДУ ТА ЗАПЧАСТИН ══ -->
         {% if user.role == "station" %}
         <div class="section-panel" id="section-inventory">
             <div class="section-header" style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 1rem;">
@@ -1144,7 +1148,7 @@
     
     {% endif %}
 
-    <!-- ══ MODAL CHAT BOOKING ══ -->
+    <!-- ══ МОДАЛЬНЕ ВІКНО ЧАТУ ══ -->
     <div class="acc-modal-overlay" id="bookingChatModal">
         <div class="acc-modal-content chat-modal-content">
             <div class="acc-modal-header chat-modal-header">
@@ -1189,7 +1193,7 @@
         </div>
     </div>
 
-    <!-- ══ PHOTO VIEWER MODAL ══ -->
+    <!-- ══ МОДАЛЬНЕ ВІКНО ПЕРЕГЛЯДУ ФОТО ══ -->
     <div class="acc-modal-overlay" id="photoViewerModal" style="z-index: 10000;" onclick="closePhotoViewer()">
         <div style="position: relative; max-width: 90vw; max-height: 90vh; display: flex; justify-content: center; align-items: center;" onclick="event.stopPropagation()">
             <img id="photo_viewer_img" src="" style="max-width: 100%; max-height: 85vh; border-radius: 12px; box-shadow: 0 20px 40px rgba(0,0,0,0.5); object-fit: contain;">
@@ -1198,4 +1202,53 @@
     </div>
     
     <script src="{% static 'js/accounting.js' %}?v=1.0.1"></script>
+    <script>
+        let _vinDecodeTimeout = null;
+
+        function autoDecodeVin(val) {
+            const cleanVin = val.trim().toUpperCase();
+            const loader = document.getElementById('vin-loader');
+            const statusBadge = document.getElementById('vin-badge-status');
+
+            if (cleanVin.length !== 17) {
+                if (loader) loader.style.display = 'none';
+                if (statusBadge) statusBadge.style.display = 'none';
+                return;
+            }
+
+            if (loader) loader.style.display = 'inline';
+
+            clearTimeout(_vinDecodeTimeout);
+            _vinDecodeTimeout = setTimeout(() => {
+                fetch(`/api/vin/decode/?vin=${encodeURIComponent(cleanVin)}`)
+                    .then(res => res.json())
+                    .then(data => {
+                        if (loader) loader.style.display = 'none';
+                        if (data.status === 'success') {
+                            if (document.getElementById('car-brand-input')) document.getElementById('car-brand-input').value = data.brand || '';
+                            if (document.getElementById('car-model-input')) document.getElementById('car-model-input').value = data.model || '';
+                            if (document.getElementById('car-year-input')) document.getElementById('car-year-input').value = data.year || '';
+                            if (document.getElementById('car-engine-input')) document.getElementById('car-engine-input').value = data.engine || '';
+
+                            if (statusBadge) {
+                                statusBadge.style.display = 'block';
+                                statusBadge.style.background = 'rgba(16, 185, 129, 0.1)';
+                                statusBadge.style.color = '#10b981';
+                                statusBadge.style.border = '1px solid rgba(16, 185, 129, 0.2)';
+                                statusBadge.innerHTML = `✅ Автоматично розшифровано: <strong>${data.brand} ${data.model} (${data.year})</strong> • ${data.engine}`;
+                            }
+                        } else if (statusBadge) {
+                            statusBadge.style.display = 'block';
+                            statusBadge.style.background = 'rgba(239, 68, 68, 0.1)';
+                            statusBadge.style.color = '#ef4444';
+                            statusBadge.style.border = '1px solid rgba(239, 68, 68, 0.2)';
+                            statusBadge.innerHTML = `⚠️ ${data.message || 'Перевірте правильність VIN-коду'}`;
+                        }
+                    })
+                    .catch(() => {
+                        if (loader) loader.style.display = 'none';
+                    });
+            }, 400);
+        }
+    </script>
 {% endblock %}

@@ -34,13 +34,18 @@ def register_cyrillic_fonts():
     if os.path.exists(font_path_regular):
         pdfmetrics.registerFont(TTFont(FONT_FAMILY, font_path_regular))
     else:
-        # Резервний шрифт у разі відсутності Arial
-        pdfmetrics.registerFont(TTFont(FONT_FAMILY, 'Helvetica'))
+        # Резервний шрифт: пробуємо пошук в каталозі статики
+        fallback_path = os.path.join(
+            os.path.dirname(os.path.abspath(__file__)),
+            'static', 'fonts', 'arial.ttf'
+        )
+        if os.path.exists(fallback_path):
+            pdfmetrics.registerFont(TTFont(FONT_FAMILY, fallback_path))
 
     if os.path.exists(font_path_bold):
         pdfmetrics.registerFont(TTFont(FONT_BOLD, font_path_bold))
-    else:
-        pdfmetrics.registerFont(TTFont(FONT_BOLD, FONT_FAMILY))
+    elif FONT_FAMILY in pdfmetrics.getRegisteredFontNames():
+        pdfmetrics.registerFont(TTFont(FONT_BOLD, font_path_regular if os.path.exists(font_path_regular) else fallback_path))
 
 # Ініціалізуємо шрифти при завантаженні модуля
 register_cyrillic_fonts()
@@ -89,6 +94,7 @@ class NumberedCanvas(canvas.Canvas):
 def number_to_words_ua(number_val):
     """
     Перетворює числове значення суми на прописний текст українською мовою.
+    Підтримує суми до 999 999 999 грн.
     Приклад: 1250.50 -> "Одна тисяча двісті п'ятдесят гривень 50 копійок"
     """
     try:
@@ -118,50 +124,62 @@ def number_to_words_ua(number_val):
     else:
         parts = []
 
-        # Тисячі
-        thousands = (int_part // 1000) % 1000
-        if thousands > 0:
-            h = thousands // 100
-            t = (thousands % 100) // 10
-            u = thousands % 10
-
+        def _convert_group(n, feminine=False):
+            """Cкладає слово з трицифрової групи."""
+            group_parts = []
+            h = n // 100
+            t = (n % 100) // 10
+            u = n % 10
             if h > 0:
-                parts.append(hundreds[h])
+                group_parts.append(hundreds[h])
             if t == 1:
-                parts.append(units[10 + u])
+                group_parts.append(units[10 + u])
             else:
                 if t > 0:
-                    parts.append(tens[t])
+                    group_parts.append(tens[t])
                 if u > 0:
-                    if u == 1:
-                        parts.append("одна")
-                    elif u == 2:
-                        parts.append("дві")
+                    if feminine and u == 1:
+                        group_parts.append("одна")
+                    elif feminine and u == 2:
+                        group_parts.append("дві")
                     else:
-                        parts.append(units[u])
+                        group_parts.append(units[u])
+            return group_parts
 
-            if t != 1 and u == 1:
+        # Мільйони
+        millions = (int_part // 1_000_000) % 1000
+        if millions > 0:
+            parts.extend(_convert_group(millions, feminine=False))
+            last_two_m = millions % 100
+            last_one_m = millions % 10
+            if 11 <= last_two_m <= 19:
+                parts.append("мільйонів")
+            elif last_one_m == 1:
+                parts.append("мільйон")
+            elif last_one_m in [2, 3, 4]:
+                parts.append("мільйони")
+            else:
+                parts.append("мільйонів")
+
+        # Тисячі (жіночий рід)
+        thousands = (int_part // 1000) % 1000
+        if thousands > 0:
+            parts.extend(_convert_group(thousands, feminine=True))
+            last_two_t = thousands % 100
+            last_one_t = thousands % 10
+            if 11 <= last_two_t <= 19:
+                parts.append("тисяч")
+            elif last_one_t == 1:
                 parts.append("тисяча")
-            elif t != 1 and u in [2, 3, 4]:
+            elif last_one_t in [2, 3, 4]:
                 parts.append("тисячі")
             else:
                 parts.append("тисяч")
 
-        # Одиниці
+        # Одиниці (жіночий рід для гривні)
         rem = int_part % 1000
-        h = rem // 100
-        t = (rem % 100) // 10
-        u = rem % 10
-
-        if h > 0:
-            parts.append(hundreds[h])
-        if t == 1:
-            parts.append(units[10 + u])
-        else:
-            if t > 0:
-                parts.append(tens[t])
-            if u > 0:
-                parts.append(units[u])
+        if rem > 0 or int_part == 0:
+            parts.extend(_convert_group(rem, feminine=True))
 
         words = " ".join(parts).strip()
 

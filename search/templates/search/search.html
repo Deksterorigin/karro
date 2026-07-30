@@ -37,20 +37,44 @@
                 <option value="4.5" {% if selected_rating == '4.5' %}selected{% endif %}>4.5+ ★</option>
             </select>
         </div>
+        <div class="form-group" style="max-width:200px; min-width: 130px;">
+            <label for="radius">Радіус</label>
+            <select id="radius" name="radius">
+                <option value="">Усі</option>
+                <option value="5" {% if selected_radius == '5' %}selected{% endif %}>до 5 км</option>
+                <option value="10" {% if selected_radius == '10' %}selected{% endif %}>до 10 км</option>
+                <option value="25" {% if selected_radius == '25' %}selected{% endif %}>до 25 км</option>
+                <option value="50" {% if selected_radius == '50' %}selected{% endif %}>до 50 км</option>
+            </select>
+        </div>
         <button type="submit" class="btn-primary" data-i18n="search.btn_find">Знайти</button>
         <button type="button" class="btn-secondary" id="btnNearby" onclick="requestUserLocation()" style="display:inline-flex; align-items:center; gap:4px; padding: 0.65rem 1rem; border-radius: 8px; border: 1px solid var(--border-color, #CBD5E1); background: var(--bg-surface, #FFFFFF); cursor: pointer; font-weight: 600; color: var(--text-main, #0F172A);">
             Поруч
         </button>
-        {% if selected_city or selected_service or selected_rating or user_lat %}
+        {% if selected_city or selected_service or selected_rating or selected_radius or user_lat %}
             <a href="{% url 'search:search_stations' %}" class="btn-reset" data-i18n="search.btn_reset">Скинути</a>
         {% endif %}
     </form>
 </div>
 
 <div class="results-meta">
-    <span data-i18n-html="search.results_found">Знайдено:</span> <strong>{{ station_data|length }}</strong> <span data-i18n="search.results_sto">СТО</span>
-    {% if selected_city %} · <span data-i18n="search.results_city">місто:</span> <strong>{{ selected_city }}</strong>{% endif %}
-    {% if selected_service %} · <span data-i18n="search.results_service">послуга:</span> <strong>{{ selected_service }}</strong>{% endif %}
+    <div class="meta-info-text">
+        <span data-i18n-html="search.results_found">Знайдено:</span> <strong>{{ station_data|length }}</strong> <span data-i18n="search.results_sto">СТО</span>
+        {% if selected_city %} · <span data-i18n="search.results_city">місто:</span> <strong>{{ selected_city }}</strong>{% endif %}
+        {% if selected_service %} · <span data-i18n="search.results_service">послуга:</span> <strong>{{ selected_service }}</strong>{% endif %}
+    </div>
+
+    <!-- Мобільний перемикач "Список / Карта" -->
+    <div class="mobile-view-toggle mobile-only">
+        <button id="btnShowList" class="view-toggle-btn active" onclick="switchMobileSearchTab('list')">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg>
+            Список ({{ station_data|length }})
+        </button>
+        <button id="btnShowMap" class="view-toggle-btn" onclick="switchMobileSearchTab('map')">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="1 6 1 22 8 18 15 22 22 18 22 2 15 6 8 2 1 6"/><line x1="8" y1="2" x2="8" y2="18"/><line x1="15" y1="6" x2="15" y2="22"/></svg>
+            Карта
+        </button>
+    </div>
 </div>
 
 <div class="search-page-layout">
@@ -142,6 +166,7 @@
 <script>
 const USER_LAT = {% if user_lat %}{{ user_lat|unlocalize }}{% else %}null{% endif %};
 const USER_LNG = {% if user_lng %}{{ user_lng|unlocalize }}{% else %}null{% endif %};
+const SELECTED_RADIUS = {% if selected_radius %}{{ selected_radius|unlocalize }}{% else %}null{% endif %};
 
 const STATIONS = [
     {% for item in station_data %}
@@ -169,5 +194,30 @@ const STATIONS = [
 
 
     <script src="{% static 'js/search.js' %}"></script>
+    <script>
+        function switchMobileSearchTab(mode) {
+            const listEl = document.querySelector('.stations-list');
+            const mapWrap = document.querySelector('.map-wrap');
+            const btnList = document.getElementById('btnShowList');
+            const btnMap = document.getElementById('btnShowMap');
 
+            if (mode === 'map') {
+                if (listEl) listEl.style.display = 'none';
+                if (mapWrap) {
+                    mapWrap.style.display = 'block';
+                    mapWrap.style.height = 'calc(100vh - 240px)';
+                }
+                if (btnList) btnList.classList.remove('active');
+                if (btnMap) btnMap.classList.add('active');
+                if (typeof map !== 'undefined' && map) {
+                    setTimeout(() => { map.invalidateSize(); }, 200);
+                }
+            } else {
+                if (listEl) listEl.style.display = 'flex';
+                if (mapWrap) mapWrap.style.display = 'none';
+                if (btnList) btnList.classList.add('active');
+                if (btnMap) btnMap.classList.remove('active');
+            }
+        }
+    </script>
 {% endblock %}

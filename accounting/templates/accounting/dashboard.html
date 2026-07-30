@@ -51,6 +51,11 @@
             </a>
 
             <!-- Швидкі дії -->
+            <button class="btn-action-primary" style="background:#0284c7; border-color:#0284c7;" onclick="openModal('supplierPartsModal')">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
+                <span>Пошук у постачальників</span>
+            </button>
+
             <button class="btn-action-primary" onclick="openModal('addEmployeeModal')">
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><line x1="19" y1="8" x2="19" y2="14"/><line x1="16" y1="11" x2="22" y2="11"/></svg>
                 <span>Додати працівника</span>
@@ -579,6 +584,37 @@
     </div>
 </div>
 
+<!-- ════ МОДАЛЬНЕ ВІКНО: ПОШУК ТА ЗАКУПІВЛЯ ЗАПЧАСТИН У ПОСТАЧАЛЬНИКІВ ════ -->
+<div class="acc-modal-overlay" id="supplierPartsModal">
+    <div class="acc-modal-content" style="max-width: 850px; width: 95%;">
+        <div class="acc-modal-header">
+            <h3>🔎 Пошук та закупівля запчастин у постачальників (InterCars, Exist, TechnoVector)</h3>
+            <button class="close-modal-btn" onclick="closeModal('supplierPartsModal')">&times;</button>
+        </div>
+
+        <div style="padding: 1.5rem;">
+            <div style="display: flex; gap: 0.75rem; flex-wrap: wrap; margin-bottom: 1.25rem;">
+                <input type="text" id="supplier_search_query" placeholder="Артикул, OEM-номер або назва (напр. Brembo, колодки, 0986479098)..." style="flex: 1; min-width: 240px; padding: 0.75rem 1rem; border-radius: 10px; border: 1px solid var(--border); font-size: 0.95rem;" onkeyup="if(event.key==='Enter') searchSupplierParts()">
+                
+                <select id="supplier_select_filter" style="padding: 0.75rem 1rem; border-radius: 10px; border: 1px solid var(--border); font-size: 0.9rem;" onchange="searchSupplierParts()">
+                    <option value="all">Всі постачальники</option>
+                    <option value="intercars">InterCars Україна</option>
+                    <option value="exist">Exist.ua</option>
+                    <option value="technovector">TechnoVector / Омега</option>
+                </select>
+
+                <button type="button" class="btn-action-primary" onclick="searchSupplierParts()">Знайти</button>
+            </div>
+
+            <div id="supplier_parts_results_container" style="max-height: 440px; overflow-y: auto; display: flex; flex-direction: column; gap: 0.75rem;">
+                <div style="text-align: center; color: var(--text-muted); padding: 3rem 0;">
+                    Введіть код або назву запчастини та натисніть "Знайти" для перевірки наявності у постачальників.
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
 <!-- ════ ДАНІ ДЛЯ ІНІЦІАЛІЗАЦІЇ CHART.JS (ГРАФІКИ) ════ -->
 <script>
     // Передаємо серіалізований JSON безпосередньо як об'єкти JS
@@ -587,6 +623,77 @@
     window.chartExpenses = {{ chart_expenses_json|safe }};
     window.categoryLabels = {{ category_labels_json|safe }};
     window.categoryValues = {{ category_values_json|safe }};
+
+    function searchSupplierParts() {
+        const query = document.getElementById('supplier_search_query').value.trim();
+        const supplier = document.getElementById('supplier_select_filter').value;
+        const container = document.getElementById('supplier_parts_results_container');
+
+        if (!query) {
+            container.innerHTML = '<div style="text-align: center; color: var(--text-muted); padding: 2rem 0;">Будь ласка, введіть пошуковий запит.</div>';
+            return;
+        }
+
+        container.innerHTML = '<div style="text-align: center; color: var(--accent); padding: 2rem 0; font-weight: 600;">🔍 Пошук у каталогах постачальників...</div>';
+
+        fetch(`/accounting/api/suppliers/parts/search/?query=${encodeURIComponent(query)}&supplier=${encodeURIComponent(supplier)}`)
+            .then(res => res.json())
+            .then(data => {
+                if (!data.parts || data.parts.length === 0) {
+                    container.innerHTML = '<div style="text-align: center; color: var(--text-muted); padding: 2rem 0;">Запчастин за даним запитом не знайдено.</div>';
+                    return;
+                }
+
+                let html = '';
+                data.parts.forEach(part => {
+                    const deliveryStr = part.delivery_days === 0 ? '<span style="color:#10b981; font-weight:700;">🟢 В наявності</span>' : `<span style="color:#3b82f6; font-weight:600;">📦 Доставка ${part.delivery_days} дн.</span>`;
+                    
+                    html += `
+                        <div style="background: var(--bg); border: 1px solid var(--border); border-radius: 12px; padding: 1rem 1.25rem; display: flex; justify-content: space-between; align-items: center; gap: 1rem; flex-wrap: wrap;">
+                            <div style="flex: 1; min-width: 240px;">
+                                <div style="display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.25rem;">
+                                    <span style="font-weight: 800; font-size: 1rem; color: var(--text);">${part.part_name}</span>
+                                    <span style="background: var(--accent-dim); color: var(--accent); font-size: 0.75rem; font-weight: 700; padding: 2px 8px; border-radius: 99px;">${part.brand}</span>
+                                </div>
+                                <div style="font-size: 0.825rem; color: var(--text-muted); display: flex; gap: 1rem; flex-wrap: wrap; margin-bottom: 0.35rem;">
+                                    <span>Артикул: <strong>${part.sku}</strong></span>
+                                    <span>OEM: <strong>${part.oem}</strong></span>
+                                    <span>Постачальник: <strong>${part.supplier_name}</strong></span>
+                                </div>
+                                <div style="font-size: 0.8rem; color: var(--text-faint);">
+                                    Залишок: ${part.stock_qty} шт • ${deliveryStr}
+                                </div>
+                            </div>
+
+                            <div style="display: flex; align-items: center; gap: 1.25rem;">
+                                <div style="text-align: right;">
+                                    <div style="font-size: 0.75rem; color: var(--text-muted);">Закупка / Продаж:</div>
+                                    <div style="font-size: 1rem; font-weight: 800; color: var(--text);">${part.cost_price} ₴ / <span style="color:#10b981;">${part.suggested_retail_price} ₴</span></div>
+                                </div>
+
+                                <form action="{% url 'accounting:import_supplier_part' %}" method="POST" style="margin: 0;">
+                                    {% csrf_token %}
+                                    <input type="hidden" name="station_id" value="{{ selected_station.pk }}">
+                                    <input type="hidden" name="sku" value="${part.sku}">
+                                    <input type="hidden" name="part_name" value="${part.part_name}">
+                                    <input type="hidden" name="brand" value="${part.brand}">
+                                    <input type="hidden" name="cost_price" value="${part.cost_price}">
+                                    <input type="hidden" name="selling_price" value="${part.suggested_retail_price}">
+                                    <input type="hidden" name="quantity" value="1">
+                                    <button type="submit" class="btn-action-success" style="padding: 0.5rem 0.85rem; font-size: 0.85rem; border-radius: 8px;">+ Замовити на склад</button>
+                                </form>
+                            </div>
+                        </div>
+                    `;
+                });
+
+                container.innerHTML = html;
+            })
+            .catch(err => {
+                console.error(err);
+                container.innerHTML = '<div style="text-align: center; color: var(--error); padding: 2rem 0;">Помилка завантаження даних постачальника.</div>';
+            });
+    }
 </script>
 
 <!-- Підключаємо бібліотеку Chart.js та скрипт інтерактивності -->

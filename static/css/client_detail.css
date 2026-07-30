@@ -128,3 +128,47 @@
     font-weight: 700;
     border: 1px solid var(--border);
 }
+
+/* ── Мобільна адаптація профілю клієнта ── */
+@media (max-width: 768px) {
+    .client-container {
+        margin: 1.5rem auto;
+        padding: 0 1rem;
+    }
+
+    .client-header {
+        flex-direction: column;
+        text-align: center;
+        gap: 1.25rem;
+        padding: 1.5rem 1.25rem;
+        border-radius: 16px;
+    }
+
+    .avatar-wrapper {
+        width: 84px;
+        height: 84px;
+        font-size: 2rem;
+    }
+
+    .contact-item {
+        justify-content: center;
+        font-size: 0.95rem;
+    }
+
+    .cars-grid {
+        grid-template-columns: 1fr;
+        gap: 1rem;
+    }
+
+    .car-card {
+        border-radius: 16px;
+    }
+
+    .car-photo {
+        height: 160px;
+    }
+
+    .car-details {
+        padding: 1.25rem;
+    }
+}

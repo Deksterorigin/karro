@@ -1,4 +1,5 @@
 from django.db import models
+from django.db.models import Sum, Avg
 from django.core.validators import MinValueValidator, MaxValueValidator, RegexValidator
 from django.contrib.auth.models import AbstractBaseUser, PermissionsMixin, BaseUserManager
 import datetime
@@ -235,6 +236,9 @@ class Car(models.Model):
     user = models.ForeignKey(
         User, on_delete=models.CASCADE, db_column='user_id', verbose_name='Власник'
     )
+    engine = models.CharField(
+        max_length=100, blank=True, null=True, verbose_name='Об\'єм / Двигун'
+    )
     photo = models.ImageField(
         upload_to='cars/', null=True, blank=True, verbose_name='Фото'
     )
@@ -287,6 +291,15 @@ class Review(models.Model):
     date = models.DateField(auto_now_add=True, verbose_name='Дата')
     user = models.ForeignKey(
         User, on_delete=models.CASCADE, db_column='user_id', verbose_name='Автор'
+    )
+    photo = models.ImageField(
+        upload_to='reviews/', null=True, blank=True, verbose_name='Фото відгуку'
+    )
+    owner_response = models.TextField(
+        null=True, blank=True, verbose_name='Відповідь автосервісу'
+    )
+    response_date = models.DateTimeField(
+        null=True, blank=True, verbose_name='Дата відповіді СТО'
     )
     station = models.ForeignKey(
         ServiceStation, on_delete=models.CASCADE,
@@ -410,7 +423,6 @@ class Booking(models.Model):
     @property
     def approved_chat_costs(self):
         """Сума всіх додаткових робіт/деталей, підтверджених клієнтом у чаті."""
-        from django.db.models import Sum
         result = self.chat_messages.filter(is_approved=True).aggregate(total=Sum('proposed_cost'))
         return result.get('total') or 0
 

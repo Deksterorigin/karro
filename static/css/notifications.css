@@ -165,3 +165,21 @@
     height: 28px;
     margin-bottom: 0.25rem;
 }
+
+/* ── Мобільна адаптація системних сповіщень ── */
+@media (max-width: 480px) {
+    .notification-bell-btn {
+        width: 44px;
+        height: 44px;
+    }
+
+    .notification-dropdown {
+        position: fixed;
+        top: 60px;
+        right: 10px;
+        left: 10px;
+        width: auto;
+        max-width: calc(100vw - 20px);
+        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+    }
+}

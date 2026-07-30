@@ -45,12 +45,12 @@ const TRANSLATIONS = {
     'home.footer':            { uk: '© 2026 <span>Karro</span> · Навчальний проєкт · ZPI-21 · Летінський О.',
                                 en: '© 2026 <span>Karro</span> · Educational Project · ZPI-21 · Letinskyi O.' },
 
-    // Testimonials
+    // Відгуки
     'home.testimonials_label': { uk: 'Відгуки', en: 'Testimonials' },
     'home.testimonials_title': { uk: 'Що кажуть наші користувачі', en: 'What our users say' },
     'home.testimonials_sub':   { uk: 'Дивіться, що говорять про нас наші клієнти та партнери.', en: 'See what our customers and partners have to say about us.' },
 
-    // Testimonial cards
+    // Картки відгуків
     'home.t1_text': { uk: 'Цей сервіс повністю змінив те, як я доглядаю за своєю машиною. Завдяки цифровому гаражу я завжди бачу всю історію обслуговування, а знайти перевірене СТО поруч тепер справа кількох хвилин!', en: 'This service completely changed how I take care of my car. Thanks to the digital garage, I can always see the service history, and finding a trusted station nearby is now a matter of minutes!' },
     'home.t1_name': { uk: 'Олена Ковальчук', en: 'Olena Kovalchuk' },
     'home.t1_role': { uk: 'Власниця Audi A4', en: 'Audi A4 Owner' },

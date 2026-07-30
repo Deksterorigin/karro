@@ -1,7 +1,7 @@
-# pyrefly: ignore [missing-import]
 import json
 import datetime
 from django.test import TestCase, Client
+
 from django.contrib.auth.hashers import make_password
 from django.utils import timezone
 from decimal import Decimal
@@ -99,7 +99,7 @@ class BookingAPITestCase(TestCase):
             content_type='application/json'
         )
         self.assertEqual(response.status_code, 400)
-        self.assertIn('СТО працює з 09:00 до 18:00', response.json()['message'])
+        self.assertIn('працює з 09:00 до 18:00', response.json()['message'])
 
     def test_invalid_car_ownership(self):
         # Запис для іншого автомобіля (має повернути 400)

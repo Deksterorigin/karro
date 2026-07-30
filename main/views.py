@@ -18,11 +18,13 @@ from django.urls import reverse
 from django.utils import timezone
 from django.views.decorators.http import require_POST
 
-from django.http import JsonResponse, HttpResponse
+from django.http import JsonResponse, HttpResponse, StreamingHttpResponse
 import json
+import time
 from .decorators import login_required_session
 from .models import User, Car, Review, ServiceStation, Service, Booking, Notification, CarHistory, BookingChatMessage
 from .pdf_utils import generate_act_pdf
+from .vin_decoder import decode_vin
 
 logger = logging.getLogger(__name__)
 
@@ -32,15 +34,23 @@ MAX_LOGIN_ATTEMPTS = 5
 LOGIN_LOCKOUT_SECONDS = 300  # 5 хвилин
 
 def _check_login_rate_limit(identifier: str) -> bool:
-    """Повертає True якщо IP заблоковано через перевищення кількості спроб."""
+    """
+    Повертає True якщо IP заблоковано через перевищення кількості спроб.
+    Увага: зберігає стан у пам'яті процесу. У production з кількома
+    воркерами краще використовувати Redis або django-axes.
+    """
     now = time()
     _login_attempts[identifier] = [
         t for t in _login_attempts[identifier]
         if now - t < LOGIN_LOCKOUT_SECONDS
     ]
+    # Спочатку перевіряємо ліміт, тільки потім додаємо спробу
     if len(_login_attempts[identifier]) >= MAX_LOGIN_ATTEMPTS:
         return True
     _login_attempts[identifier].append(now)
+    # Очищуємо порожні записи, щоб словник не ріс нескінченно
+    if not _login_attempts[identifier]:
+        del _login_attempts[identifier]
     return False
 
 # Дозволені формати та обмеження розміру для зображень
@@ -716,8 +726,8 @@ def create_booking_api(request):
 
         # Валідація формату дати/часу та годин роботи СТО
         try:
-            import datetime
-            scheduled_dt = datetime.datetime.fromisoformat(scheduled_time)
+            import datetime as _dt
+            scheduled_dt = _dt.datetime.fromisoformat(scheduled_time)
             if django_settings.USE_TZ and timezone.is_naive(scheduled_dt):
                 scheduled_dt = timezone.make_aware(scheduled_dt)
         except ValueError:
@@ -757,20 +767,25 @@ def create_booking_api(request):
             StationBox.objects.create(station=station, name="Бокс 1", is_active=True)
             boxes = station.boxes.filter(is_active=True)
 
-        duration = int(data.get('duration', 60))
+        try:
+            duration = int(data.get('duration', 60))
+        except (ValueError, TypeError):
+            duration = 60
+        duration = max(15, min(duration, 480))
+
         slot_start = scheduled_dt
-        slot_end = slot_start + datetime.timedelta(minutes=duration)
+        slot_end = slot_start + _dt.timedelta(minutes=duration)
 
         # Отримуємо конфліктуючі замовлення (ті, які перекриваються за часом)
         conflicting_bookings = Booking.objects.filter(
             station=station,
-            status__in=['pending', 'confirmed', 'completed'],
-            scheduled_time__gte=slot_start - datetime.timedelta(days=1),
+            status__in=['pending', 'confirmed'],
+            scheduled_time__gte=slot_start - _dt.timedelta(days=1),
             scheduled_time__lt=slot_end
         )
         occupied_box_ids = set()
         for b in conflicting_bookings:
-            b_end = b.scheduled_time + datetime.timedelta(minutes=b.duration)
+            b_end = b.scheduled_time + _dt.timedelta(minutes=b.duration)
             if b_end > slot_start:
                 occupied_box_ids.add(b.box_id)
 
@@ -900,7 +915,11 @@ def get_available_slots_api(request, station_id):
     import datetime
     station = get_object_or_404(ServiceStation, pk=station_id)
     date_str = request.GET.get('date')
-    duration = int(request.GET.get('duration', 60))
+    try:
+        duration = int(request.GET.get('duration', 60))
+    except (ValueError, TypeError):
+        duration = 60
+    duration = max(15, min(duration, 480))
 
     if not date_str:
         return JsonResponse({'status': 'error', 'message': 'Параметр date обов\'язковий'}, status=400)
@@ -924,7 +943,7 @@ def get_available_slots_api(request, station_id):
     bookings = Booking.objects.filter(
         station=station,
         scheduled_time__range=(start_dt, end_dt),
-        status__in=['pending', 'confirmed', 'completed']
+        status__in=['pending', 'confirmed']
     ).select_related('box')
 
     # Генерація слотів з урахуванням розкладу на даний день тижня
@@ -1025,7 +1044,7 @@ def get_calendar_events_api(request, station_id):
         
         b_end = b.scheduled_time + datetime.timedelta(minutes=b.duration)
         
-        color = '#3B82F6'  # pending
+        color = '#3B82F6'  # очікує підтвердження
         if b.status == 'confirmed':
             color = '#F59E0B'
         elif b.status == 'completed':
@@ -1077,16 +1096,31 @@ def reschedule_booking_api(request, booking_id):
     if new_start < timezone.now():
         return JsonResponse({'status': 'error', 'message': 'Неможливо перенести замовлення на минулий час'}, status=400)
 
-    # Робочі години СТО
-    visit_time = new_start.time()
+    # Перевірка розкладу СТО на конкретний день тижня
     station = booking.station
-    if visit_time < station.opening_time or visit_time > station.closing_time:
-        opening_str = station.opening_time.strftime('%H:%M')
-        closing_str = station.closing_time.strftime('%H:%M')
+    visit_day = new_start.weekday()
+    sch = station.get_day_schedule(visit_day)
+    if not sch or not sch.is_working:
         return JsonResponse({
             'status': 'error',
-            'message': f'СТО працює з {opening_str} до {closing_str}. Оберіть робочий час.'
+            'message': 'СТО не працює у цей день (Вихідний). Оберіть інший день.'
         }, status=400)
+
+    visit_time = new_start.time()
+    if visit_time < sch.opening_time or visit_time > sch.closing_time:
+        opening_str = sch.opening_time.strftime('%H:%M')
+        closing_str = sch.closing_time.strftime('%H:%M')
+        return JsonResponse({
+            'status': 'error',
+            'message': f'СТО у цей день працює з {opening_str} до {closing_str}. Оберіть робочий час.'
+        }, status=400)
+
+    if sch.break_start and sch.break_end:
+        if sch.break_start <= visit_time < sch.break_end:
+            return JsonResponse({
+                'status': 'error',
+                'message': f'У СТО обідня перерва з {sch.break_start.strftime("%H:%M")} до {sch.break_end.strftime("%H:%M")}.'
+            }, status=400)
 
     # Перевірка вільних боксів (виключаючи поточне замовлення)
     from .models import StationBox
@@ -1097,7 +1131,7 @@ def reschedule_booking_api(request, booking_id):
 
     conflicting_bookings = Booking.objects.filter(
         station=station,
-        status__in=['pending', 'confirmed', 'completed'],
+        status__in=['pending', 'confirmed'],
         scheduled_time__gte=new_start - datetime.timedelta(days=1),
         scheduled_time__lt=new_end
     ).exclude(pk=booking.pk)
@@ -1317,4 +1351,124 @@ def download_act_pdf_view(request, booking_id):
     else:
         response['Content-Disposition'] = f'attachment; filename="{filename}"'
 
+    return response
+
+
+def decode_vin_api(request):
+    """
+    API розшифровки VIN-коду автомобіля.
+    Приймає ?vin=17_CHAR_VIN
+    """
+    vin = request.GET.get('vin', '').strip()
+    result = decode_vin(vin)
+    if result.get('status') == 'error':
+        return JsonResponse(result, status=400)
+    return JsonResponse(result)
+
+
+@login_required_session
+def chat_events_sse(request, booking_id):
+    """
+    SSE-ендпоінт для передачі повідомлень чату в реальному часі.
+    """
+    user = get_current_user(request)
+    if not user:
+        return JsonResponse({'status': 'error', 'message': 'Unauthorized'}, status=401)
+
+    booking = get_object_or_404(Booking, pk=booking_id)
+    is_client = (booking.client_id == user.user_id)
+    is_station_owner = (booking.station and booking.station.user_id == user.user_id)
+
+    if not (is_client or is_station_owner or user.is_superuser):
+        return JsonResponse({'status': 'error', 'message': 'У вас немає доступу до чату цього замовлення.'}, status=403)
+
+    last_id_str = request.GET.get('last_id', '0')
+    try:
+        last_id = int(last_id_str)
+    except ValueError:
+        last_id = 0
+
+    def event_stream():
+        nonlocal last_id
+        yield f"event: connected\ndata: {json.dumps({'status': 'connected'})}\n\n"
+        
+        iterations = 0
+        while iterations < 25:
+            messages_qs = BookingChatMessage.objects.filter(
+                booking=booking,
+                pk__gt=last_id
+            ).select_related('sender').order_by('created_at')
+
+            if messages_qs.exists():
+                data = []
+                for msg in messages_qs:
+                    last_id = max(last_id, msg.pk)
+                    data.append({
+                        'id': msg.pk,
+                        'sender_id': msg.sender_id,
+                        'sender_name': msg.sender.full_name,
+                        'sender_role': msg.sender.role,
+                        'is_me': (msg.sender_id == user.user_id),
+                        'text': msg.text or '',
+                        'image_url': msg.image.url if msg.image else None,
+                        'proposed_cost': str(msg.proposed_cost) if msg.proposed_cost is not None else None,
+                        'is_approved': msg.is_approved,
+                        'created_at': msg.created_at.strftime('%d.%m.%Y %H:%M')
+                    })
+                yield f"event: message\ndata: {json.dumps({'messages': data, 'last_id': last_id})}\n\n"
+            
+            time.sleep(1)
+            iterations += 1
+
+    response = StreamingHttpResponse(event_stream(), content_type='text/event-stream')
+    response['Cache-Control'] = 'no-cache'
+    response['X-Accel-Buffering'] = 'no'
+    return response
+
+
+@login_required_session
+def notification_events_sse(request):
+    """
+    SSE-ендпоінт для миттєвої доставки сповіщень користувачу.
+    """
+    user = get_current_user(request)
+    if not user:
+        return JsonResponse({'status': 'error', 'message': 'Unauthorized'}, status=401)
+
+    last_id_str = request.GET.get('last_id', '0')
+    try:
+        last_id = int(last_id_str)
+    except ValueError:
+        last_id = 0
+
+    def event_stream():
+        nonlocal last_id
+        yield f"event: connected\ndata: {json.dumps({'status': 'connected'})}\n\n"
+        
+        iterations = 0
+        while iterations < 25:
+            notifs_qs = Notification.objects.filter(
+                recipient=user,
+                pk__gt=last_id
+            ).order_by('created_at')
+
+            if notifs_qs.exists():
+                data = []
+                for n in notifs_qs:
+                    last_id = max(last_id, n.pk)
+                    data.append({
+                        'id': n.pk,
+                        'booking_id': n.booking_id,
+                        'message': n.message,
+                        'is_read': n.is_read,
+                        'created_at': n.created_at.strftime('%d.%m.%Y %H:%M')
+                    })
+                yield f"event: notification\ndata: {json.dumps({'notifications': data, 'last_id': last_id})}\n\n"
+
+            time.sleep(1)
+            iterations += 1
+
+    response = StreamingHttpResponse(event_stream(), content_type='text/event-stream')
+    response['Cache-Control'] = 'no-cache'
+    response['X-Accel-Buffering'] = 'no'
     return response

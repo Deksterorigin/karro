@@ -66,7 +66,7 @@
     </a>
 </div>
 
-<!-- ════ HERO ════ -->
+<!-- ════ БАНЕР СТО ════ -->
 <div class="station-hero">
     <div class="hero-top-layout">
         <div class="hero-info-section">
@@ -120,11 +120,11 @@
     </div>
 </div>
 
-<!-- ════ MAIN CONTENT GRID ════ -->
+<!-- ════ ОСНОВНА СІТКА СТОРІНКИ ════ -->
 <div class="detail-grid-layout">
     <div class="main-column">
 
-        <!-- ── SERVICES PANEL ── -->
+        <!-- ── ПАНЕЛЬ ПОСЛУГ ── -->
         <div class="section-card-panel" id="services">
             <div class="section-head-bar">
                 <h2 class="section-head-title">
@@ -157,7 +157,7 @@
             </div>
         </div>
 
-        <!-- ── PHOTO GALLERY PANEL ── -->
+        <!-- ── ФОТОГАЛЕРЕЯ ── -->
         <div class="section-card-panel" id="gallery">
             <div class="section-head-bar">
                 <h2 class="section-head-title">
@@ -215,7 +215,7 @@
             </div>
         </div>
 
-        <!-- ── REVIEWS PANEL ── -->
+        <!-- ── ВІДГУКИ ── -->
         <div class="section-card-panel" id="reviews">
             <div class="section-head-bar">
                 <h2 class="section-head-title">
@@ -254,6 +254,34 @@
                             </div>
                         </div>
                         <div class="review-content-body">{{ review.text }}</div>
+                        {% if review.photo %}
+                        <div style="margin-top:0.75rem;">
+                            <img src="{{ review.photo.url }}" alt="Фото відгуку" style="max-width:240px; max-height:180px; border-radius:8px; border:1px solid var(--border-color, #E2E8F0); object-fit:cover;">
+                        </div>
+                        {% endif %}
+
+                        {% if review.owner_response %}
+                        <div style="margin-top: 1rem; padding: 0.85rem 1rem; background: var(--bg-surface, #F8FAFC); border-left: 3px solid var(--accent, #0052CC); border-radius: 6px;">
+                            <div style="font-weight: 700; font-size: 0.85rem; color: var(--accent, #0052CC); margin-bottom: 4px; display:flex; justify-content:space-between; align-items:center;">
+                                <span>Відповідь автосервісу</span>
+                                {% if review.response_date %}
+                                    <span style="font-weight: 400; color: var(--text-muted); font-size: 0.75rem;">{{ review.response_date|date:"d.m.Y H:i" }}</span>
+                                {% endif %}
+                            </div>
+                            <div style="font-size: 0.9rem; color: var(--text-main);">{{ review.owner_response }}</div>
+                        </div>
+                        {% elif is_owner %}
+                        <details style="margin-top:0.75rem;">
+                            <summary style="cursor:pointer; font-size:0.8rem; font-weight:600; color:var(--accent, #0052CC);">Відповісти на відгук</summary>
+                            <form method="POST" style="margin-top:0.5rem; display:flex; gap:0.5rem; flex-direction:column;">
+                                {% csrf_token %}
+                                <input type="hidden" name="action" value="respond_review">
+                                <input type="hidden" name="review_id" value="{{ review.pk }}">
+                                <textarea name="response_text" placeholder="Текст відповіді автосервісу..." style="width:100%; padding:0.5rem; border-radius:6px; border:1px solid #CBD5E1; font-size:0.85rem;" rows="2" required></textarea>
+                                <button type="submit" class="btn-primary" style="align-self:flex-end; padding:0.4rem 0.8rem; font-size:0.8rem;">Опублікувати відповідь</button>
+                            </form>
+                        </details>
+                        {% endif %}
                     </div>
                     {% endfor %}
                 </div>
@@ -264,11 +292,11 @@
                 </div>
                 {% endif %}
 
-                <!-- Review Form -->
+                <!-- Форма залишення відгуку -->
                 {% if user and user.is_client %}
                 <div class="new-review-form-panel" style="margin-top:2rem;">
                     <h3>Залишити відгук</h3>
-                    <form method="POST">
+                    <form method="POST" enctype="multipart/form-data">
                         {% csrf_token %}
                         <input type="hidden" name="action" value="add_review">
                         <input type="hidden" name="review_rating" id="rating-value" value="5">
@@ -282,6 +310,12 @@
                         </div>
 
                         <textarea name="review_text" class="review-textbox" placeholder="Розкажіть про свій досвід обслуговування..." required></textarea>
+                        
+                        <div style="margin-top:0.75rem; margin-bottom:1rem;">
+                            <label style="display:block; font-size:0.85rem; font-weight:600; margin-bottom:0.35rem; color:var(--text-main);">Прикріпити фото до відгуку (необов'язково):</label>
+                            <input type="file" name="review_photo" accept="image/*" style="font-size:0.85rem; color:var(--text-muted);">
+                        </div>
+
                         <button type="submit" class="btn-primary">Надіслати відгук</button>
                     </form>
                 </div>
@@ -296,9 +330,9 @@
 
     </div>
 
-    <!-- ════ SIDEBAR ════ -->
+    <!-- ════ БІЧНА ПАНЕЛЬ ════ -->
     <aside class="details-sidebar">
-        <!-- Contact card -->
+        <!-- Картка контактів -->
         <div class="contact-card-box">
             <h3>
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.127.96.361 1.903.7 2.81a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0 1 22 16.92z"/></svg>
@@ -360,7 +394,7 @@
             </div>
         </div>
 
-        <!-- Mini map -->
+        <!-- Карта розтушування -->
         {% if station.latitude and station.longitude %}
         <div class="map-card-box">
             <h3>
@@ -373,7 +407,7 @@
     </aside>
 </div>
 
-<!-- Booking Modal -->
+<!-- Модальне вікно бронювання -->
 <div class="modal-overlay" id="bookingModal">
     <div class="modal-box">
         <div class="modal-header">

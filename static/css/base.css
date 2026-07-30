@@ -81,13 +81,13 @@
             height: 28px;
         }
 
-        nav {
+        nav#main-nav {
             display: flex;
             align-items: center;
             gap: 1.75rem;
         }
 
-        nav a {
+        nav#main-nav a {
             font-size: 0.9375rem;
             font-weight: 500;
             color: var(--text-muted);
@@ -95,7 +95,7 @@
             transition: color var(--transition-fast);
         }
 
-        nav a:hover {
+        nav#main-nav a:hover {
             color: var(--accent);
         }
 
@@ -283,8 +283,8 @@
             left: 0;
             width: 100vw;
             height: 100vh;
-            background: rgba(9, 13, 22, 0.55);
-            z-index: 1090;
+            background: transparent;
+            z-index: 9999;
             opacity: 0;
             pointer-events: none;
             transition: opacity var(--transition-normal);
@@ -299,13 +299,19 @@
             display: none;
             flex-direction: column;
             justify-content: space-between;
-            width: 24px;
-            height: 18px;
+            width: 44px;
+            height: 44px;
+            padding: 13px 10px;
             background: transparent;
             border: none;
+            border-radius: var(--radius-sm);
             cursor: pointer;
-            padding: 0;
-            z-index: 1110;
+            z-index: 11100;
+            transition: background var(--transition-fast);
+        }
+
+        .menu-toggle:hover, .menu-toggle:active {
+            background: var(--surface-hover);
         }
 
         .menu-toggle span {
@@ -331,7 +337,7 @@
         }
 
         @media (max-width: 1024px) {
-            nav {
+            nav#main-nav {
                 gap: 1.25rem;
             }
             header {
@@ -339,6 +345,7 @@
             }
         }
 
+        /* Мобільна адаптація шапки та висувної шторки навігації */
         @media (max-width: 768px) {
             .menu-toggle {
                 display: flex;
@@ -353,50 +360,63 @@
             }
 
             body.menu-open {
-                overflow: hidden;
-            }
-
-            body.menu-open header {
-                z-index: 1200;
+                overflow: hidden !important;
             }
 
             header {
-                padding: 0.75rem 1.5rem;
+                padding: 0.75rem 1rem;
             }
 
-            nav {
+            .header-right {
+                gap: 0.5rem;
+            }
+
+            .theme-toggle-btn,
+            .notification-bell-btn {
+                width: 44px;
+                height: 44px;
+            }
+
+            nav#main-nav {
                 position: fixed;
                 top: 0;
                 right: 0;
-                width: 300px;
+                bottom: 0;
+                left: auto;
+                width: min(85vw, 320px);
                 height: 100vh;
+                height: 100dvh;
                 background: var(--surface);
-                box-shadow: -10px 0 30px rgba(0, 0, 0, 0.15);
-                z-index: 1100;
+                box-shadow: -4px 0 24px rgba(0, 0, 0, 0.12);
+                z-index: 11000;
                 flex-direction: column;
-                align-items: flex-start;
+                align-items: stretch;
                 justify-content: flex-start;
-                padding: 6rem 2rem 2rem;
-                gap: 1.25rem;
+                padding: calc(4.5rem + env(safe-area-inset-top)) 1.5rem calc(2rem + env(safe-area-inset-bottom));
+                gap: 0.75rem;
                 transform: translateX(100%);
                 transition: transform var(--transition-normal);
                 overflow-y: auto;
+                -webkit-overflow-scrolling: touch;
             }
 
-            nav.active {
+            nav#main-nav.active {
                 transform: translateX(0);
             }
 
-            nav a:not(.btn-outline):not(.btn-primary):not(.user-chip) {
-                font-size: 1.1rem;
+            nav#main-nav a:not(.btn-outline):not(.btn-primary):not(.user-chip) {
+                font-size: 1.05rem;
                 font-weight: 600;
                 width: 100%;
-                padding: 0.6rem 0;
+                padding: 0.8rem 0;
+                min-height: 48px;
+                display: flex;
+                align-items: center;
                 border-bottom: 1px solid var(--border);
                 color: var(--text-muted);
             }
 
-            nav a:not(.btn-outline):not(.btn-primary):not(.user-chip):hover {
+            nav#main-nav a:not(.btn-outline):not(.btn-primary):not(.user-chip):hover {
                 color: var(--accent);
             }
 
@@ -415,8 +435,9 @@
 
             .lang-select-wrap.mobile-only select {
                 width: 100%;
-                padding: 0.6rem 1rem;
-                font-size: 0.9375rem;
+                padding: 0.75rem 1rem;
+                min-height: 48px;
+                font-size: 16px;
                 border-radius: var(--radius-sm);
                 background: var(--bg);
                 border: 1px solid var(--border);
@@ -426,16 +447,23 @@
 
             .alerts-container {
                 padding: 0 1rem;
-                margin: 1rem auto 0;
+                margin: 0.75rem auto 0;
+            }
+
+            .alert {
+                padding: 0.85rem 1rem;
+                font-size: 0.85rem;
+                border-radius: var(--radius-sm);
             }
 
             footer {
-                padding: 2rem 1rem;
-                font-size: 0.8rem;
+                padding: 2rem 1rem calc(2rem + env(safe-area-inset-bottom));
+                font-size: 0.85rem;
+                text-align: center;
             }
         }
 
-        /* --- Dark Mode Variable Overrides --- */
+        /* Перевизначення змінних для темного режиму */
         html.dark {
             --bg: #090D16;
             --surface: #131B2E;
@@ -464,7 +492,7 @@
             border-top: 1px solid var(--border);
         }
 
-        /* --- Theme Toggle Button --- */
+        /* Кнопка перемикання теми */
         .theme-toggle-btn {
             background: none;
             border: none;

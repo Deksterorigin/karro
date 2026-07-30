@@ -5,7 +5,7 @@ from django.urls import reverse
 from django.http import HttpResponse
 # Імпортування інструментів для роботи з транзакціями та атомарними запитами
 from django.db import transaction
-from django.db.models import F
+from django.db.models import F, Sum, Case, When, Value, DecimalField
 from main.decorators import login_required_session, role_required
 from main.models import User, ServiceStation, Booking, CarHistory
 from main.views import get_current_user
@@ -17,7 +17,11 @@ from decimal import Decimal, InvalidOperation
 import calendar
 import csv
 import json
+import logging
+from django.http import JsonResponse
+from .supplier_api import search_supplier_parts, SUPPLIERS
 
+logger = logging.getLogger(__name__)
 
 
 def _redirect_to_dashboard(station_pk):
@@ -93,15 +97,25 @@ def dashboard_view(request):
     # Фільтруємо транзакції за обраний період часу (базовий список транзакцій для метрик і графіків)
     period_transactions = all_transactions.filter(date__range=[start_date, end_date])
 
-    # Розрахунок загальних фінансових показників для карток метрик
-    total_income = sum(
-        (t.amount for t in period_transactions if t.type == 'income'),
-        Decimal('0.00')
+    # Розрахунок загальних фінансових показників через SQL-агрегацію
+    totals = period_transactions.aggregate(
+        total_income=Sum(
+            Case(
+                When(type='income', then='amount'),
+                default=Value(Decimal('0.00')),
+                output_field=DecimalField(),
+            )
+        ),
+        total_expense=Sum(
+            Case(
+                When(type='expense', then='amount'),
+                default=Value(Decimal('0.00')),
+                output_field=DecimalField(),
+            )
+        ),
     )
-    total_expense = sum(
-        (t.amount for t in period_transactions if t.type == 'expense'),
-        Decimal('0.00')
-    )
+    total_income = totals['total_income'] or Decimal('0.00')
+    total_expense = totals['total_expense'] or Decimal('0.00')
     net_profit = total_income - total_expense
 
     # Формуємо дані для лінійного графіка динаміки фінансів за днями
@@ -247,8 +261,9 @@ def add_employee_view(request):
             commission_percent=Decimal(commission_percent)
         )
         messages.success(request, f"Працівника {full_name} успішно додано.")
-    except (InvalidOperation, Exception) as e:
-        messages.error(request, f"Помилка при додаванні працівника: {e}")
+    except (InvalidOperation, Exception):
+        logger.error("Помилка при додаванні працівника", exc_info=True)
+        messages.error(request, "Помилка при додаванні працівника. Спробуйте пізніше.")
 
     return _redirect_to_dashboard(station.pk)
 
@@ -281,8 +296,9 @@ def edit_employee_view(request, employee_id):
         employee.is_active = is_active
         employee.save()
         messages.success(request, f"Дані працівника {full_name} успішно оновлено.")
-    except (InvalidOperation, Exception) as e:
-        messages.error(request, f"Помилка при оновленні: {e}")
+    except (InvalidOperation, Exception):
+        logger.error("Помилка при оновленні працівника", exc_info=True)
+        messages.error(request, "Помилка при оновленні даних працівника. Спробуйте пізніше.")
 
     return _redirect_to_dashboard(employee.station.pk)
 
@@ -357,8 +373,9 @@ def pay_salary_view(request):
             f"Виплата {amount} грн працівнику {employee.full_name} "
             f"успішно проведена."
         )
-    except Exception as e:
-        messages.error(request, f"Помилка при виплаті зарплати: {e}")
+    except Exception:
+        logger.error("Помилка при виплаті зарплати", exc_info=True)
+        messages.error(request, "Помилка при виплаті зарплати. Спробуйте пізніше.")
 
     return _redirect_to_dashboard(employee.station.pk)
 
@@ -413,8 +430,9 @@ def add_transaction_view(request):
             date=t_date
         )
         messages.success(request, "Операцію успішно додано.")
-    except Exception as e:
-        messages.error(request, f"Помилка при додаванні операції: {e}")
+    except Exception:
+        logger.error("Помилка при додаванні операції", exc_info=True)
+        messages.error(request, "Помилка при додаванні операції. Спробуйте пізніше.")
 
     return _redirect_to_dashboard(station.pk)
 
@@ -612,8 +630,9 @@ def complete_booking_view(request):
         )
     except Booking.DoesNotExist:
         messages.error(request, "Заявку не знайдено.")
-    except Exception as e:
-        messages.error(request, f"Помилка при завершенні ремонту: {e}")
+    except Exception:
+        logger.error("Помилка при завершенні ремонту", exc_info=True)
+        messages.error(request, "Помилка при завершенні ремонту. Спробуйте пізніше.")
 
     return redirect(reverse('profile') + '?tab=bookings')
 
@@ -758,8 +777,8 @@ def export_transactions_csv(request):
         except ValueError:
             pass
 
-    # Очищаємо ім'я файлу від небажаних символів для безпеки
-    safe_name = re.sub(r'[^\w\s-]', '', station.name).strip()[:50]
+    # Видаляємо не-ASCII символи для сумісності з усіма браузерами
+    safe_name = re.sub(r'[^a-zA-Z0-9_-]', '', re.sub(r'\s+', '_', station.name)).strip('_')[:50] or 'station'
     filename = f"{safe_name}_report_{start_date}_{end_date}.xlsx"
 
     # Створюємо книжку Excel з ошатним оформленням
@@ -957,7 +976,7 @@ def export_financial_report_pdf(request):
         selected_station, start_date, end_date, period_transactions, metrics, employees
     )
 
-    safe_name = re.sub(r'[^\w\s-]', '', selected_station.name).strip()[:50]
+    safe_name = re.sub(r'[^a-zA-Z0-9_-]', '', re.sub(r'\s+', '_', selected_station.name)).strip('_')[:50] or 'station'
     filename = f"financial_report_{safe_name}_{start_date}_{end_date}.pdf"
 
     response = HttpResponse(pdf_bytes, content_type='application/pdf')
@@ -967,4 +986,73 @@ def export_financial_report_pdf(request):
         response['Content-Disposition'] = f'attachment; filename="{filename}"'
 
     return response
+
+
+def search_supplier_parts_api(request):
+    """
+    API пошуку запчастин у каталогах постачальників (InterCars, Exist, TechnoVector).
+    Приймає ?query=... та ?supplier=...
+    """
+    query = request.GET.get('query', '').strip()
+    supplier = request.GET.get('supplier', 'all').strip()
+    data = search_supplier_parts(query, supplier)
+    return JsonResponse(data)
+
+
+@require_POST
+@login_required_session
+@role_required('station')
+def import_supplier_part_view(request):
+    """
+    Імпорт/замовлення обраної запчастини з каталогу постачальника на склад СТО.
+    """
+    user = get_current_user(request)
+    station_id = request.POST.get('station_id')
+    station = get_object_or_404(ServiceStation, pk=station_id, user=user)
+
+    sku = request.POST.get('sku', '').strip()
+    part_name = request.POST.get('part_name', '').strip()
+    brand = request.POST.get('brand', '').strip()
+    cost_price_str = request.POST.get('cost_price', '0')
+    selling_price_str = request.POST.get('selling_price', '0')
+    quantity_str = request.POST.get('quantity', '1')
+
+    if not part_name:
+        messages.error(request, 'Назва запчастини є обов\'язковою.')
+        return _redirect_to_dashboard(station.pk)
+
+    try:
+        cost_price = Decimal(cost_price_str)
+        selling_price = Decimal(selling_price_str)
+        quantity = int(quantity_str)
+    except (InvalidOperation, ValueError):
+        messages.error(request, 'Невірний формат ціни або кількості.')
+        return _redirect_to_dashboard(station.pk)
+
+    full_name = f"{part_name} ({brand})" if brand else part_name
+
+    existing_part = SparePart.objects.filter(station=station, name=full_name, sku=sku).first()
+    if existing_part:
+        existing_part.quantity += quantity
+        existing_part.cost_price = cost_price
+        if selling_price > 0:
+            existing_part.selling_price = selling_price
+        existing_part.save()
+        messages.success(request, f'Кількість запчастини "{full_name}" оновлено на складі (+{quantity} шт).')
+    else:
+        if selling_price <= 0:
+            selling_price = round(cost_price * Decimal('1.35'), 2)
+        
+        SparePart.objects.create(
+            station=station,
+            name=full_name,
+            sku=sku,
+            quantity=quantity,
+            cost_price=cost_price,
+            selling_price=selling_price,
+            min_quantity=3
+        )
+        messages.success(request, f'Запчастину "{full_name}" закуплено та додано на склад СТО.')
+
+    return _redirect_to_dashboard(station.pk)
 

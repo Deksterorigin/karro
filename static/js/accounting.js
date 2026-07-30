@@ -1,6 +1,5 @@
 /* ═════════════════════════════════════════════
-   Karro Standalone Accounting Interactivity JS
-   All comments written in Ukrainian
+   Скрипт інтерактивності панелі бухгалтерії СТО
    ═════════════════════════════════════════════ */
 
 let trendChart = null;

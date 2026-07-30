@@ -38,19 +38,44 @@ def station_detail(request, station_id):
             else:
                 text = request.POST.get('review_text', '').strip()
                 rating_str = request.POST.get('review_rating', '').strip()
+                review_photo = request.FILES.get('review_photo')
 
                 if not text:
                     messages.error(request, 'Введіть текст відгуку.')
                 elif not rating_str.isdigit() or not (1 <= int(rating_str) <= 5):
                     messages.error(request, 'Оцінка має бути від 1 до 5.')
                 else:
-                    Review.objects.create(
-                        text=text,
-                        rating=int(rating_str),
-                        user=user,
-                        station=station,
-                    )
+                    review_kwargs = {
+                        'text': text,
+                        'rating': int(rating_str),
+                        'user': user,
+                        'station': station,
+                    }
+                    if review_photo:
+                        valid, error_msg = _validate_image_upload(review_photo)
+                        if valid:
+                            review_kwargs['photo'] = review_photo
+                        else:
+                            messages.warning(request, f'Фото відгуку не додано: {error_msg}')
+                    Review.objects.create(**review_kwargs)
                     messages.success(request, 'Дякуємо за відгук!')
+
+        # Відповідь власника СТО на відгук
+        elif action == 'respond_review':
+            if not is_owner:
+                messages.error(request, 'Тільки власник СТО може відповідати на відгуки.')
+            else:
+                review_id = request.POST.get('review_id')
+                response_text = request.POST.get('response_text', '').strip()
+                review_obj = Review.objects.filter(pk=review_id, station=station).first()
+                if review_obj and response_text:
+                    from django.utils import timezone
+                    review_obj.owner_response = response_text
+                    review_obj.response_date = timezone.now()
+                    review_obj.save()
+                    messages.success(request, 'Відповідь успішно збережено.')
+                else:
+                    messages.error(request, 'Введіть текст відповіді.')
 
         # Завантаження фотографій власником СТО
         elif action == 'upload_photo':
@@ -97,6 +122,12 @@ def station_detail(request, station_id):
     if user and user.is_client:
         cars = Car.objects.filter(user=user)
 
+    # Отримуємо розклади без запису в БД на кожен перегляд;
+    # ініціалізуємо лише якщо розклади ще не створені
+    schedules = list(station.schedules.all())
+    if len(schedules) < 7:
+        schedules = station.get_or_create_schedules()
+
     context = {
         'station': station,
         'services': services,
@@ -107,7 +138,7 @@ def station_detail(request, station_id):
         'user': user,
         'is_owner': is_owner,
         'cars': cars,
-        'station_schedules': station.get_or_create_schedules(),
+        'station_schedules': schedules,
         'is_open_now': station.is_open_now(),
     }
     return render(request, 'station/detail.html', context)

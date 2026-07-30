@@ -3,7 +3,12 @@ function showSection(name, btn) {
     document.querySelectorAll('.nav-item').forEach(b => b.classList.remove('active'));
     const panel = document.getElementById('section-' + name);
     if (panel) panel.classList.add('active');
-    if (btn) btn.classList.add('active');
+    if (btn) {
+        btn.classList.add('active');
+        if (typeof btn.scrollIntoView === 'function') {
+            btn.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' });
+        }
+    }
 
     // Якщо відкрили календар, оновлюємо його розміри
     if (name === 'calendar' && window.karroCalendar) {

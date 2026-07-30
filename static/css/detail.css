@@ -1,4 +1,4 @@
-/* ── BACK LINK ── */
+/* ── КНОПКА ПОВЕРНЕННЯ ── */
 .back-bar {
     max-width: 1100px;
     margin: 0 auto;
@@ -26,7 +26,7 @@
     stroke-width: 2.5;
 }
 
-/* ── STATION HERO ── */
+/* ── БАНЕР СТО ── */
 .station-hero {
     max-width: 1100px;
     margin: 0 auto;
@@ -150,7 +150,7 @@
     stroke-width: 2.5;
 }
 
-/* ── PAGE LAYOUT ── */
+/* ── МАКЕТ СТОРІНКИ ── */
 .detail-grid-layout {
     max-width: 1100px;
     margin: 0 auto;
@@ -168,7 +168,7 @@
     min-width: 0;
 }
 
-/* ── SECTION CARDS ── */
+/* ── КАРТКИ РОЗДІЛІВ ── */
 .section-card-panel {
     background: var(--surface);
     border: 1px solid var(--border);
@@ -216,7 +216,7 @@
     padding: 0 2rem 2rem;
 }
 
-/* ── SERVICES ROW ── */
+/* ── СПИСОК ПОСЛУГ ── */
 .services-grid-list {
     display: flex;
     flex-direction: column;
@@ -281,7 +281,7 @@
     padding-top: 0.125rem;
 }
 
-/* ── PHOTO GALLERY ── */
+/* ── ФОТОГАЛЕРЕЯ ── */
 .gallery-grid-layout {
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
@@ -365,7 +365,7 @@
     stroke-width: 2.5;
 }
 
-/* Upload photo box */
+/* Блок завантаження фото */
 .photo-upload-area {
     border: 2px dashed var(--border-hover);
     border-radius: 12px;
@@ -425,7 +425,7 @@
     box-shadow: 0 0 0 3px var(--accent-dim);
 }
 
-/* ── REVIEWS ── */
+/* ── ВІДГУКИ ── */
 .reviews-card-container {
     display: flex;
     flex-direction: column;
@@ -508,7 +508,7 @@
     line-height: 1.6;
 }
 
-/* Review submission form styles */
+/* Стилі форми відгуків */
 .new-review-form-panel {
     background: var(--bg);
     border: 1px solid var(--border);
@@ -581,7 +581,7 @@
     color: var(--text-faint);
 }
 
-/* ── SIDEBAR ── */
+/* ── БІЧНА ПАНЕЛЬ ── */
 .details-sidebar {
     position: sticky;
     top: 120px;
@@ -651,7 +651,7 @@
     font-weight: 700;
 }
 
-/* ── MINI MAP ── */
+/* ── КАРТА ── */
 .map-card-box {
     background: var(--surface);
     border: 1px solid var(--border);
@@ -703,7 +703,7 @@
     font-weight: 700;
 }
 
-/* ── BOOKING MODAL & FORMS ── */
+/* ── МОДАЛЬНЕ ВІКНО БРОНЮВАННЯ ВА БОКСИ ── */
 .booking-btn {
     display: inline-flex;
     align-items: center;
@@ -849,7 +849,7 @@
     resize: vertical;
 }
 
-/* ── Responsive UI/UX Adjustments ── */
+/* ── АДАПТИВНІСТЬ ── */
 @media (max-width: 1024px) {
     .detail-grid-layout {
         grid-template-columns: 1fr;
@@ -863,13 +863,13 @@
 
 @media (max-width: 768px) {
     .back-bar, .station-hero, .detail-grid-layout {
-        padding-left: 1.5rem;
-        padding-right: 1.5rem;
+        padding-left: 1rem;
+        padding-right: 1rem;
     }
 
     .hero-top-layout {
         flex-direction: column;
-        gap: 1.5rem;
+        gap: 1.25rem;
         align-items: flex-start;
     }
 
@@ -877,68 +877,88 @@
         align-self: flex-start;
         flex-direction: row;
         align-items: center;
-        gap: 1.5rem;
-        padding: 1rem 1.5rem;
+        gap: 1.25rem;
+        padding: 0.85rem 1.25rem;
         width: 100%;
-        justify-content: flex-start;
+        justify-content: space-between;
     }
 
     .gallery-grid-layout {
-        grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
-        gap: 1rem;
+        grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+        gap: 0.75rem;
+    }
+
+    /* Оптимізація полів модального вікна та тач-зон */
+    .modal-box input,
+    .modal-box select,
+    .modal-box textarea,
+    .booking-card-widget input,
+    .booking-card-widget select {
+        font-size: 16px !important; /* Запобігає автоматичному зуму в Safari на iOS */
+        min-height: 48px;
+    }
+
+    .btn-submit-booking,
+    .btn-review-submit {
+        min-height: 48px;
+        font-size: 1rem;
+        width: 100%;
     }
 }
 
 @media (max-width: 480px) {
     .back-bar, .station-hero, .detail-grid-layout {
-        padding-left: 1rem;
-        padding-right: 1rem;
+        padding-left: 0.85rem;
+        padding-right: 0.85rem;
     }
 
     .hero-name {
-        font-size: 2rem;
+        font-size: 1.75rem;
     }
 
     .hero-meta-list {
-        gap: 0.75rem;
+        gap: 0.65rem;
     }
 
     .hero-rating-widget {
-        flex-direction: column;
-        align-items: flex-start;
-        gap: 0.5rem;
-        padding: 1rem;
+        flex-direction: row;
+        align-items: center;
+        gap: 1rem;
+        padding: 0.85rem 1rem;
     }
 
     .gallery-grid-layout {
         grid-template-columns: repeat(2, 1fr);
-        gap: 0.75rem;
+        gap: 0.5rem;
     }
 
     .section-head-bar {
-        padding: 1.25rem 1.25rem 0;
+        padding: 1rem 1rem 0;
     }
 
     .section-body-content {
-        padding: 0 1.25rem 1.25rem;
+        padding: 0 1rem 1rem;
     }
 
     .service-row-item {
-        flex-direction: column;
-        align-items: flex-start;
+        flex-direction: row;
+        justify-content: space-between;
+        align-items: center;
         gap: 0.5rem;
-        padding: 1rem 0;
+        padding: 0.85rem 0;
     }
 
     .svc-price-text {
-        align-self: flex-end;
-        font-size: 1.1rem;
+        font-size: 1rem;
     }
 
-    /* Адаптация модального окна для телефонов */
+    /* Адаптація модального вікна під мобільні екрани */
     .modal-box {
-        width: 92%;
-        padding: 1.5rem;
+        width: 95%;
+        max-height: 90vh;
+        overflow-y: auto;
+        padding: 1.25rem;
+        border-radius: 16px;
         margin: 0 auto;
     }
 }

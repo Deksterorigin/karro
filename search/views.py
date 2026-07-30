@@ -23,12 +23,19 @@ def search_stations(request):
     min_rating = request.GET.get('rating', '').strip()
     user_lat_str = request.GET.get('lat', '').strip()
     user_lng_str = request.GET.get('lng', '').strip()
+    radius_str = request.GET.get('radius', '').strip()
 
-    user_lat, user_lng = None, None
+    user_lat, user_lng, radius_km = None, None, None
     if user_lat_str and user_lng_str:
         try:
             user_lat = float(user_lat_str)
             user_lng = float(user_lng_str)
+        except ValueError:
+            pass
+
+    if radius_str:
+        try:
+            radius_km = float(radius_str)
         except ValueError:
             pass
 
@@ -63,6 +70,10 @@ def search_stations(request):
             except Exception:
                 pass
 
+        if radius_km and user_lat is not None and user_lng is not None:
+            if dist_km is None or dist_km > radius_km:
+                continue
+
         station_data.append({
             'station': s,
             'avg_rating': round(s.avg_rating_val, 1) if s.avg_rating_val else None,
@@ -79,6 +90,7 @@ def search_stations(request):
         'selected_city': city_query,
         'selected_service': service_query,
         'selected_rating': min_rating,
+        'selected_radius': radius_str,
         'user_lat': user_lat,
         'user_lng': user_lng,
     }

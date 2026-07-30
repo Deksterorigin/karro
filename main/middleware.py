@@ -1,4 +1,3 @@
-import time
 from django.shortcuts import redirect
 from django.contrib import messages
 from .models import User

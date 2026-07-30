@@ -100,7 +100,8 @@ class Transaction(models.Model):
     type = models.CharField(
         max_length=10, 
         choices=TRANSACTION_TYPES, 
-        verbose_name="Тип"
+        verbose_name="Тип",
+        db_index=True
     )
     category = models.CharField(
         max_length=20, 
@@ -119,7 +120,8 @@ class Transaction(models.Model):
     )
     date = models.DateField(
         default=datetime.date.today, 
-        verbose_name="Дата"
+        verbose_name="Дата",
+        db_index=True
     )
     booking = models.ForeignKey(
         Booking, 

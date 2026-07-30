@@ -47,7 +47,7 @@
                 <a href="{% url 'accounting:dashboard' %}" data-i18n="profile.nav_accounting">Бухгалтерія</a>
             {% endif %}
 
-            <!-- Мобильные элементы внутри шторки -->
+            <!-- Мобільні елементи всередині шторки -->
             <div class="mobile-nav-divider mobile-only"></div>
             {% if user.is_authenticated %}
                 <a href="{% url 'profile' %}" class="user-chip mobile-only" style="margin-top: 0.5rem; justify-content: flex-start; width: 100%;">
@@ -162,6 +162,7 @@
     </footer>
 
     <script src="{% static 'js/i18n.js' %}"></script>
+    <script src="{% static 'js/chat_sse.js' %}"></script>
     <script src="{% static 'js/navigation.js' %}"></script>
     {% if user.is_authenticated and user.role == 'station' %}
         <script src="{% static 'js/notifications.js' %}"></script>

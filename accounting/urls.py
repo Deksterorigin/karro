@@ -18,4 +18,7 @@ urlpatterns = [
     # Експорт транзакцій у CSV та звіту в PDF
     path('export/csv/', views.export_transactions_csv, name='export_csv'),
     path('export/pdf/', views.export_financial_report_pdf, name='export_pdf'),
+    # Пошук та закупівля запчастин у постачальників (API + Import)
+    path('api/suppliers/parts/search/', views.search_supplier_parts_api, name='search_supplier_parts_api'),
+    path('inventory/import-supplier-part/', views.import_supplier_part_view, name='import_supplier_part'),
 ]

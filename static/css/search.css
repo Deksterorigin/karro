@@ -1,4 +1,4 @@
-/* ── SEARCH BAR ── */
+/* ── ПАНЕЛЬ ПОШУКУ ── */
 .search-filter-bar {
     background: var(--surface);
     border-bottom: 1px solid var(--border);
@@ -124,7 +124,7 @@
     font-weight: 700;
 }
 
-/* ── PAGE LAYOUT ── */
+/* ── МАКЕТ СТОРІНКИ ── */
 .search-page-layout {
     width: 100%;
     max-width: 1200px;
@@ -136,7 +136,7 @@
     align-items: start;
 }
 
-/* ── LIST ── */
+/* ── СПИСОК СТО ── */
 .stations-list {
     display: flex;
     flex-direction: column;
@@ -363,7 +363,7 @@
     stroke-width: 1.75;
 }
 
-/* ── MAP ── */
+/* ── КАРТА ── */
 .map-wrap {
     position: sticky;
     top: 120px;
@@ -381,7 +381,7 @@
     z-index: 1;
 }
 
-/* Leaflet popup styling override */
+/* Перевизначення стилів вспливаючих вікон Leaflet */
 .leaflet-popup-content-wrapper {
     background: var(--surface) !important;
     color: var(--text) !important;
@@ -404,18 +404,75 @@
     padding: 6px 8px 0 0 !important;
 }
 
+.results-meta {
+    max-width: 1200px;
+    margin: 1.5rem auto 0;
+    padding: 0 2rem;
+    font-size: 0.9rem;
+    color: var(--text-muted);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 1rem;
+}
+
+.results-meta strong {
+    color: var(--text);
+    font-weight: 700;
+}
+
+.mobile-view-toggle {
+    display: flex;
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-md);
+    padding: 3px;
+    gap: 3px;
+    width: 100%;
+}
+
+.view-toggle-btn {
+    flex: 1;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    padding: 0.65rem 1rem;
+    min-height: 44px;
+    border: none;
+    border-radius: var(--radius-sm);
+    background: transparent;
+    color: var(--text-muted);
+    font-weight: 700;
+    font-size: 0.9rem;
+    cursor: pointer;
+    transition: all var(--transition-fast);
+}
+
+.view-toggle-btn.active {
+    background: var(--surface);
+    color: var(--accent);
+    box-shadow: var(--shadow-sm);
+}
+
 @media (max-width: 1024px) {
+    .results-meta {
+        padding: 0 1.5rem;
+    }
+
     .search-page-layout {
         grid-template-columns: 1fr;
-        padding: 1.5rem;
+        padding: 1rem 1.5rem 3rem;
         gap: 1.5rem;
     }
 
     .map-wrap {
-        height: 350px;
+        height: 380px;
         position: static;
-        order: -1;
+        order: 0;
         box-shadow: var(--shadow-sm);
+        border-radius: 16px;
     }
 
     .stations-list {
@@ -431,7 +488,13 @@
     }
 }
 
+/* Мобільна адаптація фільтрів, кнопок дій та карток СТО */
 @media (max-width: 768px) {
+    .results-meta {
+        padding: 0 1rem;
+        margin-top: 1rem;
+    }
+
     .search-form {
         flex-direction: column;
         align-items: stretch;
@@ -441,34 +504,73 @@
         min-width: 100%;
     }
 
+    .form-group input,
+    .form-group select {
+        font-size: 16px !important; /* Запобігає автоматичному зуму на iOS */
+        min-height: 48px;
+    }
+
     .search-form .btn-primary,
-    .btn-reset {
+    .btn-reset,
+    #btnNearby {
         width: 100%;
-        height: 48px;
+        min-height: 48px;
+        justify-content: center;
+        font-size: 1rem;
+    }
+
+    .card-footer {
+        flex-direction: row;
+        justify-content: space-between;
+        align-items: center;
+    }
+
+    .btn-detail {
+        min-height: 44px;
+        padding: 0.5rem 1rem;
+        background: var(--accent-dim);
+        border-radius: var(--radius-sm);
     }
 }
 
 @media (max-width: 480px) {
     .search-page-layout {
-        padding: 1rem;
-        margin: 1rem auto 2rem;
+        padding: 0.75rem;
+        margin: 0.5rem auto 2rem;
     }
 
     .search-filter-bar {
-        padding: 1rem;
+        padding: 1rem 0.85rem;
     }
 
     .card-header-inner {
-        padding: 1.25rem 1rem;
+        padding: 1rem 0.85rem;
         gap: 0.75rem;
     }
 
+    .station-icon {
+        width: 40px;
+        height: 40px;
+    }
+
     .station-name {
-        font-size: 1rem;
-        max-width: 160px;
+        font-size: 1.05rem;
+        white-space: normal;
+        overflow: visible;
+        word-break: break-word;
+        max-width: none;
+    }
+
+    .card-services {
+        padding: 0 0.85rem 1rem;
+    }
+
+    .card-footer {
+        padding: 0.85rem;
     }
 
     .map-wrap {
-        height: 280px;
+        height: 300px;
+        border-radius: 14px;
     }
 }

@@ -25,14 +25,14 @@ document.addEventListener('DOMContentLoaded', () => {
         menuToggle.addEventListener('click', toggleMenu);
         menuBackdrop.addEventListener('click', closeMenu);
 
-        // Close menu when clicking navigation links (important for anchors like #about, #author)
+        // Закриваємо меню при кліку на посилання навігації (важливо для якірних посилань)
         const navLinks = mainNav.querySelectorAll('a');
         navLinks.forEach(link => {
             link.addEventListener('click', closeMenu);
         });
     }
 
-    // Синхронизация мобильного и десктопного селекторов языков
+    // Синхронізація мобільного та десктопного перемикача мов
     const langSelectDesktop = document.getElementById('lang-select');
     const langSelectMobile = document.getElementById('lang-select-mobile');
 

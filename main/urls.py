@@ -18,4 +18,7 @@ urlpatterns = [
     path('api/bookings/<int:booking_id>/chat/', views.booking_chat_api, name='booking_chat_api'),
     path('api/chat-message/<int:message_id>/approval/', views.respond_cost_approval_api, name='respond_cost_approval_api'),
     path('booking/<int:booking_id>/act/pdf/', views.download_act_pdf_view, name='download_act_pdf'),
+    path('api/vin/decode/', views.decode_vin_api, name='decode_vin_api'),
+    path('api/bookings/<int:booking_id>/chat/events/', views.chat_events_sse, name='chat_events_sse'),
+    path('api/notifications/events/', views.notification_events_sse, name='notification_events_sse'),
 ]

@@ -83,6 +83,20 @@ function initMap() {
         const userMarker = L.marker([USER_LAT, USER_LNG], { icon: userIcon }).addTo(map);
         userMarker.bindPopup('<div style="font-family:sans-serif; font-weight:700; font-size:0.85rem; color:#10B981;">Ви знаходитесь тут</div>');
         bounds.push([USER_LAT, USER_LNG]);
+
+        if (typeof SELECTED_RADIUS !== 'undefined' && SELECTED_RADIUS && SELECTED_RADIUS > 0) {
+            const radiusMeters = SELECTED_RADIUS * 1000;
+            const radiusCircle = L.circle([USER_LAT, USER_LNG], {
+                color: '#0052CC',
+                fillColor: '#0052CC',
+                fillOpacity: 0.08,
+                weight: 1.5,
+                dashArray: '4, 4',
+                radius: radiusMeters
+            }).addTo(map);
+            bounds.push(radiusCircle.getBounds().getNorthEast());
+            bounds.push(radiusCircle.getBounds().getSouthWest());
+        }
     }
 
     if (!STATIONS.length) {
