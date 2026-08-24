@@ -1,7 +1,6 @@
-# Інтеграція та пошук у каталогах постачальників запчастин (InterCars, Exist.ua, TechnoVector)
+# Локальний каталог запчастин для пошуку та закупівлі (демонстраційні дані постачальників)
 
 import re
-import random
 
 SUPPLIERS = [
     {'code': 'intercars', 'name': 'InterCars Україна', 'badge_color': '#0284c7'},
@@ -162,7 +161,7 @@ CATALOG_DATABASE = [
     {
         'sku': 'K015607XS',
         'oem': '03L 198 119 F',
-        'part_name': 'Комплект ременя ГРМ з помпoю Gates',
+        'part_name': 'Комплект ременя ГРМ з помпою Gates',
         'brand': 'Gates',
         'category': 'Двигун та ГРМ',
         'supplier_code': 'intercars',
@@ -209,29 +208,6 @@ def search_supplier_parts(query='', supplier_code='all'):
 
         if clean_query in searchable_text or query_normalized in searchable_normalized:
             results.append(item)
-
-    # Генерація аналогів якщо нічого не знайдено за пошуковим словом
-    if not results and len(clean_query) >= 3:
-        for supplier in SUPPLIERS:
-            if supplier_code != 'all' and supplier['code'] != supplier_code:
-                continue
-            
-            cost = float(random.randint(300, 2500))
-            synthetic_part = {
-                'sku': f"AUTO-{clean_query[:4].upper()}-{random.randint(100, 999)}",
-                'oem': f"OEM-{random.randint(10000, 99999)}",
-                'part_name': f"Запчастина ({query.capitalize()})",
-                'brand': random.choice(['Bosch', 'Febi', 'TRW', 'SWAG', 'Denso']),
-                'category': 'Автозапчастини',
-                'supplier_code': supplier['code'],
-                'supplier_name': supplier['name'],
-                'cost_price': cost,
-                'suggested_retail_price': round(cost * 1.35, 2),
-                'stock_qty': random.randint(2, 20),
-                'delivery_days': random.choice([0, 1, 2]),
-                'compatibility': 'Сумісно з більшістю модифікацій'
-            }
-            results.append(synthetic_part)
 
     return {
         'status': 'success',

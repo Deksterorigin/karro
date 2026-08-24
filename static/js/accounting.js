@@ -1,6 +1,6 @@
-/* ═════════════════════════════════════════════
+/*
    Скрипт інтерактивності панелі бухгалтерії СТО
-   ═════════════════════════════════════════════ */
+   */
 
 let trendChart = null;
 let categoryChart = null;
@@ -10,8 +10,8 @@ function initCharts() {
     const isDark = document.documentElement.classList.contains('dark');
     
     // Кольори шрифтів та сіток залежно від обраної теми
-    const textColor = isDark ? '#94a3b8' : '#475569';
-    const gridColor = isDark ? '#1e293b' : '#E2E8F0';
+    const textColor = isDark ? '#adb5bd' : '#495057';
+    const gridColor = isDark ? '#333333' : '#dee2e6';
     
     // 1. Графік динаміки доходів та витрат СТО
     const trendCtx = document.getElementById('financeTrendChart');
@@ -27,25 +27,25 @@ function initCharts() {
                 labels: window.chartDates || [],
                 datasets: [
                     {
-                        label: 'Доходи',
+                        label: getLang() === 'en' ? 'Income' : 'Доходи',
                         data: window.chartIncomes || [],
-                        borderColor: isDark ? '#14b8a6' : '#319795',
-                        backgroundColor: 'rgba(20, 184, 166, 0.05)',
+                        borderColor: isDark ? '#4dd88f' : '#198754',
+                        backgroundColor: 'rgba(25, 135, 84, 0.06)',
                         fill: true,
                         tension: 0.3,
                         borderWidth: 3,
-                        pointBackgroundColor: isDark ? '#14b8a6' : '#319795',
+                        pointBackgroundColor: isDark ? '#4dd88f' : '#198754',
                         pointHoverRadius: 6
                     },
                     {
-                        label: 'Витрати',
+                        label: getLang() === 'en' ? 'Expenses' : 'Витрати',
                         data: window.chartExpenses || [],
-                        borderColor: isDark ? '#f43f5e' : '#e53e3e',
-                        backgroundColor: 'rgba(244, 63, 94, 0.05)',
+                        borderColor: isDark ? '#f16a76' : '#dc3545',
+                        backgroundColor: 'rgba(220, 53, 69, 0.05)',
                         fill: true,
                         tension: 0.3,
                         borderWidth: 3,
-                        pointBackgroundColor: isDark ? '#f43f5e' : '#e53e3e',
+                        pointBackgroundColor: isDark ? '#f16a76' : '#dc3545',
                         pointHoverRadius: 6
                     }
                 ]
@@ -58,15 +58,15 @@ function initCharts() {
                         position: 'top',
                         labels: {
                             color: textColor,
-                            font: { family: 'Inter', size: 12, weight: '600' }
+                            font: { size: 12 }
                         }
                     },
                     tooltip: {
                         padding: 12,
-                        backgroundColor: isDark ? '#1e293b' : '#ffffff',
-                        titleColor: isDark ? '#f8fafc' : '#1a1a1a',
-                        bodyColor: isDark ? '#cbd5e1' : '#555555',
-                        borderColor: isDark ? '#334155' : '#e5e7eb',
+                        backgroundColor: isDark ? '#1c1c1c' : '#ffffff',
+                        titleColor: isDark ? '#e9ecef' : '#212529',
+                        bodyColor: isDark ? '#adb5bd' : '#495057',
+                        borderColor: isDark ? '#333333' : '#dee2e6',
                         borderWidth: 1,
                         usePointStyle: true
                     }
@@ -74,11 +74,11 @@ function initCharts() {
                 scales: {
                     x: {
                         grid: { color: 'transparent' },
-                        ticks: { color: textColor, font: { family: 'Inter' } }
+                        ticks: { color: textColor }
                     },
                     y: {
                         grid: { color: gridColor },
-                        ticks: { color: textColor, font: { family: 'Inter' } }
+                        ticks: { color: textColor }
                     }
                 }
             }
@@ -100,15 +100,15 @@ function initCharts() {
                 datasets: [{
                     data: window.categoryValues || [],
                     backgroundColor: [
-                        '#3b82f6', // Синій
-                        '#10b981', // Зелений
-                        '#f59e0b', // Помаранчевий
-                        '#8b5cf6', // Фіолетовий
-                        '#ec4899', // Рожевий
-                        '#64748b'  // Сірий
+                        '#0d6efd', // Синій
+                        '#198754', // Зелений
+                        '#ffc107', // Жовтий
+                        '#6f42c1', // Фіолетовий
+                        '#d63384', // Рожевий
+                        '#868e96'  // Сірий
                     ],
                     borderWidth: isDark ? 2 : 1,
-                    borderColor: isDark ? '#121824' : '#ffffff'
+                    borderColor: isDark ? '#1c1c1c' : '#ffffff'
                 }]
             },
             options: {
@@ -120,16 +120,16 @@ function initCharts() {
                         position: 'right',
                         labels: {
                             color: textColor,
-                            font: { family: 'Inter', size: 12, weight: '500' },
+                            font: { size: 12 },
                             padding: 15
                         }
                     },
                     tooltip: {
                         padding: 12,
-                        backgroundColor: isDark ? '#1e293b' : '#ffffff',
-                        titleColor: isDark ? '#f8fafc' : '#1a1a1a',
-                        bodyColor: isDark ? '#cbd5e1' : '#555555',
-                        borderColor: isDark ? '#334155' : '#e5e7eb',
+                        backgroundColor: isDark ? '#1c1c1c' : '#ffffff',
+                        titleColor: isDark ? '#e9ecef' : '#212529',
+                        bodyColor: isDark ? '#adb5bd' : '#495057',
+                        borderColor: isDark ? '#333333' : '#dee2e6',
                         borderWidth: 1
                     }
                 }

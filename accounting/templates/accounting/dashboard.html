@@ -2,78 +2,76 @@
 {% load static %}
 
 {% block title %}Karro — Бухгалтерія та персонал{% endblock %}
+{% block i18n_title %}acc.page_title{% endblock %}
 
 {% block extra_css %}
-    <link rel="stylesheet" href="{% static 'css/accounting.css' %}?v=1.4">
+    <link rel="stylesheet" href="{% static 'css/accounting.css' %}?v=1.5">
 {% endblock %}
 
 {% block content %}
-<!-- Підключення стилів безпосередньо в тіло для надійності -->
-<link rel="stylesheet" href="{% static 'css/accounting.css' %}?v=1.4">
-
 <!-- Головний контейнер автономної сторінки бухгалтерії -->
 <div class="accounting-container">
     
-    <!-- ════ ВЕРХНЯ ПАНЕЛЬ УПРАВЛІННЯ ДАШБОРДУ ════ -->
+    <!-- ВЕРХНЯ ПАНЕЛЬ УПРАВЛІННЯ ДАШБОРДУ -->
     <header class="dashboard-top-bar">
         <div class="header-title-section">
             <div class="breadcrumb">
                 <a href="{% url 'profile' %}" class="back-link">
                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="19" y1="12" x2="5" y2="12"></line><polyline points="12 19 5 12 12 5"></polyline></svg>
-                    <span>Назад у гараж</span>
+                    <span data-i18n="acc.back_to_garage">Назад у гараж</span>
                 </a>
             </div>
-            <h1 class="dashboard-main-title">Бухгалтерія та Кадри</h1>
-            <p class="dashboard-subtitle">Аналітика доходів, витрат та управління персоналом СТО</p>
+            <h1 class="dashboard-main-title" data-i18n="acc.title">Бухгалтерія та Кадри</h1>
+            <p class="dashboard-subtitle" data-i18n="acc.subtitle">Аналітика доходів, витрат та управління персоналом СТО</p>
         </div>
 
         <div class="header-actions-section">
             <!-- Перемикач темної/світлої теми -->
-            <button id="theme-toggle-btn" class="btn-theme-toggle" title="Змінити тему оформлення">
+            <button id="theme-toggle-btn" class="btn-theme-toggle" title="Змінити тему оформлення" data-i18n-tip="acc.tip_theme">
                 <svg class="sun-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>
                 <svg class="moon-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
             </button>
 
             <!-- Кнопки експорту у Excel та PDF -->
-            <a href="{% url 'accounting:export_csv' %}?station_id={{ selected_station.pk }}&start_date={{ start_date }}&end_date={{ end_date }}&type={{ selected_type }}&category={{ selected_category }}&employee_id={{ selected_employee_id }}" class="btn-export-csv" title="Завантажити звіт у форматі Excel (.xlsx)">
+            <a href="{% url 'accounting:export_excel' %}?station_id={{ selected_station.pk }}&start_date={{ start_date }}&end_date={{ end_date }}&type={{ selected_type }}&category={{ selected_category }}&employee_id={{ selected_employee_id }}" class="btn-export-excel" title="Завантажити звіт у форматі Excel (.xlsx)" data-i18n-tip="acc.tip_excel">
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
-                <span>Експорт Excel</span>
+                <span data-i18n="acc.btn_export_excel">Експорт Excel</span>
             </a>
 
-            <a href="{% url 'accounting:export_pdf' %}?station_id={{ selected_station.pk }}&start_date={{ start_date }}&end_date={{ end_date }}&type={{ selected_type }}&category={{ selected_category }}&employee_id={{ selected_employee_id }}" class="btn-export-pdf" title="Завантажити фінансовий звіт у форматі PDF">
+            <a href="{% url 'accounting:export_pdf' %}?station_id={{ selected_station.pk }}&start_date={{ start_date }}&end_date={{ end_date }}&type={{ selected_type }}&category={{ selected_category }}&employee_id={{ selected_employee_id }}" class="btn-export-pdf" title="Завантажити фінансовий звіт у форматі PDF" data-i18n-tip="acc.tip_pdf">
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><polyline points="10 9 9 9 8 9"></polyline></svg>
-                <span>Завантажити PDF</span>
+                <span data-i18n="acc.btn_export_pdf">Завантажити PDF</span>
             </a>
 
-            <a href="{% url 'accounting:export_pdf' %}?station_id={{ selected_station.pk }}&start_date={{ start_date }}&end_date={{ end_date }}&type={{ selected_type }}&category={{ selected_category }}&employee_id={{ selected_employee_id }}&inline=1" target="_blank" class="btn-preview-pdf" title="Переглянути PDF-звіт у браузері">
+            <a href="{% url 'accounting:export_pdf' %}?station_id={{ selected_station.pk }}&start_date={{ start_date }}&end_date={{ end_date }}&type={{ selected_type }}&category={{ selected_category }}&employee_id={{ selected_employee_id }}&inline=1" target="_blank" class="btn-preview-pdf" title="Переглянути PDF-звіт у браузері" data-i18n-tip="acc.tip_preview">
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle></svg>
-                <span>Перегляд PDF</span>
+                <span data-i18n="acc.btn_preview_pdf">Перегляд PDF</span>
             </a>
 
             <!-- Швидкі дії -->
-            <button class="btn-action-primary" style="background:#0284c7; border-color:#0284c7;" onclick="openModal('supplierPartsModal')">
+            <button class="btn-action-primary" onclick="openModal('supplierPartsModal')">
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
-                <span>Пошук у постачальників</span>
+                <span data-i18n="acc.btn_suppliers">Пошук у постачальників</span>
             </button>
 
             <button class="btn-action-primary" onclick="openModal('addEmployeeModal')">
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><line x1="19" y1="8" x2="19" y2="14"/><line x1="16" y1="11" x2="22" y2="11"/></svg>
-                <span>Додати працівника</span>
+                <span data-i18n="acc.btn_add_employee">Додати працівника</span>
             </button>
 
             <button class="btn-action-success" onclick="openModal('addTransactionModal')">
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></svg>
-                <span>Нова транзакція</span>
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+                <span data-i18n="acc.btn_add_transaction">Нова транзакція</span>
             </button>
         </div>
     </header>
 
-    <!-- ════ ПАНЕЛЬ ФІЛЬТРІВ ТА СТО СЕЛЕКТОР ════ -->
+    <!-- ПАНЕЛЬ ФІЛЬТРІВ ТА СТО СЕЛЕКТОР -->
     <section class="filters-card">
         <form method="GET" class="main-filters-form">
             <!-- Вибір СТО (якщо у власника їх декілька) -->
             <div class="filter-item station-picker">
-                <label class="filter-label">Обране СТО</label>
+                <label class="filter-label" data-i18n="acc.filter_station">Обране СТО</label>
                 {% if stations.count > 1 %}
                     <select name="station_id" onchange="this.form.submit()" class="filter-select">
                         {% for st in stations %}
@@ -88,7 +86,7 @@
 
             <!-- Період дат -->
             <div class="filter-item date-range-picker">
-                <label class="filter-label">Період звітності</label>
+                <label class="filter-label" data-i18n="acc.filter_period">Період звітності</label>
                 <div class="date-inputs-row">
                     <input type="date" name="start_date" value="{{ start_date }}" class="filter-input-date" onchange="this.form.submit()">
                     <span class="date-sep">—</span>
@@ -98,19 +96,19 @@
 
             <!-- Фільтр за типом транзакцій -->
             <div class="filter-item">
-                <label class="filter-label">Тип операції</label>
+                <label class="filter-label" data-i18n="acc.filter_type">Тип операції</label>
                 <select name="type" class="filter-select" onchange="this.form.submit()">
-                    <option value="" {% if not selected_type %}selected{% endif %}>Всі операції</option>
-                    <option value="income" {% if selected_type == 'income' %}selected{% endif %}>Тільки доходи</option>
-                    <option value="expense" {% if selected_type == 'expense' %}selected{% endif %}>Тільки витрати</option>
+                    <option value="" {% if not selected_type %}selected{% endif %} data-i18n="acc.opt_all_tx">Всі операції</option>
+                    <option value="income" {% if selected_type == 'income' %}selected{% endif %} data-i18n="acc.opt_income_only">Тільки доходи</option>
+                    <option value="expense" {% if selected_type == 'expense' %}selected{% endif %} data-i18n="acc.opt_expense_only">Тільки витрати</option>
                 </select>
             </div>
 
             <!-- Фільтр за категорією -->
             <div class="filter-item">
-                <label class="filter-label">Категорія</label>
+                <label class="filter-label" data-i18n="acc.filter_category">Категорія</label>
                 <select name="category" class="filter-select" onchange="this.form.submit()">
-                    <option value="all" {% if selected_category == 'all' or not selected_category %}selected{% endif %}>Всі категорії</option>
+                    <option value="all" {% if selected_category == 'all' or not selected_category %}selected{% endif %} data-i18n="acc.opt_all_cats">Всі категорії</option>
                     {% for cat_code, cat_name in categories_choices %}
                         <option value="{{ cat_code }}" {% if selected_category == cat_code %}selected{% endif %}>{{ cat_name }}</option>
                     {% endfor %}
@@ -119,9 +117,9 @@
 
             <!-- Фільтр за співробітником -->
             <div class="filter-item">
-                <label class="filter-label">Виконавець/Співробітник</label>
+                <label class="filter-label" data-i18n="acc.filter_employee">Виконавець/Співробітник</label>
                 <select name="employee_id" class="filter-select" onchange="this.form.submit()">
-                    <option value="all" {% if selected_employee_id == 'all' or not selected_employee_id %}selected{% endif %}>Всі співробітники</option>
+                    <option value="all" {% if selected_employee_id == 'all' or not selected_employee_id %}selected{% endif %} data-i18n="acc.opt_all_emps">Всі співробітники</option>
                     {% for emp in employees %}
                         <option value="{{ emp.pk }}" {% if selected_employee_id == emp.pk|stringformat:"i" %}selected{% endif %}>{{ emp.full_name }}</option>
                     {% endfor %}
@@ -130,13 +128,13 @@
             
             {% if selected_type or selected_category or selected_employee_id %}
                 <div class="filter-reset-wrapper">
-                    <a href="{% url 'accounting:dashboard' %}?station_id={{ selected_station.pk }}" class="btn-reset-filters">✕ Скинути</a>
+                    <a href="{% url 'accounting:dashboard' %}?station_id={{ selected_station.pk }}" class="btn-reset-filters" data-i18n="search.btn_reset">Скинути</a>
                 </div>
             {% endif %}
         </form>
     </section>
 
-    <!-- ════ КАРТКИ ОСНОВНИХ ФІНАНСОВИХ ПОКАЗНИКІВ ════ -->
+    <!-- КАРТКИ ОСНОВНИХ ФІНАНСОВИХ ПОКАЗНИКІВ -->
     <section class="metrics-dashboard-grid">
         <!-- Картка: Дохід -->
         <div class="finance-card income-highlight">
@@ -144,7 +142,7 @@
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"></polyline><polyline points="17 6 23 6 23 12"></polyline></svg>
             </div>
             <div class="card-content-details">
-                <span class="card-label">Загальний дохід</span>
+                <span class="card-label" data-i18n="acc.metric_income">Загальний дохід</span>
                 <span class="card-amount-value">{{ total_income }} ₴</span>
             </div>
         </div>
@@ -155,7 +153,7 @@
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="23 18 13.5 8.5 8.5 13.5 1 6"></polyline><polyline points="17 18 23 18 23 12"></polyline></svg>
             </div>
             <div class="card-content-details">
-                <span class="card-label">Витрати СТО</span>
+                <span class="card-label" data-i18n="acc.metric_expense">Витрати СТО</span>
                 <span class="card-amount-value">{{ total_expense }} ₴</span>
             </div>
         </div>
@@ -169,7 +167,7 @@
                 </svg>
             </div>
             <div class="card-content-details">
-                <span class="card-label">Чистий прибуток</span>
+                <span class="card-label" data-i18n="acc.metric_profit">Чистий прибуток</span>
                 <span class="card-amount-value">{{ net_profit }} ₴</span>
             </div>
         </div>
@@ -180,17 +178,17 @@
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
             </div>
             <div class="card-content-details">
-                <span class="card-label">Невиплачена зарплата</span>
+                <span class="card-label" data-i18n="acc.metric_salaries">Невиплачена зарплата</span>
                 <span class="card-amount-value">{{ unpaid_salaries }} ₴</span>
             </div>
         </div>
     </section>
 
-    <!-- ════ РОЗДІЛ ІНТЕРАКТИВНОЇ АНАЛІТИКИ ТА ГРАФІКІВ ════ -->
+    <!-- РОЗДІЛ ІНТЕРАКТИВНОЇ АНАЛІТИКИ ТА ГРАФІКІВ -->
     <section class="analytics-charts-grid">
         <!-- Блок 1: Лінійний графік фінансів -->
         <div class="chart-container-card">
-            <h3 class="chart-card-title">Динаміка доходів та витрат</h3>
+            <h3 class="chart-card-title" data-i18n="acc.trend_title">Динаміка доходів та витрат</h3>
             <div class="canvas-wrapper">
                 <canvas id="financeTrendChart"></canvas>
             </div>
@@ -198,35 +196,35 @@
 
         <!-- Блок 2: Кругова діаграма витрат -->
         <div class="chart-container-card">
-            <h3 class="chart-card-title">Структура витрат за категоріями</h3>
+            <h3 class="chart-card-title" data-i18n="acc.analytic_title">Структура витрат за категоріями</h3>
             <div class="canvas-wrapper doughnut-canvas">
                 {% if total_expense > 0 %}
                     <canvas id="expenseCategoryChart"></canvas>
                 {% else %}
                     <div class="chart-no-data-placeholder">
                         <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
-                        <p>Немає витрат за обраний період для побудови структури</p>
+                        <p data-i18n="acc.no_expenses">Немає витрат за обраний період для побудови структури</p>
                     </div>
                 {% endif %}
             </div>
         </div>
     </section>
 
-    <!-- ════ РОЗДІЛ ТАБЛИЦЬ ТА УПРАВЛІННЯ ДАНИМИ ════ -->
+    <!-- РОЗДІЛ ТАБЛИЦЬ ТА УПРАВЛІННЯ ДАНИМИ -->
     <section class="dashboard-tabs-section">
         <!-- Заголовки табів -->
         <div class="tabs-header-buttons">
             <button class="tab-button active" onclick="switchDashboardTab('staff-tab', this)">
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
-                <span>Штат та Зарплати</span>
+                <span data-i18n="acc.tab_staff">Штат та Зарплати</span>
             </button>
             <button class="tab-button" onclick="switchDashboardTab('transactions-tab', this)">
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="4" width="20" height="16" rx="2"/><line x1="12" y1="4" x2="12" y2="20"/><line x1="2" y1="12" x2="22" y2="12"/></svg>
-                <span>Журнал операцій</span>
+                <span data-i18n="acc.transactions_title">Журнал операцій</span>
             </button>
             <button class="tab-button" onclick="switchDashboardTab('payouts-tab', this)">
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="1" x2="12" y2="23"></line><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"></path></svg>
-                <span>Архів виплат</span>
+                <span data-i18n="acc.tab_payouts">Архів виплат</span>
             </button>
         </div>
 
@@ -237,11 +235,11 @@
                     <table class="dashboard-data-table">
                         <thead>
                             <tr>
-                                <th>Співробітник</th>
-                                <th>Посада</th>
-                                <th>Ставка / Відсоток</th>
-                                <th>Баланс до виплати</th>
-                                <th class="text-right">Дії</th>
+                                <th data-i18n="acc.tbl_name_full">Співробітник</th>
+                                <th data-i18n="acc.tbl_position">Посада</th>
+                                <th data-i18n="acc.tbl_rate">Ставка / Відсоток</th>
+                                <th data-i18n="acc.tbl_balance">Баланс до виплати</th>
+                                <th class="text-right" data-i18n="acc.tbl_actions">Дії</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -258,8 +256,8 @@
                                     </td>
                                     <td data-label="Ставка / Відсоток">
                                         <div class="employee-rate-info">
-                                            <span>Ставка: <strong>{{ emp.base_salary }} ₴</strong></span>
-                                            <span>Комісія: <strong>{{ emp.commission_percent }}%</strong></span>
+                                            <span><span data-i18n="acc.rate_word">Ставка:</span> <strong>{{ emp.base_salary }} ₴</strong></span>
+                                            <span><span data-i18n="acc.commission_word">Комісія:</span> <strong>{{ emp.commission_percent }}%</strong></span>
                                         </div>
                                     </td>
                                     <td data-label="Баланс до виплати">
@@ -270,21 +268,21 @@
                                             {% if emp.is_active %}
                                                 {% if emp.salary_balance.current_balance > 0 %}
                                                     <button class="btn-table-pay" onclick="openPayoutModal('{{ emp.pk }}', '{{ emp.full_name }}', '{{ emp.salary_balance.current_balance }}')">
-                                                        <span>Виплатити</span>
+                                                        <span data-i18n="acc.btn_pay">Виплатити</span>
                                                     </button>
                                                 {% endif %}
                                                 <button class="btn-table-edit" onclick="openEditEmployeeModal('{{ emp.pk }}', '{{ emp.full_name }}', '{{ emp.phone|default:'' }}', '{{ emp.email|default:'' }}', '{{ emp.position }}', '{{ emp.base_salary }}', '{{ emp.commission_percent }}')">
                                                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>
                                                 </button>
-                                                <form action="{% url 'accounting:fire_employee' emp.pk %}" method="POST" onsubmit="return confirm('Ви впевнені, що хочете звільнити цього співробітника?')" style="display: inline;">
+                                                <form action="{% url 'accounting:fire_employee' emp.pk %}" method="POST" onsubmit="return confirm(t('acc.confirm_fire'))" style="display: inline;">
                                                     {% csrf_token %}
-                                                    <button type="submit" class="btn-table-danger" title="Звільнити співробітника">
+                                                    <button type="submit" class="btn-table-danger" title="Звільнити співробітника" data-i18n-tip="acc.tip_fire">
                                                         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/></svg>
                                                     </button>
                                                 </form>
                                             {% else %}
-                                                <span class="badge badge-fired">Звільнений</span>
-                                                <button class="btn-table-reactivate" onclick="openEditEmployeeModal('{{ emp.pk }}', '{{ emp.full_name }}', '{{ emp.phone|default:'' }}', '{{ emp.email|default:'' }}', '{{ emp.position }}', '{{ emp.base_salary }}', '{{ emp.commission_percent }}', 'false')">
+                                                <span class="badge badge-fired" data-i18n="acc.fired">Звільнений</span>
+                                                <button class="btn-table-reactivate" onclick="openEditEmployeeModal('{{ emp.pk }}', '{{ emp.full_name }}', '{{ emp.phone|default:'' }}', '{{ emp.email|default:'' }}', '{{ emp.position }}', '{{ emp.base_salary }}', '{{ emp.commission_percent }}', 'false')" data-i18n="acc.btn_reactivate">
                                                     Поновити
                                                 </button>
                                             {% endif %}
@@ -293,7 +291,7 @@
                                 </tr>
                             {% empty %}
                                 <tr>
-                                    <td colspan="5" class="table-empty-placeholder">
+                                    <td colspan="5" class="table-empty-placeholder" data-i18n="acc.no_staff">
                                         Штат порожній. Будь ласка, додайте першого співробітника!
                                     </td>
                                 </tr>
@@ -311,10 +309,10 @@
                     <table class="dashboard-data-table">
                         <thead>
                             <tr>
-                                <th>Дата</th>
-                                <th>Категорія та виконавець</th>
-                                <th>Опис операції</th>
-                                <th class="text-right">Сума (грн)</th>
+                                <th data-i18n="acc.tbl_date">Дата</th>
+                                <th data-i18n="acc.tbl_cat_emp">Категорія та виконавець</th>
+                                <th data-i18n="acc.tbl_desc">Опис операції</th>
+                                <th class="text-right" data-i18n="acc.tbl_amount">Сума (грн)</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -337,7 +335,7 @@
                                     <td data-label="Опис операції" class="tx-desc-cell">
                                         {{ tx.description|default:"—" }}
                                         {% if tx.booking %}
-                                            <span class="tx-booking-ref">Заявка #{{ tx.booking.id }}</span>
+                                            <span class="tx-booking-ref"><span data-i18n="acc.booking_word">Заявка</span> #{{ tx.booking.id }}</span>
                                         {% endif %}
                                     </td>
                                     <td data-label="Сума (грн)" class="text-right">
@@ -348,7 +346,7 @@
                                 </tr>
                             {% empty %}
                                 <tr>
-                                    <td colspan="4" class="table-empty-placeholder">
+                                    <td colspan="4" class="table-empty-placeholder" data-i18n="acc.no_transactions">
                                         Немає транзакцій, які відповідають обраним критеріям фільтрації.
                                     </td>
                                 </tr>
@@ -366,11 +364,11 @@
                     <table class="dashboard-data-table">
                         <thead>
                             <tr>
-                                <th>Дата виплати</th>
-                                <th>Співробітник</th>
-                                <th>Посада</th>
-                                <th>Призначення платежу</th>
-                                <th class="text-right">Сума (грн)</th>
+                                <th data-i18n="acc.tbl_paid_date">Дата виплати</th>
+                                <th data-i18n="acc.tbl_name_full">Співробітник</th>
+                                <th data-i18n="acc.tbl_position">Посада</th>
+                                <th data-i18n="acc.tbl_purpose">Призначення платежу</th>
+                                <th class="text-right" data-i18n="acc.tbl_amount">Сума (грн)</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -384,7 +382,7 @@
                                 </tr>
                             {% empty %}
                                 <tr>
-                                    <td colspan="5" class="table-empty-placeholder">
+                                    <td colspan="5" class="table-empty-placeholder" data-i18n="acc.no_payouts">
                                         Немає записів про виплати заробітних плат за вказаний період.
                                     </td>
                                 </tr>
@@ -397,13 +395,13 @@
     </section>
 </div>
 
-<!-- ════ МОДАЛЬНІ ВІКНА ДЛЯ УПРАВЛІННЯ ДАНИМИ ════ -->
+<!-- МОДАЛЬНІ ВІКНА ДЛЯ УПРАВЛІННЯ ДАНИМИ -->
 
-<!-- Модалка 1: Додати працівника -->
+<!-- Модалка додавання працівника -->
 <div class="acc-modal-overlay" id="addEmployeeModal">
     <div class="acc-modal-content">
         <div class="acc-modal-header">
-            <h3>Додати нового працівника</h3>
+            <h3 data-i18n="acc.add_emp_title">Додати нового працівника</h3>
             <button class="close-modal-btn" onclick="closeModal('addEmployeeModal')">&times;</button>
         </div>
         <form action="{% url 'accounting:add_employee' %}" method="POST" class="acc-modal-form">
@@ -411,14 +409,14 @@
             <input type="hidden" name="station_id" value="{{ selected_station.pk }}">
             
             <div class="form-group">
-                <label>Повне ім'я *</label>
-                <input type="text" name="full_name" placeholder="Петро Іванов" required>
+                <label data-i18n="acc.lbl_emp_name">Повне ім'я *</label>
+                <input type="text" name="full_name" placeholder="Петро Іванов" required data-i18n-placeholder="ph.emp_name">
             </div>
             
             <div class="form-grid">
                 <div class="form-group">
-                    <label>Телефон</label>
-                    <input type="text" name="phone" placeholder="+380671234567">
+                    <label data-i18n="acc.lbl_emp_phone">Телефон</label>
+                    <input type="text" name="phone" placeholder="+380671234567" data-i18n-placeholder="ph.phone">
                 </div>
                 <div class="form-group">
                     <label>Email</label>
@@ -427,31 +425,31 @@
             </div>
 
             <div class="form-group">
-                <label>Посада *</label>
-                <input type="text" name="position" placeholder="Автомеханік, Автоелектрик" required>
+                <label data-i18n="acc.lbl_emp_pos">Посада *</label>
+                <input type="text" name="position" placeholder="Автомеханік, Автоелектрик" required data-i18n-placeholder="ph.position">
             </div>
 
             <div class="form-grid">
                 <div class="form-group">
-                    <label>Ставка (грн/міс або грн/день) *</label>
+                    <label data-i18n="acc.lbl_emp_rate">Ставка (грн/міс або грн/день) *</label>
                     <input type="number" name="base_salary" step="0.01" value="0.00" min="0" required>
                 </div>
                 <div class="form-group">
-                    <label>Комісія від замовлень (%) *</label>
+                    <label data-i18n="acc.lbl_emp_comm">Комісія від замовлень (%) *</label>
                     <input type="number" name="commission_percent" step="0.01" value="0.00" min="0" max="100" required>
                 </div>
             </div>
 
-            <button type="submit" class="btn-form-submit">Зберегти працівника</button>
+            <button type="submit" class="btn-form-submit" data-i18n="acc.btn_save_emp">Зберегти працівника</button>
         </form>
     </div>
 </div>
 
-<!-- Модалка 2: Редагувати працівника -->
+<!-- Модалка редагування працівника -->
 <div class="acc-modal-overlay" id="editEmployeeModal">
     <div class="acc-modal-content">
         <div class="acc-modal-header">
-            <h3>Редагувати дані працівника</h3>
+            <h3 data-i18n="acc.edit_emp_title">Редагувати дані працівника</h3>
             <button class="close-modal-btn" onclick="closeModal('editEmployeeModal')">&times;</button>
         </div>
         <form id="editEmployeeForm" action="" method="POST" class="acc-modal-form">
@@ -459,13 +457,13 @@
             <input type="hidden" name="is_active" id="edit_emp_is_active" value="true">
             
             <div class="form-group">
-                <label>Повне ім'я *</label>
+                <label data-i18n="acc.lbl_emp_name">Повне ім'я *</label>
                 <input type="text" name="full_name" id="edit_emp_name" required>
             </div>
             
             <div class="form-grid">
                 <div class="form-group">
-                    <label>Телефон</label>
+                    <label data-i18n="acc.lbl_emp_phone">Телефон</label>
                     <input type="text" name="phone" id="edit_emp_phone">
                 </div>
                 <div class="form-group">
@@ -475,17 +473,17 @@
             </div>
 
             <div class="form-group">
-                <label>Посада *</label>
+                <label data-i18n="acc.lbl_emp_pos">Посада *</label>
                 <input type="text" name="position" id="edit_emp_position" required>
             </div>
 
             <div class="form-grid">
                 <div class="form-group">
-                    <label>Ставка (грн) *</label>
+                    <label data-i18n="acc.lbl_rate_short">Ставка (грн) *</label>
                     <input type="number" name="base_salary" id="edit_emp_rate" step="0.01" min="0" required>
                 </div>
                 <div class="form-group">
-                    <label>Комісія від замовлень (%) *</label>
+                    <label data-i18n="acc.lbl_emp_comm">Комісія від замовлень (%) *</label>
                     <input type="number" name="commission_percent" id="edit_emp_comm" step="0.01" min="0" max="100" required>
                 </div>
             </div>
@@ -493,20 +491,20 @@
             <div class="form-group" id="reactivate-checkbox-wrap" style="display: none;">
                 <label class="checkbox-label">
                     <input type="checkbox" id="reactivate-checkbox" onchange="document.getElementById('edit_emp_is_active').value = this.checked ? 'true' : 'false'">
-                    <span>Поновити співробітника в штаті СТО</span>
+                    <span data-i18n="acc.chk_reactivate">Поновити співробітника в штаті СТО</span>
                 </label>
             </div>
 
-            <button type="submit" class="btn-form-submit">Зберегти зміни</button>
+            <button type="submit" class="btn-form-submit" data-i18n="profile.btn_save">Зберегти зміни</button>
         </form>
     </div>
 </div>
 
-<!-- Модалка 3: Виплатити зарплату -->
+<!-- Модалка виплати зарплати -->
 <div class="acc-modal-overlay" id="payoutModal">
     <div class="acc-modal-content">
         <div class="acc-modal-header">
-            <h3>Виплатити заробітну плату</h3>
+            <h3 data-i18n="acc.pay_salary_title">Виплатити заробітну плату</h3>
             <button class="close-modal-btn" onclick="closeModal('payoutModal')">&times;</button>
         </div>
         <form action="{% url 'accounting:pay_salary' %}" method="POST" class="acc-modal-form">
@@ -514,30 +512,30 @@
             <input type="hidden" name="employee_id" id="payout_emp_id">
             
             <div class="payout-summary-bubble">
-                <span>Співробітник:</span>
+                <span data-i18n="acc.lbl_payout_target">Співробітник:</span>
                 <strong id="payout_emp_name">...</strong>
             </div>
 
             <div class="form-group">
                 <label>
-                    <span>Сума виплати (грн) *</span>
+                    <span data-i18n="acc.lbl_payout_amount">Сума виплати (грн) *</span>
                     <small class="max-salary-allow">
-                        Доступний баланс: <strong id="payout_max_amount">0.00</strong> ₴
+                        <span data-i18n="acc.max_avail">Доступний баланс:</span> <strong id="payout_max_amount">0.00</strong> ₴
                     </small>
                 </label>
                 <input type="number" name="amount" id="payout_amount_input" step="0.01" min="0.01" required>
             </div>
 
-            <button type="submit" class="btn-form-submit btn-submit-payout">Підтвердити виплату</button>
+            <button type="submit" class="btn-form-submit btn-submit-payout" data-i18n="acc.btn_confirm_payout">Підтвердити виплату</button>
         </form>
     </div>
 </div>
 
-<!-- Модалка 4: Додати ручну транзакцію -->
+<!-- Модалка ручної транзакції -->
 <div class="acc-modal-overlay" id="addTransactionModal">
     <div class="acc-modal-content">
         <div class="acc-modal-header">
-            <h3>Внести нову фінансову операцію</h3>
+            <h3 data-i18n="acc.new_tx_title">Внести нову фінансову операцію</h3>
             <button class="close-modal-btn" onclick="closeModal('addTransactionModal')">&times;</button>
         </div>
         <form action="{% url 'accounting:add_transaction' %}" method="POST" class="acc-modal-form">
@@ -546,68 +544,68 @@
             
             <div class="form-grid">
                 <div class="form-group">
-                    <label>Тип операції *</label>
+                    <label data-i18n="acc.lbl_tx_type">Тип операції *</label>
                     <select name="type" id="tx_type_select" onchange="toggleCategories(this.value)" class="form-select" required>
-                        <option value="expense">Витрата</option>
-                        <option value="income">Дохід</option>
+                        <option value="expense" data-i18n="acc.opt_expense">Витрата</option>
+                        <option value="income" data-i18n="acc.opt_income">Дохід</option>
                     </select>
                 </div>
                 <div class="form-group">
-                    <label>Категорія *</label>
+                    <label data-i18n="acc.lbl_tx_category">Категорія *</label>
                     <select name="category" id="tx_category_select" class="form-select" required>
-                        <option value="spare_parts">Запчастини</option>
-                        <option value="rent">Оренда</option>
-                        <option value="utilities">Комунальні послуги</option>
-                        <option value="other_expense">Інші витрати</option>
+                        <option value="spare_parts" data-i18n="acc.cat_spare_parts">Запчастини</option>
+                        <option value="rent" data-i18n="acc.cat_rent">Оренда</option>
+                        <option value="utilities" data-i18n="acc.cat_utilities">Комунальні послуги</option>
+                        <option value="other_expense" data-i18n="acc.cat_other_expense">Інші витрати</option>
                     </select>
                 </div>
             </div>
 
             <div class="form-grid">
                 <div class="form-group">
-                    <label>Сума (грн) *</label>
+                    <label data-i18n="acc.lbl_tx_amount">Сума (грн) *</label>
                     <input type="number" name="amount" step="0.01" min="0.01" required>
                 </div>
                 <div class="form-group">
-                    <label>Дата операції *</label>
+                    <label data-i18n="acc.lbl_tx_date">Дата операції *</label>
                     <input type="date" name="date" value="{{ start_date }}" required>
                 </div>
             </div>
 
             <div class="form-group">
-                <label>Опис / Коментар до транзакції</label>
-                <textarea name="description" placeholder="Введіть детальний коментар для журналу..." rows="3"></textarea>
+                <label data-i18n="acc.lbl_tx_desc">Опис / Коментар до транзакції</label>
+                <textarea name="description" placeholder="Введіть детальний коментар для журналу..." rows="3" data-i18n-placeholder="ph.tx_comment"></textarea>
             </div>
 
-            <button type="submit" class="btn-form-submit">Внести у журнал</button>
+            <button type="submit" class="btn-form-submit" data-i18n="acc.btn_log_tx">Внести у журнал</button>
         </form>
     </div>
 </div>
 
-<!-- ════ МОДАЛЬНЕ ВІКНО: ПОШУК ТА ЗАКУПІВЛЯ ЗАПЧАСТИН У ПОСТАЧАЛЬНИКІВ ════ -->
+<!-- МОДАЛЬНЕ ВІКНО: ПОШУК ТА ЗАКУПІВЛЯ ЗАПЧАСТИН У ПОСТАЧАЛЬНИКІВ -->
 <div class="acc-modal-overlay" id="supplierPartsModal">
     <div class="acc-modal-content" style="max-width: 850px; width: 95%;">
         <div class="acc-modal-header">
-            <h3>🔎 Пошук та закупівля запчастин у постачальників (InterCars, Exist, TechnoVector)</h3>
+            <h3 data-i18n="acc.supplier_modal_title">Пошук та закупівля запчастин у постачальників (InterCars, Exist, TechnoVector)</h3>
             <button class="close-modal-btn" onclick="closeModal('supplierPartsModal')">&times;</button>
         </div>
 
         <div style="padding: 1.5rem;">
             <div style="display: flex; gap: 0.75rem; flex-wrap: wrap; margin-bottom: 1.25rem;">
-                <input type="text" id="supplier_search_query" placeholder="Артикул, OEM-номер або назва (напр. Brembo, колодки, 0986479098)..." style="flex: 1; min-width: 240px; padding: 0.75rem 1rem; border-radius: 10px; border: 1px solid var(--border); font-size: 0.95rem;" onkeyup="if(event.key==='Enter') searchSupplierParts()">
+                <input type="text" id="supplier_search_query" placeholder="Артикул, OEM-номер або назва (напр. Brembo, колодки, 0986479098)..." style="flex: 1; min-width: 240px; padding: 0.75rem 1rem; border-radius: 10px; border: 1px solid var(--border); font-size: 0.95rem;" onkeyup="if(event.key==='Enter') searchSupplierParts()" data-i18n-placeholder="ph.supplier_query">
                 
                 <select id="supplier_select_filter" style="padding: 0.75rem 1rem; border-radius: 10px; border: 1px solid var(--border); font-size: 0.9rem;" onchange="searchSupplierParts()">
-                    <option value="all">Всі постачальники</option>
+                    <option value="all" data-i18n="acc.supplier_all">Всі постачальники</option>
                     <option value="intercars">InterCars Україна</option>
                     <option value="exist">Exist.ua</option>
                     <option value="technovector">TechnoVector / Омега</option>
                 </select>
 
-                <button type="button" class="btn-action-primary" onclick="searchSupplierParts()">Знайти</button>
+                <button type="button" class="btn-action-primary" onclick="searchSupplierParts()" data-i18n="search.btn_find">Знайти</button>
             </div>
 
             <div id="supplier_parts_results_container" style="max-height: 440px; overflow-y: auto; display: flex; flex-direction: column; gap: 0.75rem;">
-                <div style="text-align: center; color: var(--text-muted); padding: 3rem 0;">
+                <div style="text-align: center; color: var(--text-muted); padding: 3rem 0;" data-i18n="acc.supplier_hint">
                     Введіть код або назву запчастини та натисніть "Знайти" для перевірки наявності у постачальників.
                 </div>
             </div>
@@ -615,7 +613,7 @@
     </div>
 </div>
 
-<!-- ════ ДАНІ ДЛЯ ІНІЦІАЛІЗАЦІЇ CHART.JS (ГРАФІКИ) ════ -->
+<!-- ДАНІ ДЛЯ ІНІЦІАЛІЗАЦІЇ CHART.JS (ГРАФІКИ) -->
 <script>
     // Передаємо серіалізований JSON безпосередньо як об'єкти JS
     window.chartDates = {{ chart_dates_json|safe }};
@@ -624,63 +622,71 @@
     window.categoryLabels = {{ category_labels_json|safe }};
     window.categoryValues = {{ category_values_json|safe }};
 
+    function escapeHtml(value) {
+        return String(value ?? '').replace(/[&<>"']/g, ch => ({
+            '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+        }[ch]));
+    }
+
     function searchSupplierParts() {
         const query = document.getElementById('supplier_search_query').value.trim();
         const supplier = document.getElementById('supplier_select_filter').value;
         const container = document.getElementById('supplier_parts_results_container');
 
         if (!query) {
-            container.innerHTML = '<div style="text-align: center; color: var(--text-muted); padding: 2rem 0;">Будь ласка, введіть пошуковий запит.</div>';
+            container.innerHTML = `<div style="text-align: center; color: var(--text-muted); padding: 2rem 0;">${t('acc.enter_query')}</div>`;
             return;
         }
 
-        container.innerHTML = '<div style="text-align: center; color: var(--accent); padding: 2rem 0; font-weight: 600;">🔍 Пошук у каталогах постачальників...</div>';
+        container.innerHTML = `<div style="text-align: center; color: var(--accent); padding: 2rem 0; font-weight: 600;">${t('acc.searching')}</div>`;
 
         fetch(`/accounting/api/suppliers/parts/search/?query=${encodeURIComponent(query)}&supplier=${encodeURIComponent(supplier)}`)
             .then(res => res.json())
             .then(data => {
                 if (!data.parts || data.parts.length === 0) {
-                    container.innerHTML = '<div style="text-align: center; color: var(--text-muted); padding: 2rem 0;">Запчастин за даним запитом не знайдено.</div>';
+                    container.innerHTML = `<div style="text-align: center; color: var(--text-muted); padding: 2rem 0;">${t('acc.not_found')}</div>`;
                     return;
                 }
 
                 let html = '';
                 data.parts.forEach(part => {
-                    const deliveryStr = part.delivery_days === 0 ? '<span style="color:#10b981; font-weight:700;">🟢 В наявності</span>' : `<span style="color:#3b82f6; font-weight:600;">📦 Доставка ${part.delivery_days} дн.</span>`;
+                    const deliveryStr = part.delivery_days === 0
+                        ? `<span style="color:var(--success); font-weight:600;">${t('acc.in_stock')}</span>`
+                        : `<span style="color:var(--accent); font-weight:600;">${t('acc.delivery')} ${part.delivery_days} ${t('acc.days')}</span>`;
                     
                     html += `
-                        <div style="background: var(--bg); border: 1px solid var(--border); border-radius: 12px; padding: 1rem 1.25rem; display: flex; justify-content: space-between; align-items: center; gap: 1rem; flex-wrap: wrap;">
+                        <div style="background: var(--bg); border: 1px solid var(--border); border-radius: var(--radius-md); padding: 1rem 1.25rem; display: flex; justify-content: space-between; align-items: center; gap: 1rem; flex-wrap: wrap;">
                             <div style="flex: 1; min-width: 240px;">
                                 <div style="display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.25rem;">
-                                    <span style="font-weight: 800; font-size: 1rem; color: var(--text);">${part.part_name}</span>
-                                    <span style="background: var(--accent-dim); color: var(--accent); font-size: 0.75rem; font-weight: 700; padding: 2px 8px; border-radius: 99px;">${part.brand}</span>
+                                    <span style="font-weight: 700; font-size: 1rem; color: var(--text);">${escapeHtml(part.part_name)}</span>
+                                    <span style="background: var(--accent-dim); color: var(--accent); font-size: 0.75rem; font-weight: 700; padding: 2px 8px; border-radius: 99px;">${escapeHtml(part.brand)}</span>
                                 </div>
                                 <div style="font-size: 0.825rem; color: var(--text-muted); display: flex; gap: 1rem; flex-wrap: wrap; margin-bottom: 0.35rem;">
-                                    <span>Артикул: <strong>${part.sku}</strong></span>
-                                    <span>OEM: <strong>${part.oem}</strong></span>
-                                    <span>Постачальник: <strong>${part.supplier_name}</strong></span>
+                                    <span>${t('acc.sku')}: <strong>${escapeHtml(part.sku)}</strong></span>
+                                    <span>OEM: <strong>${escapeHtml(part.oem)}</strong></span>
+                                    <span>${t('acc.supplier_word')}: <strong>${escapeHtml(part.supplier_name)}</strong></span>
                                 </div>
                                 <div style="font-size: 0.8rem; color: var(--text-faint);">
-                                    Залишок: ${part.stock_qty} шт • ${deliveryStr}
+                                    ${t('acc.stock_left')} ${part.stock_qty} ${t('acc.pcs')} • ${deliveryStr}
                                 </div>
                             </div>
 
                             <div style="display: flex; align-items: center; gap: 1.25rem;">
                                 <div style="text-align: right;">
-                                    <div style="font-size: 0.75rem; color: var(--text-muted);">Закупка / Продаж:</div>
-                                    <div style="font-size: 1rem; font-weight: 800; color: var(--text);">${part.cost_price} ₴ / <span style="color:#10b981;">${part.suggested_retail_price} ₴</span></div>
+                                    <div style="font-size: 0.75rem; color: var(--text-muted);">${t('acc.cost_retail')}</div>
+                                    <div style="font-size: 1rem; font-weight: 700; color: var(--text);">${part.cost_price} ₴ / <span style="color:var(--success);">${part.suggested_retail_price} ₴</span></div>
                                 </div>
 
                                 <form action="{% url 'accounting:import_supplier_part' %}" method="POST" style="margin: 0;">
                                     {% csrf_token %}
                                     <input type="hidden" name="station_id" value="{{ selected_station.pk }}">
-                                    <input type="hidden" name="sku" value="${part.sku}">
-                                    <input type="hidden" name="part_name" value="${part.part_name}">
-                                    <input type="hidden" name="brand" value="${part.brand}">
+                                    <input type="hidden" name="sku" value="${escapeHtml(part.sku)}">
+                                    <input type="hidden" name="part_name" value="${escapeHtml(part.part_name)}">
+                                    <input type="hidden" name="brand" value="${escapeHtml(part.brand)}">
                                     <input type="hidden" name="cost_price" value="${part.cost_price}">
                                     <input type="hidden" name="selling_price" value="${part.suggested_retail_price}">
                                     <input type="hidden" name="quantity" value="1">
-                                    <button type="submit" class="btn-action-success" style="padding: 0.5rem 0.85rem; font-size: 0.85rem; border-radius: 8px;">+ Замовити на склад</button>
+                                    <button type="submit" class="btn-action-success" style="padding: 0.5rem 0.85rem; font-size: 0.85rem; border-radius: 8px;">${t('acc.order_to_stock')}</button>
                                 </form>
                             </div>
                         </div>
@@ -691,7 +697,7 @@
             })
             .catch(err => {
                 console.error(err);
-                container.innerHTML = '<div style="text-align: center; color: var(--error); padding: 2rem 0;">Помилка завантаження даних постачальника.</div>';
+                container.innerHTML = `<div style="text-align: center; color: var(--error); padding: 2rem 0;">${t('acc.load_error')}</div>`;
             });
     }
 </script>

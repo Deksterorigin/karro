@@ -24,11 +24,9 @@
 }
 
 .form-group label {
-    font-size: 0.75rem;
-    font-weight: 700;
+    font-size: 0.85rem;
+    font-weight: 600;
     color: var(--text-muted);
-    text-transform: uppercase;
-    letter-spacing: 0.05em;
 }
 
 .form-group input,
@@ -40,7 +38,6 @@
     border-radius: var(--radius-md);
     color: var(--text);
     font-size: 0.9rem;
-    font-weight: 600;
     font-family: inherit;
     transition: all var(--transition-fast);
     outline: none;
@@ -58,7 +55,7 @@
 
 .form-group select {
     appearance: none;
-    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%2364748b'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='2.5' d='M19 9l-7 7-7-7'%3E%3C/path%3E%3C/svg%3E");
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%23495057'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='2.5' d='M19 9l-7 7-7-7'%3E%3C/path%3E%3C/svg%3E");
     background-repeat: no-repeat;
     background-position: right 1rem center;
     background-size: 0.85rem;
@@ -73,7 +70,7 @@
     border: 1px solid var(--border);
     border-radius: var(--radius-md);
     font-size: 0.9rem;
-    font-weight: 700;
+    font-weight: 600;
     text-decoration: none;
     transition: all var(--transition-fast);
     white-space: nowrap;
@@ -87,6 +84,35 @@
     color: var(--text);
     border-color: var(--border-hover);
     background: var(--surface-hover);
+}
+
+/* Додаткова кнопка "Поруч" біля фільтрів */
+.search-form .btn-secondary {
+    height: 46px;
+    padding: 0 1.25rem;
+    background: var(--surface);
+    color: var(--text);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-md);
+    font-weight: 600;
+    font-family: inherit;
+    font-size: 0.9rem;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 4px;
+    transition: all var(--transition-fast);
+}
+
+.search-form .btn-secondary:hover {
+    border-color: var(--border-hover);
+    background: var(--surface-hover);
+}
+
+.search-form .btn-secondary:disabled {
+    opacity: 0.6;
+    cursor: default;
 }
 
 .search-form .btn-primary {
@@ -107,16 +133,24 @@
 
 .search-form .btn-primary:hover {
     background-color: var(--accent-hover);
-    transform: translateY(-1px);
-    box-shadow: 0 4px 12px rgba(37, 99, 235, 0.2);
 }
 
+.search-form .btn-primary:active {
+    transform: translateY(1px);
+}
+
+/* Рядок з кількістю знайдених СТО та перемикачем на мобільних */
 .results-meta {
     max-width: 1200px;
-    margin: 2rem auto 0;
+    margin: 1.5rem auto 0;
     padding: 0 2rem;
     font-size: 0.9rem;
     color: var(--text-muted);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 1rem;
 }
 
 .results-meta strong {
@@ -166,7 +200,7 @@
 .station-card {
     background: var(--surface);
     border: 1px solid var(--border);
-    border-radius: 16px;
+    border-radius: var(--radius-xl);
     transition: all var(--transition-normal);
     cursor: pointer;
     box-shadow: var(--shadow-sm);
@@ -175,12 +209,11 @@
 .station-card:hover {
     border-color: var(--border-hover);
     box-shadow: var(--shadow-md);
-    transform: translateY(-2px);
 }
 
 .station-card.active {
     border-color: var(--accent);
-    box-shadow: 0 0 0 1px var(--accent), var(--shadow-lg);
+    box-shadow: var(--shadow-md);
 }
 
 .card-header-inner {
@@ -202,7 +235,7 @@
     height: 48px;
     background: var(--bg);
     border: 1px solid var(--border);
-    border-radius: 10px;
+    border-radius: var(--radius-lg);
     display: flex;
     align-items: center;
     justify-content: center;
@@ -261,9 +294,6 @@
     font-weight: 700;
     color: #F59E0B;
     white-space: nowrap;
-    background: rgba(245, 158, 11, 0.08);
-    padding: 0.25rem 0.6rem;
-    border-radius: 8px;
 }
 
 .card-rating svg {
@@ -310,7 +340,7 @@
     padding: 1rem 1.5rem;
     border-top: 1px solid var(--border);
     background: var(--bg);
-    border-radius: 0 0 16px 16px;
+    border-radius: 0 0 var(--radius-xl) var(--radius-xl);
 }
 
 .card-phone {
@@ -342,7 +372,6 @@
 
 .btn-detail:hover {
     color: var(--accent-hover);
-    transform: translateX(2px);
 }
 
 .empty-state {
@@ -351,7 +380,7 @@
     color: var(--text-muted);
     background: var(--surface);
     border: 2px dashed var(--border);
-    border-radius: 16px;
+    border-radius: var(--radius-xl);
 }
 
 .empty-state svg {
@@ -368,7 +397,7 @@
     position: sticky;
     top: 120px;
     height: calc(100vh - 280px);
-    border-radius: 16px;
+    border-radius: var(--radius-xl);
     overflow: hidden;
     border: 1px solid var(--border);
     background: var(--surface);
@@ -386,7 +415,7 @@
     background: var(--surface) !important;
     color: var(--text) !important;
     border: 1px solid var(--border) !important;
-    border-radius: 12px !important;
+    border-radius: var(--radius-xl) !important;
     box-shadow: var(--shadow-lg) !important;
     padding: 0.25rem;
 }
@@ -402,24 +431,6 @@
 .leaflet-popup-close-button {
     color: var(--text-muted) !important;
     padding: 6px 8px 0 0 !important;
-}
-
-.results-meta {
-    max-width: 1200px;
-    margin: 1.5rem auto 0;
-    padding: 0 2rem;
-    font-size: 0.9rem;
-    color: var(--text-muted);
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    flex-wrap: wrap;
-    gap: 1rem;
-}
-
-.results-meta strong {
-    color: var(--text);
-    font-weight: 700;
 }
 
 .mobile-view-toggle {
@@ -472,7 +483,7 @@
         position: static;
         order: 0;
         box-shadow: var(--shadow-sm);
-        border-radius: 16px;
+        border-radius: var(--radius-xl);
     }
 
     .stations-list {
@@ -571,6 +582,6 @@
 
     .map-wrap {
         height: 300px;
-        border-radius: 14px;
+        border-radius: var(--radius-lg);
     }
 }

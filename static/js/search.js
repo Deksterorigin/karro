@@ -10,12 +10,12 @@ function escapeHtml(text) {
 function requestUserLocation() {
     const btnNearby = document.getElementById('btnNearby');
     if (!navigator.geolocation) {
-        alert('Ваш браузер не підтримує геолокацію.');
+        alert(t('search.geo_unsupported'));
         return;
     }
 
     if (btnNearby) {
-        btnNearby.textContent = 'Визначення...';
+        btnNearby.textContent = t('search.locating');
         btnNearby.disabled = true;
     }
 
@@ -36,13 +36,13 @@ function requestUserLocation() {
         navigator.geolocation.getCurrentPosition(
             handleSuccess,
             err => {
-                let msg = 'Неможливо отримати геолокацію.';
+                let msg = t('search.geo_denied_short');
                 if (err.code === 1) {
-                    msg = 'Будь ласка, дозвольте доступ до геопозиції у налаштуваннях браузера.';
+                    msg = t('search.geo_denied');
                 }
                 alert(msg);
                 if (btnNearby) {
-                    btnNearby.textContent = 'Поруч';
+                    btnNearby.textContent = t('search.btn_nearby');
                     btnNearby.disabled = false;
                 }
             },
@@ -81,7 +81,7 @@ function initMap() {
         });
 
         const userMarker = L.marker([USER_LAT, USER_LNG], { icon: userIcon }).addTo(map);
-        userMarker.bindPopup('<div style="font-family:sans-serif; font-weight:700; font-size:0.85rem; color:#10B981;">Ви знаходитесь тут</div>');
+        userMarker.bindPopup('<div style="font-family:sans-serif; font-weight:700; font-size:0.85rem; color:#10B981;">' + t('search.you_are_here') + '</div>');
         bounds.push([USER_LAT, USER_LNG]);
 
         if (typeof SELECTED_RADIUS !== 'undefined' && SELECTED_RADIUS && SELECTED_RADIUS > 0) {
@@ -125,16 +125,16 @@ function initMap() {
         const escapedName = escapeHtml(s.name);
         const escapedCity = s.city ? escapeHtml(s.city) + ', ' : '';
         const escapedAddress = escapeHtml(s.address);
-        const distStr = s.distance ? `<div style="color:#059669; font-weight:700; font-size:0.8rem; margin-top:2px;">Відстань: ${s.distance} км</div>` : '';
+        const distStr = s.distance ? `<div style="color:#059669; font-weight:700; font-size:0.8rem; margin-top:2px;">${t('search.distance')} ${s.distance} ${t('common.km')}</div>` : '';
 
         marker.bindPopup(`
-            <div style="font-family: 'Inter', sans-serif; min-width: 190px; padding: 4px;">
-                <a href="/station/${s.id}/" style="font-weight: 700; font-size: 0.95rem; margin-bottom: 4px; color: var(--accent, #0052CC); text-decoration: none; display: block;">${escapedName} &rarr;</a>
+            <div style="min-width: 190px; padding: 4px;">
+                <a href="/station/${s.id}/" style="font-weight: 700; font-size: 0.95rem; margin-bottom: 4px; color: var(--accent); text-decoration: none; display: block;">${escapedName} &rarr;</a>
                 <div style="font-size: 0.75rem; color: var(--text-muted); line-height: 1.3;">${escapedCity}${escapedAddress}</div>
                 ${distStr}
                 ${s.rating ? `<div style="margin-top: 6px; color: var(--accent); font-weight: 700; font-size: 0.85rem; display: flex; align-items: center; gap: 2px;">★ ${escapeHtml(String(s.rating))}</div>` : ''}
                 <div style="margin-top: 10px;">
-                    <a href="/station/${s.id}/" style="display: inline-block; font-size: 0.75rem; font-weight: 700; color: #ffffff; background: #0052CC; padding: 5px 12px; border-radius: 6px; text-decoration: none;">Переглянути СТО</a>
+                    <a href="/station/${s.id}/" style="display: inline-block; font-size: 0.75rem; font-weight: 700; color: #ffffff; background: #0052CC; padding: 5px 12px; border-radius: 6px; text-decoration: none;">${t('search.popup_details')}</a>
                 </div>
             </div>
         `);

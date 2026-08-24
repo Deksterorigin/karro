@@ -2,10 +2,11 @@
 {% load static %}
 
 {% block title %}Karro — Вхід / Реєстрація{% endblock %}
+{% block i18n_title %}login.title{% endblock %}
 
 {% block extra_css %}
 
-    <link rel="stylesheet" href="{% static 'css/login.css' %}?v=1.4">
+    <link rel="stylesheet" href="{% static 'css/login.css' %}?v=1.5">
 
 {% endblock %}
 
@@ -19,7 +20,7 @@
                     onclick="switchTab('register')" data-i18n="login.tab_register">Реєстрація</button>
         </div>
 
-        <!-- LOGIN PANEL -->
+        <!-- ПАНЕЛЬ ВХОДУ -->
         <div class="form-panel {% if show_register %}{% else %}active{% endif %}" id="panel-login">
             <h2 class="form-title" data-i18n="login.welcome">З поверненням!</h2>
             <p class="form-subtitle" data-i18n="login.welcome_sub">Введи свої дані для входу в Karro</p>
@@ -55,7 +56,7 @@
             </div>
         </div>
 
-        <!-- REGISTER PANEL -->
+        <!-- ПАНЕЛЬ РЕЄСТРАЦІЇ -->
         <div class="form-panel {% if show_register %}active{% endif %}" id="panel-register">
             <h2 class="form-title" data-i18n="reg.title">Створи акаунт</h2>
             <p class="form-subtitle" data-i18n="reg.subtitle">Приєднуйся до Karro безкоштовно</p>

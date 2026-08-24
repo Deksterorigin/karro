@@ -80,7 +80,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
         // Безпечно виводимо дані СТО в попапі на карті
         L.marker([lat, lng], { icon: pinIcon }).addTo(map).bindPopup(`
-            <div style="font-family: 'Inter', sans-serif; padding: 4px;">
+            <div style="padding: 4px;">
                 <div style="font-weight: 700; font-size: 0.9rem; color: var(--text);">${escapeHtml(name)}</div>
                 <div style="font-size: 0.75rem; color: var(--text-muted);">${escapeHtml(address)}</div>
             </div>
@@ -136,13 +136,13 @@ document.addEventListener('DOMContentLoaded', function() {
             const stationId = openBtn.getAttribute('data-station-id');
 
             if (!date) {
-                slotsGrid.innerHTML = '<span class="info-text">Будь ласка, оберіть дату для пошуку вільних слотів.</span>';
+                slotsGrid.innerHTML = `<span class="info-text">${t('st.pick_date_hint')}</span>`;
                 submitBtn.disabled = true;
                 bookingTimeInput.value = '';
                 return;
             }
 
-            slotsGrid.innerHTML = '<span class="info-text">Завантаження слотів...</span>';
+            slotsGrid.innerHTML = `<span class="info-text">${t('st.loading_slots')}</span>`;
             submitBtn.disabled = true;
             bookingTimeInput.value = '';
 
@@ -151,7 +151,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 .then(data => {
                     if (data.status === 'success') {
                         if (data.is_closed) {
-                            slotsGrid.innerHTML = `<span class="info-text" style="color: #ef4444; font-weight: 600;">${data.message || 'СТО не працює у цей день (Вихідний).'}</span>`;
+                            slotsGrid.innerHTML = `<span class="info-text" style="color: #ef4444; font-weight: 600;">${data.message || t('st.closed_day_msg')}</span>`;
                         } else if (data.slots && data.slots.length > 0) {
                             slotsGrid.innerHTML = '';
                             data.slots.forEach(slot => {
@@ -170,14 +170,14 @@ document.addEventListener('DOMContentLoaded', function() {
                                 slotsGrid.appendChild(btn);
                             });
                         } else {
-                            slotsGrid.innerHTML = '<span class="info-text" style="color: var(--error);">Немає вільних боксів на цю дату. Оберіть інший день або час.</span>';
+                            slotsGrid.innerHTML = `<span class="info-text" style="color: var(--error);">${t('st.no_slots_left')}</span>`;
                         }
                     } else {
-                        slotsGrid.innerHTML = `<span class="info-text" style="color: var(--error);">${data.message || 'Помилка завантаження слотів'}</span>`;
+                        slotsGrid.innerHTML = `<span class="info-text" style="color: var(--error);">${data.message || t('st.slots_error')}</span>`;
                     }
                 })
                 .catch(err => {
-                    slotsGrid.innerHTML = '<span class="info-text" style="color: var(--error);">Помилка підключення до сервера</span>';
+                    slotsGrid.innerHTML = `<span class="info-text" style="color: var(--error);">${t('common.connection_error')}</span>`;
                 });
         }
 
@@ -191,7 +191,7 @@ document.addEventListener('DOMContentLoaded', function() {
             e.preventDefault();
             
             if (!bookingTimeInput.value) {
-                alert('Будь ласка, оберіть час візиту зі списку вільних слотів.');
+                alert(t('st.pick_slot_alert'));
                 return;
             }
 
@@ -222,10 +222,10 @@ document.addEventListener('DOMContentLoaded', function() {
             })
             .then(response => {
                 if (response.status === 401) {
-                    throw new Error('Будь ласка, авторизуйтесь для запису на СТО.');
+                    throw new Error(t('st.login_required'));
                 }
                 return response.json().then(res => {
-                    if (!response.ok) throw new Error(res.message || 'Помилка сервера');
+                    if (!response.ok) throw new Error(res.message || t('st.server_error'));
                     return res;
                 });
             })
@@ -234,7 +234,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 modal.classList.remove('active');
                 bookingForm.reset();
                 if (slotsGrid) {
-                    slotsGrid.innerHTML = '<span class="info-text">Будь ласка, оберіть дату для пошуку вільних слотів.</span>';
+                    slotsGrid.innerHTML = `<span class="info-text">${t('st.pick_date_hint')}</span>`;
                 }
             })
             .catch(error => {

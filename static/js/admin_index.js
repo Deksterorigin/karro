@@ -2,7 +2,7 @@ function initAdminCharts(chartData) {
     const isDark = document.documentElement.classList.contains('dark');
     Chart.defaults.color = isDark ? '#9CA3AF' : '#4B5563';
     Chart.defaults.borderColor = isDark ? '#374151' : '#E5E7EB';
-    Chart.defaults.font.family = 'Inter, sans-serif';
+    Chart.defaults.font.family = "-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif";
 
     // Лінійний графік реєстрацій
     new Chart(document.getElementById('lineChart'), {
@@ -21,8 +21,8 @@ function initAdminCharts(chartData) {
                 {
                     label: 'СТО',
                     data: chartData.line.stations,
-                    borderColor: '#3B82F6',
-                    backgroundColor: 'rgba(59, 130, 246, 0.1)',
+                    borderColor: '#0d6efd',
+                    backgroundColor: 'rgba(13, 110, 253, 0.1)',
                     fill: true,
                     tension: 0.4
                 }
@@ -38,7 +38,7 @@ function initAdminCharts(chartData) {
             labels: chartData.donut.labels,
             datasets: [{
                 data: chartData.donut.data,
-                backgroundColor: ['#10B981', '#3B82F6', '#F59E0B', '#EF4444', '#8B5CF6'],
+                backgroundColor: ['#198754', '#0d6efd', '#ffc107', '#dc3545', '#6f42c1'],
                 borderWidth: 0
             }]
         },

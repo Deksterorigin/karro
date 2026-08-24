@@ -5,6 +5,8 @@ from django.contrib.auth.models import AbstractBaseUser, PermissionsMixin, BaseU
 from django.utils import timezone
 import datetime
 
+from .textnorm import fold_text
+
 
 def get_current_year_plus_one():
     # Поточний рік + 1 для валідатора випуску авто
@@ -75,6 +77,8 @@ class ServiceStation(models.Model):
     station_id = models.AutoField(primary_key=True)
     name = models.CharField(max_length=100, verbose_name="Назва СТО")
     city = models.CharField(max_length=100, blank=True, default='', db_index=True, verbose_name="Місто")
+    name_norm = models.CharField(max_length=150, blank=True, default='', editable=False, db_index=True, verbose_name="Назва (нормалізована)")
+    city_norm = models.CharField(max_length=150, blank=True, default='', editable=False, db_index=True, verbose_name="Місто (нормалізоване)")
     address = models.CharField(max_length=200, verbose_name="Адреса")
     phone = models.CharField(max_length=20, verbose_name="Телефон")
     user = models.ForeignKey(User, on_delete=models.CASCADE, db_column='user_id', verbose_name="Власник")
@@ -94,6 +98,11 @@ class ServiceStation(models.Model):
         verbose_name = 'Станція ТО'
         verbose_name_plural = 'Станції ТО'
         ordering = ['name']
+
+    def save(self, *args, **kwargs):
+        self.name_norm = fold_text(self.name)
+        self.city_norm = fold_text(self.city)
+        super().save(*args, **kwargs)
 
     def __str__(self):
         return self.name
@@ -224,6 +233,7 @@ class Service(models.Model):
 
     service_id = models.AutoField(primary_key=True)
     service_name = models.CharField(max_length=100, verbose_name="Назва послуги")
+    service_name_norm = models.CharField(max_length=150, blank=True, default='', editable=False, db_index=True, verbose_name="Назва послуги (нормалізована)")
     description = models.TextField(blank=True, null=True, verbose_name="Опис")
     price = models.DecimalField(
         max_digits=10, decimal_places=2,
@@ -231,6 +241,10 @@ class Service(models.Model):
         verbose_name="Ціна (грн)"
     )
     station = models.ForeignKey(ServiceStation, on_delete=models.CASCADE, db_column='station_id', verbose_name="СТО")
+
+    def save(self, *args, **kwargs):
+        self.service_name_norm = fold_text(self.service_name)
+        super().save(*args, **kwargs)
 
     class Meta:
         db_table = 'service'

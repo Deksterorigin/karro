@@ -11,7 +11,7 @@
     crossorigin=""
 >
 
-    <link rel="stylesheet" href="{% static 'css/detail.css' %}?v=1.4">
+    <link rel="stylesheet" href="{% static 'css/detail.css' %}?v=1.5">
     <style>
         .slots-grid {
             display: grid;
@@ -46,7 +46,6 @@
             background: var(--accent);
             border-color: var(--accent);
             color: #ffffff !important;
-            box-shadow: 0 2px 6px rgba(0, 82, 204, 0.3);
         }
         .slots-grid .info-text {
             grid-column: 1 / -1;
@@ -62,11 +61,11 @@
 <div class="back-bar">
     <a href="{% url 'search:search_stations' %}" class="back-link">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><polyline points="15 18 9 12 15 6"></polyline></svg>
-        Назад до пошуку
+        <span data-i18n="st.back_to_search">Назад до пошуку</span>
     </a>
 </div>
 
-<!-- ════ БАНЕР СТО ════ -->
+<!-- БАНЕР СТО -->
 <div class="station-hero">
     <div class="hero-top-layout">
         <div class="hero-info-section">
@@ -84,18 +83,18 @@
                 {% endif %}
                 <div class="meta-item-row">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
-                    {{ review_count }} відгук{{ review_count|pluralize:"ів,и," }}
+                    {{ review_count }} <span data-i18n="st.reviews_word">відгук{{ review_count|pluralize:"ів,и," }}</span>
                 </div>
             </div>
             {% if is_owner %}
                 <div class="owner-badge-tag">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
-                    Ви — власник цієї СТО
+                    <span data-i18n="st.owner_badge">Ви — власник цієї СТО</span>
                 </div>
             {% else %}
                 <button class="booking-btn" id="openBookingModalBtn" data-station-id="{{ station.pk }}">
                     <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12h14"/></svg>
-                    Записатися на ремонт
+                    <span data-i18n="st.book_repair">Записатися на ремонт</span>
                 </button>
             {% endif %}
         </div>
@@ -113,14 +112,14 @@
                         {% endif %}
                     {% endfor %}
                 </div>
-                <div class="rating-desc-text">на основі {{ review_count }} відгук{{ review_count|pluralize:"ів,и," }}</div>
+                <div class="rating-desc-text"><span data-i18n="st.based_on">на основі</span> {{ review_count }} <span data-i18n="st.reviews_word">відгук{{ review_count|pluralize:"ів,и," }}</span></div>
             </div>
         </div>
         {% endif %}
     </div>
 </div>
 
-<!-- ════ ОСНОВНА СІТКА СТОРІНКИ ════ -->
+<!-- ОСНОВНА СІТКА СТОРІНКИ -->
 <div class="detail-grid-layout">
     <div class="main-column">
 
@@ -129,7 +128,7 @@
             <div class="section-head-bar">
                 <h2 class="section-head-title">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg>
-                    Послуги
+                    <span data-i18n="st.services_title">Послуги</span>
                 </h2>
                 <span class="section-counter-badge">{{ services|length }}</span>
             </div>
@@ -151,7 +150,7 @@
                 {% else %}
                 <div class="empty-state">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg>
-                    <p>Послуги ще не додані</p>
+                    <p data-i18n="st.no_services">Послуги ще не додані</p>
                 </div>
                 {% endif %}
             </div>
@@ -162,7 +161,7 @@
             <div class="section-head-bar">
                 <h2 class="section-head-title">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
-                    Фотогалерея
+                    <span data-i18n="st.gallery_title">Фотогалерея</span>
                 </h2>
                 <span class="section-counter-badge">{{ photos|length }}</span>
             </div>
@@ -180,7 +179,7 @@
                             {% csrf_token %}
                             <input type="hidden" name="action" value="delete_photo">
                             <input type="hidden" name="photo_id" value="{{ photo.photo_id }}">
-                            <button type="submit" class="gallery-photo-delete-btn" title="Видалити фото">
+                            <button type="submit" class="gallery-photo-delete-btn" title="Видалити фото" data-i18n-tip="st.delete_photo">
                                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M18 6L6 18M6 6l12 12"/></svg>
                             </button>
                         </form>
@@ -191,7 +190,7 @@
                 {% else %}
                 <div class="empty-state">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
-                    <p>Фотографій ще немає</p>
+                    <p data-i18n="st.no_photos">Фотографій ще немає</p>
                 </div>
                 {% endif %}
 
@@ -201,14 +200,14 @@
                     <input type="hidden" name="action" value="upload_photo">
                     <label class="photo-upload-area" for="photo-input">
                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
-                        <p>Натисніть для завантаження фото</p>
+                        <p data-i18n="st.upload_hint">Натисніть для завантаження фото</p>
                         <input type="file" id="photo-input" name="station_photo" accept="image/*">
                     </label>
                     <div style="text-align:center;">
-                        <input type="text" name="caption" class="photo-caption-field" placeholder="Підпис до фото (необов'язково)">
+                        <input type="text" name="caption" class="photo-caption-field" placeholder="Підпис до фото (необов'язково)" data-i18n-placeholder="ph.photo_caption">
                     </div>
                     <div style="text-align:center; margin-top:1rem;">
-                        <button type="submit" class="btn-primary" id="upload-btn" style="display:none;">Завантажити</button>
+                        <button type="submit" class="btn-primary" id="upload-btn" style="display:none;" data-i18n="st.btn_upload">Завантажити</button>
                     </div>
                 </form>
                 {% endif %}
@@ -220,7 +219,7 @@
             <div class="section-head-bar">
                 <h2 class="section-head-title">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
-                    Відгуки
+                    <span data-i18n="st.reviews_title">Відгуки</span>
                 </h2>
                 <span class="section-counter-badge">{{ review_count }}</span>
             </div>
@@ -256,29 +255,29 @@
                         <div class="review-content-body">{{ review.text }}</div>
                         {% if review.photo %}
                         <div style="margin-top:0.75rem;">
-                            <img src="{{ review.photo.url }}" alt="Фото відгуку" style="max-width:240px; max-height:180px; border-radius:8px; border:1px solid var(--border-color, #E2E8F0); object-fit:cover;">
+                            <img src="{{ review.photo.url }}" alt="Фото відгуку" style="max-width:240px; max-height:180px; border-radius:8px; border:1px solid var(--border); object-fit:cover;">
                         </div>
                         {% endif %}
 
                         {% if review.owner_response %}
-                        <div style="margin-top: 1rem; padding: 0.85rem 1rem; background: var(--bg-surface, #F8FAFC); border-left: 3px solid var(--accent, #0052CC); border-radius: 6px;">
-                            <div style="font-weight: 700; font-size: 0.85rem; color: var(--accent, #0052CC); margin-bottom: 4px; display:flex; justify-content:space-between; align-items:center;">
-                                <span>Відповідь автосервісу</span>
+                        <div style="margin-top: 1rem; padding: 0.85rem 1rem; background: var(--bg); border-left: 3px solid var(--accent); border-radius: 6px;">
+                            <div style="font-weight: 700; font-size: 0.85rem; color: var(--accent); margin-bottom: 4px; display:flex; justify-content:space-between; align-items:center;">
+                                <span data-i18n="st.owner_response">Відповідь автосервісу</span>
                                 {% if review.response_date %}
                                     <span style="font-weight: 400; color: var(--text-muted); font-size: 0.75rem;">{{ review.response_date|date:"d.m.Y H:i" }}</span>
                                 {% endif %}
                             </div>
-                            <div style="font-size: 0.9rem; color: var(--text-main);">{{ review.owner_response }}</div>
+                            <div style="font-size: 0.9rem; color: var(--text);">{{ review.owner_response }}</div>
                         </div>
                         {% elif is_owner %}
                         <details style="margin-top:0.75rem;">
-                            <summary style="cursor:pointer; font-size:0.8rem; font-weight:600; color:var(--accent, #0052CC);">Відповісти на відгук</summary>
+                            <summary style="cursor:pointer; font-size:0.8rem; font-weight:600; color:var(--accent);" data-i18n="st.reply_review">Відповісти на відгук</summary>
                             <form method="POST" style="margin-top:0.5rem; display:flex; gap:0.5rem; flex-direction:column;">
                                 {% csrf_token %}
                                 <input type="hidden" name="action" value="respond_review">
                                 <input type="hidden" name="review_id" value="{{ review.pk }}">
-                                <textarea name="response_text" placeholder="Текст відповіді автосервісу..." style="width:100%; padding:0.5rem; border-radius:6px; border:1px solid #CBD5E1; font-size:0.85rem;" rows="2" required></textarea>
-                                <button type="submit" class="btn-primary" style="align-self:flex-end; padding:0.4rem 0.8rem; font-size:0.8rem;">Опублікувати відповідь</button>
+                                <textarea name="response_text" placeholder="Текст відповіді автосервісу..." style="width:100%; padding:0.5rem; border-radius:6px; border:1px solid var(--border); font-size:0.85rem;" rows="2" required data-i18n-placeholder="ph.reply_text"></textarea>
+                                <button type="submit" class="btn-primary" style="align-self:flex-end; padding:0.4rem 0.8rem; font-size:0.8rem;" data-i18n="st.publish_reply">Опублікувати відповідь</button>
                             </form>
                         </details>
                         {% endif %}
@@ -288,14 +287,14 @@
                 {% else %}
                 <div class="empty-state">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
-                    <p>Відгуків ще немає. Будьте першим!</p>
+                    <p data-i18n="st.no_reviews">Відгуків ще немає. Будьте першим!</p>
                 </div>
                 {% endif %}
 
                 <!-- Форма залишення відгуку -->
                 {% if user and user.is_client %}
                 <div class="new-review-form-panel" style="margin-top:2rem;">
-                    <h3>Залишити відгук</h3>
+                    <h3 data-i18n="st.leave_review">Залишити відгук</h3>
                     <form method="POST" enctype="multipart/form-data">
                         {% csrf_token %}
                         <input type="hidden" name="action" value="add_review">
@@ -309,20 +308,20 @@
                             {% endfor %}
                         </div>
 
-                        <textarea name="review_text" class="review-textbox" placeholder="Розкажіть про свій досвід обслуговування..." required></textarea>
+                        <textarea name="review_text" class="review-textbox" placeholder="Розкажіть про свій досвід обслуговування..." required data-i18n-placeholder="ph.review_text"></textarea>
                         
                         <div style="margin-top:0.75rem; margin-bottom:1rem;">
-                            <label style="display:block; font-size:0.85rem; font-weight:600; margin-bottom:0.35rem; color:var(--text-main);">Прикріпити фото до відгуку (необов'язково):</label>
+                            <label style="display:block; font-size:0.85rem; font-weight:600; margin-bottom:0.35rem; color:var(--text-muted);" data-i18n="st.attach_photo">Прикріпити фото до відгуку (необов'язково):</label>
                             <input type="file" name="review_photo" accept="image/*" style="font-size:0.85rem; color:var(--text-muted);">
                         </div>
 
-                        <button type="submit" class="btn-primary">Надіслати відгук</button>
+                        <button type="submit" class="btn-primary" data-i18n="st.submit_review">Надіслати відгук</button>
                     </form>
                 </div>
                 {% elif not user %}
                 <div style="text-align:center; margin-top:2rem; padding:2rem; background:var(--surface); border:1px solid var(--border); border-radius:var(--radius-lg); box-shadow:var(--shadow-sm);">
-                    <p style="font-size:0.95rem; color:var(--text-muted); margin-bottom:1rem;">Щоб залишити відгук, увійдіть в акаунт</p>
-                    <a href="/login/" class="btn-primary" style="text-decoration:none; display:inline-block;">Увійти</a>
+                    <p style="font-size:0.95rem; color:var(--text-muted); margin-bottom:1rem;" data-i18n="st.login_to_review">Щоб залишити відгук, увійдіть в акаунт</p>
+                    <a href="/login/" class="btn-primary" style="text-decoration:none; display:inline-block;" data-i18n="nav.login">Увійти</a>
                 </div>
                 {% endif %}
             </div>
@@ -330,19 +329,19 @@
 
     </div>
 
-    <!-- ════ БІЧНА ПАНЕЛЬ ════ -->
+    <!-- БІЧНА ПАНЕЛЬ -->
     <aside class="details-sidebar">
         <!-- Картка контактів -->
         <div class="contact-card-box">
             <h3>
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.127.96.361 1.903.7 2.81a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0 1 22 16.92z"/></svg>
-                Контакти
+                <span data-i18n="st.contacts">Контакти</span>
             </h3>
             <div class="contacts-rows-container">
                 <div class="contact-row-wrapper">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
                     <div>
-                        <div class="contact-label-title">Адреса</div>
+                        <div class="contact-label-title" data-i18n="common.address">Адреса</div>
                         <div class="contact-value-str">{{ station.address }}</div>
                     </div>
                 </div>
@@ -350,7 +349,7 @@
                 <div class="contact-row-wrapper">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.127.96.361 1.903.7 2.81a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0 1 22 16.92z"/></svg>
                     <div>
-                        <div class="contact-label-title">Телефон</div>
+                        <div class="contact-label-title" data-i18n="common.phone">Телефон</div>
                         <div class="contact-value-str">{{ station.phone }}</div>
                     </div>
                 </div>
@@ -358,7 +357,7 @@
                 <div class="contact-row-wrapper">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
                     <div>
-                        <div class="contact-label-title">Власник</div>
+                        <div class="contact-label-title" data-i18n="st.owner_label">Власник</div>
                         <div class="contact-value-str">{{ station.user.full_name }}</div>
                     </div>
                 </div>
@@ -367,11 +366,11 @@
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="margin-top: 2px; width: 18px; height: 18px;"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
                     <div style="width: 100%;">
                         <div class="contact-label-title" style="display: flex; justify-content: space-between; align-items: center;">
-                            <span>Графік роботи</span>
+                            <span data-i18n="st.schedule">Графік роботи</span>
                             {% if is_open_now %}
-                                <span style="color: #10b981; font-weight: 700; font-size: 0.75rem; background: rgba(16, 185, 129, 0.1); padding: 2px 8px; border-radius: 10px;">Зараз відчинено</span>
+                                <span style="color: var(--success); font-weight: 600; font-size: 0.75rem; background: var(--success-dim); padding: 2px 8px; border-radius: 10px;" data-i18n="st.open_now">Зараз відчинено</span>
                             {% else %}
-                                <span style="color: #ef4444; font-weight: 700; font-size: 0.75rem; background: rgba(239, 68, 68, 0.1); padding: 2px 8px; border-radius: 10px;">Зараз зачинено</span>
+                                <span style="color: var(--error); font-weight: 600; font-size: 0.75rem; background: var(--error-dim); padding: 2px 8px; border-radius: 10px;" data-i18n="st.closed_now">Зараз зачинено</span>
                             {% endif %}
                         </div>
                         <div class="schedule-mini-list" style="margin-top: 0.6rem; font-size: 0.8rem; display: flex; flex-direction: column; gap: 4px;">
@@ -381,9 +380,9 @@
                                 <span>
                                     {% if sch.is_working %}
                                         <strong style="color: var(--text);">{{ sch.opening_time|time:'H:i' }} - {{ sch.closing_time|time:'H:i' }}</strong>
-                                        {% if sch.break_start %}<small style="color:var(--text-muted); margin-left: 4px;">(обід {{ sch.break_start|time:'H:i' }}-{{ sch.break_end|time:'H:i' }})</small>{% endif %}
+                                        {% if sch.break_start %}<small style="color:var(--text-muted); margin-left: 4px;">(<span data-i18n="st.break_word">обід</span> {{ sch.break_start|time:'H:i' }}-{{ sch.break_end|time:'H:i' }})</small>{% endif %}
                                     {% else %}
-                                        <span style="color: #ef4444; font-weight: 600;">Вихідний</span>
+                                        <span style="color: var(--error); font-weight: 600;" data-i18n="st.day_off">Вихідний</span>
                                     {% endif %}
                                 </span>
                             </div>
@@ -399,7 +398,7 @@
         <div class="map-card-box">
             <h3>
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><polygon points="1 6 1 22 8 18 16 22 23 18 23 2 16 6 8 2 1 6"/><line x1="8" y1="2" x2="8" y2="18"/><line x1="16" y1="6" x2="16" y2="22"/></svg>
-                На карті
+                <span data-i18n="st.on_map">На карті</span>
             </h3>
             <div id="station-map" {% if station.latitude and station.longitude %}data-lat="{{ station.latitude|unlocalize }}" data-lng="{{ station.longitude|unlocalize }}" data-name="{{ station.name|escapejs }}" data-address="{{ station.address|escapejs }}"{% endif %}></div>
         </div>
@@ -411,70 +410,70 @@
 <div class="modal-overlay" id="bookingModal">
     <div class="modal-box">
         <div class="modal-header">
-            <h3>Запис на ремонт</h3>
+            <h3 data-i18n="st.booking_title">Запис на ремонт</h3>
             <button class="close-modal" id="closeBookingModalBtn">&times;</button>
         </div>
         <form id="bookingForm" data-opening="{{ station.opening_time|time:'H:i' }}" data-closing="{{ station.closing_time|time:'H:i' }}">
             {% csrf_token %}
             <div class="form-group">
-                <label for="bookingCar">Оберіть автомобіль</label>
+                <label for="bookingCar" data-i18n="st.label_car">Оберіть автомобіль</label>
                 {% if user and user.is_client %}
                     {% if cars %}
                         <select id="bookingCar" name="car_id" required>
-                            <option value="" disabled selected>Оберіть автомобіль з вашого гаражу</option>
+                            <option value="" disabled selected data-i18n="st.choose_car">Оберіть автомобіль з вашого гаражу</option>
                             {% for car in cars %}
                                 <option value="{{ car.vin_code }}">{{ car.brand }} {{ car.model }} ({{ car.year }}) — {{ car.vin_code }}</option>
                             {% endfor %}
                         </select>
                     {% else %}
-                        <div style="color: var(--error); font-size: 0.85rem; margin-bottom: 0.5rem; font-weight: 500;">
+                        <div style="color: var(--error); font-size: 0.85rem; margin-bottom: 0.5rem; font-weight: 500;" data-i18n-html="st.no_cars_html">
                             У вас немає доданих автомобілів. Будь ласка, <a href="{% url 'profile' %}" style="color: var(--accent); text-decoration: underline;">додайте авто в гараж</a> перед записом.
                         </div>
                         <select id="bookingCar" name="car_id" required disabled>
-                            <option value="" disabled selected>Немає доступних автомобілів</option>
+                            <option value="" disabled selected data-i18n="st.no_cars_option">Немає доступних автомобілів</option>
                         </select>
                     {% endif %}
                 {% else %}
                     <select id="bookingCar" name="car_id" required disabled>
-                        <option value="" disabled selected>Будь ласка, увійдіть як клієнт</option>
+                        <option value="" disabled selected data-i18n="st.login_as_client">Будь ласка, увійдіть як клієнт</option>
                     </select>
                 {% endif %}
             </div>
             <div class="form-group">
-                <label for="bookingService">Послуга</label>
-                <input type="text" id="bookingService" name="service_name" placeholder="Наприклад: Заміна мастила, Діагностика підвіски" required>
+                <label for="bookingService" data-i18n="search.label_service">Послуга</label>
+                <input type="text" id="bookingService" name="service_name" placeholder="Наприклад: Заміна мастила, Діагностика підвіски" required data-i18n-placeholder="ph.service_example">
             </div>
             <div class="form-group">
-                <label for="bookingDescription">Опис проблеми</label>
-                <textarea id="bookingDescription" name="description" rows="3" placeholder="Опишіть симптоми несправності детальніше" required></textarea>
+                <label for="bookingDescription" data-i18n="st.label_problem">Опис проблеми</label>
+                <textarea id="bookingDescription" name="description" rows="3" placeholder="Опишіть симптоми несправності детальніше" required data-i18n-placeholder="ph.problem_desc"></textarea>
             </div>
             <div class="form-group">
-                <label for="bookingDuration">Очікувана тривалість ремонту</label>
+                <label for="bookingDuration" data-i18n="st.label_duration">Очікувана тривалість ремонту</label>
                 <select id="bookingDuration" name="duration" required>
-                    <option value="30">30 хвилин</option>
-                    <option value="60" selected>1 година</option>
-                    <option value="120">2 години</option>
-                    <option value="180">3 години</option>
-                    <option value="240">4 години</option>
+                    <option value="30" data-i18n="st.dur_30">30 хвилин</option>
+                    <option value="60" selected data-i18n="st.dur_60">1 година</option>
+                    <option value="120" data-i18n="st.dur_120">2 години</option>
+                    <option value="180" data-i18n="st.dur_180">3 години</option>
+                    <option value="240" data-i18n="st.dur_240">4 години</option>
                 </select>
             </div>
             <div class="form-row" style="display: flex; gap: 12px; flex-wrap: wrap;">
                 <div class="form-group" style="flex: 1; min-width: 150px; margin-bottom: 0;">
-                    <label for="bookingDate">Оберіть дату візиту</label>
+                    <label for="bookingDate" data-i18n="st.label_date">Оберіть дату візиту</label>
                     <input type="date" id="bookingDate" required>
                 </div>
             </div>
             <div class="form-group" style="margin-top: 1rem;">
-                <label>Доступний час візиту</label>
+                <label data-i18n="st.label_time">Доступний час візиту</label>
                 <span class="working-hours-hint" style="display: block; font-size: 0.8rem; color: var(--text-muted); margin-bottom: 0.5rem;">
-                    Робочі години: з {{ station.opening_time|time:'H:i' }} до {{ station.closing_time|time:'H:i' }}
+                    <span data-i18n="st.hours_prefix">Робочі години: з</span> {{ station.opening_time|time:'H:i' }} <span data-i18n="common.to">до</span> {{ station.closing_time|time:'H:i' }}
                 </span>
                 <div id="slotsGrid" class="slots-grid">
-                    <span class="info-text">Будь ласка, оберіть дату для пошуку вільних слотів.</span>
+                    <span class="info-text" data-i18n="st.pick_date_hint">Будь ласка, оберіть дату для пошуку вільних слотів.</span>
                 </div>
                 <input type="hidden" id="bookingTime" name="scheduled_time" required>
             </div>
-            <button type="submit" class="booking-btn" id="submitBookingBtn" style="width: 100%; justify-content: center;" disabled>Відправити заявку</button>
+            <button type="submit" class="booking-btn" id="submitBookingBtn" style="width: 100%; justify-content: center;" disabled data-i18n="st.submit_booking">Відправити заявку</button>
         </form>
     </div>
 </div>

@@ -214,25 +214,22 @@ document.addEventListener('DOMContentLoaded', () => {
                     center: 'title',
                     right: 'dayGridMonth,timeGridWeek,timeGridDay'
                 },
-                buttonText: {
-                    today: 'Сьогодні',
-                    month: 'Місяць',
-                    week: 'Тиждень',
-                    day: 'День'
-                },
+                buttonText: getLang() === 'en'
+                    ? { today: 'Today', month: 'Month', week: 'Week', day: 'Day' }
+                    : { today: 'Сьогодні', month: 'Місяць', week: 'Тиждень', day: 'День' },
                 editable: true, // дозволяє drag-and-drop
                 eventSources: [
                     {
                         url: `/api/stations/${stationId}/calendar-events/`,
                         method: 'GET',
                         failure: function() {
-                            alert('Помилка завантаження замовлень для календаря');
+                            alert(t('cal.load_error'));
                         }
                     }
                 ],
                 eventDrop: function(info) {
                     // Користувач перетягнув замовлення
-                    if (!confirm(`Перенести замовлення на ${info.event.start.toLocaleString('uk-UA')}?`)) {
+                    if (!confirm(`${t('cal.confirm_move')} ${info.event.start.toLocaleString(getLang() === 'en' ? 'en-US' : 'uk-UA')}?`)) {
                         info.revert();
                         return;
                     }
@@ -252,7 +249,7 @@ document.addEventListener('DOMContentLoaded', () => {
                         })
                     })
                     .then(response => response.json().then(data => {
-                        if (!response.ok) throw new Error(data.message || 'Помилка при перенесенні');
+                        if (!response.ok) throw new Error(data.message || t('cal.not_moved'));
                         return data;
                     }))
                     .then(data => {
@@ -266,7 +263,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 },
                 eventClick: function(info) {
                     const props = info.event.extendedProps;
-                    alert(`Замовлення #${info.event.id}\nКлієнт: ${props.clientName}\nАвтомобіль: ${props.car}\nПослуга: ${info.event.title.split(' - ').slice(-1)[0]}\nОпис: ${props.description}\nСтатус: ${props.status}\nБокс: ${props.boxName}`);
+                    alert(`${t('cal.booking')} #${info.event.id}\n${t('common.client')}: ${props.clientName}\n${t('common.car')}: ${props.car}\n${t('search.label_service')}: ${info.event.title.split(' - ').slice(-1)[0]}\n${t('acc.tbl_desc')}: ${props.description}\n${t('inv.th_status')}: ${props.status}\n${t('cal.box')}: ${props.boxName}`);
                 }
             });
 
@@ -325,7 +322,7 @@ function addPartToBooking() {
     const qty = parseInt(qtyInput.value) || 1;
 
     if (qty > stock) {
-        alert(`На складі є лише ${stock} шт цієї деталі.`);
+        alert(t('inv.only_stock').replace('{n}', stock));
         return;
     }
 
@@ -365,14 +362,14 @@ function renderSelectedParts() {
         const itemDiv = document.createElement('div');
         itemDiv.style.cssText = 'display:flex; justify-content:space-between; align-items:center; background:#ffffff; border:1px solid var(--border-color); padding:4px 8px; border-radius:6px; margin-top:4px;';
         itemDiv.innerHTML = `
-            <span><strong>${p.name}</strong> x${p.qty} (${p.price * p.qty} грн)</span>
+            <span><strong>${p.name}</strong> x${p.qty} (${p.price * p.qty} ${t('common.uah')})</span>
             <button type="button" onclick="removePartFromBooking(${p.part_id})" style="background:none; border:none; color:#ef4444; cursor:pointer; font-size:1.1rem; line-height:1;">&times;</button>
         `;
         container.appendChild(itemDiv);
     });
 }
 
-/* ══ КЛІЄНТСЬКІ СКРИПТИ ЧАТУ ЗАМОВЛЕННЯ ══ */
+/* Клієнтські скрипти чату замовлення */
 let currentChatBookingId = null;
 let chatPollingTimer = null;
 let selectedChatPhotoFile = null;
@@ -428,7 +425,7 @@ function renderBookingMessages(messages) {
     if (!container) return;
 
     if (!messages || messages.length === 0) {
-        container.innerHTML = '<div style="text-align:center; color: var(--text-muted); font-size:0.85rem; margin-top:2rem;">Немає повідомлень. Почніть діалог!</div>';
+        container.innerHTML = `<div style="text-align:center; color: var(--text-muted); font-size:0.85rem; margin-top:2rem;">${t('chat.empty')}</div>`;
         return;
     }
 
@@ -437,38 +434,38 @@ function renderBookingMessages(messages) {
     let html = '';
     messages.forEach(msg => {
         const alignClass = msg.is_me ? 'me' : 'other';
-        const senderBadge = msg.sender_role === 'station' ? 'СТО / Механік' : 'Клієнт';
+        const senderBadge = msg.sender_role === 'station' ? t('chat.from_station') : t('chat.from_client');
 
         let imageHtml = '';
         if (msg.image_url) {
-            imageHtml = `<img src="${msg.image_url}" alt="Дефект" class="chat-defect-photo" onclick="viewChatPhoto('${msg.image_url}')">`;
+            imageHtml = `<img src="${msg.image_url}" alt="" class="chat-defect-photo" onclick="viewChatPhoto('${msg.image_url}')">`;
         }
 
         let costHtml = '';
         if (msg.proposed_cost) {
             let statusText = '';
             if (msg.is_approved === true) {
-                statusText = '<span style="color:#10b981; font-weight:bold;">✅ Узгоджено</span>';
+                statusText = `<span style="color:#10b981; font-weight:bold;">${t('chat.approved')}</span>`;
             } else if (msg.is_approved === false) {
-                statusText = '<span style="color:#ef4444; font-weight:bold;">❌ Відхилено</span>';
+                statusText = `<span style="color:#ef4444; font-weight:bold;">${t('chat.declined')}</span>`;
             } else {
-                statusText = '<span style="color:#f59e0b; font-weight:bold;">⏳ Очікує узгодження</span>';
+                statusText = `<span style="color:#f59e0b; font-weight:bold;">${t('chat.pending')}</span>`;
             }
 
             let actionButtons = '';
             if (!msg.is_me && msg.is_approved === null) {
                 actionButtons = `
                     <div class="chat-approval-actions">
-                        <button type="button" class="btn-approve-cost" onclick="respondCostApproval(${msg.id}, 'approve')">Підтвердити</button>
-                        <button type="button" class="btn-decline-cost" onclick="respondCostApproval(${msg.id}, 'decline')">Відхилити</button>
+                        <button type="button" class="btn-approve-cost" onclick="respondCostApproval(${msg.id}, 'approve')">${t('chat.approve_btn')}</button>
+                        <button type="button" class="btn-decline-cost" onclick="respondCostApproval(${msg.id}, 'decline')">${t('chat.decline_btn')}</button>
                     </div>
                 `;
             }
 
             costHtml = `
                 <div class="chat-cost-card">
-                    <div>Додаткові роботи / деталі: <strong>+${msg.proposed_cost} грн</strong></div>
-                    <div style="margin-top:2px;">Статус: ${statusText}</div>
+                    <div>${t('chat.extra_cost')}: <strong>+${msg.proposed_cost} ${t('common.uah')}</strong></div>
+                    <div style="margin-top:2px;">${t("inv.th_status")}: ${statusText}</div>
                     ${actionButtons}
                 </div>
             `;
@@ -553,12 +550,12 @@ function handleSendChatMessage(event) {
             clearChatImagePreview();
             fetchBookingMessages();
         } else {
-            alert(data.message || 'Помилка надсилання повідомлення');
+            alert(data.message || t('chat.send_error'));
         }
     })
     .catch(err => {
         console.error('Error sending message:', err);
-        alert('Помилка з\'єднання з сервером.');
+        alert(t('common.connection_error'));
     });
 }
 
@@ -579,7 +576,7 @@ function respondCostApproval(messageId, action) {
         if (data.status === 'success') {
             fetchBookingMessages();
         } else {
-            alert(data.message || 'Помилка при узгодженні');
+            alert(data.message || t('chat.approval_error'));
         }
     });
 }
@@ -621,14 +618,14 @@ function toggleDayInputs(dayNum) {
         row.style.pointerEvents = 'auto';
         if (badge) {
             badge.style.background = '#10b981';
-            badge.textContent = 'Робочий';
+            badge.textContent = t('sched.working');
         }
     } else {
         row.style.opacity = '0.4';
         row.style.pointerEvents = 'none';
         if (badge) {
             badge.style.background = '#ef4444';
-            badge.textContent = 'Вихідний';
+            badge.textContent = t('st.day_off');
         }
     }
 }

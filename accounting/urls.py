@@ -15,8 +15,8 @@ urlpatterns = [
     path('inventory/add/', views.add_spare_part_view, name='add_spare_part'),
     path('inventory/edit/', views.edit_spare_part_view, name='edit_spare_part'),
     path('inventory/delete/', views.delete_spare_part_view, name='delete_spare_part'),
-    # Експорт транзакцій у CSV та звіту в PDF
-    path('export/csv/', views.export_transactions_csv, name='export_csv'),
+    # Експорт транзакцій у Excel та звіту в PDF
+    path('export/excel/', views.export_transactions_xlsx, name='export_excel'),
     path('export/pdf/', views.export_financial_report_pdf, name='export_pdf'),
     # Пошук та закупівля запчастин у постачальників (API + Import)
     path('api/suppliers/parts/search/', views.search_supplier_parts_api, name='search_supplier_parts_api'),

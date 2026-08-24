@@ -30,12 +30,11 @@
     display: flex;
     align-items: center;
     gap: 0.75rem;
-    font-weight: 800;
-    font-size: 1.45rem;
+    font-weight: 700;
+    font-size: 1.4rem;
     color: var(--text);
     margin-bottom: 0.5rem;
     padding-left: 0.5rem;
-    letter-spacing: -0.02em;
 }
 .sidebar-brand svg {
     color: var(--accent);
@@ -74,7 +73,6 @@
 
 .avatar-wrapper:hover {
     border-color: var(--accent);
-    transform: scale(1.02);
 }
 
 .avatar-wrapper img {
@@ -86,8 +84,7 @@
 .avatar-overlay {
     position: absolute;
     inset: 0;
-    background: rgba(15, 23, 42, 0.45);
-    backdrop-filter: blur(2px);
+    background: rgba(0, 0, 0, 0.5);
     display: flex;
     align-items: center;
     justify-content: center;
@@ -125,9 +122,9 @@
     display: inline-flex;
     align-items: center;
     font-size: 0.75rem;
-    font-weight: 700;
+    font-weight: 600;
     padding: 0.3rem 0.8rem;
-    border-radius: 20px;
+    border-radius: var(--radius-full);
     background: var(--accent-dim);
     color: var(--accent);
     border: 1px solid var(--accent-dim);
@@ -197,8 +194,8 @@
 }
 
 @keyframes fadeIn {
-    from { opacity: 0; transform: translateY(8px); }
-    to { opacity: 1; transform: translateY(0); }
+    from { opacity: 0; }
+    to { opacity: 1; }
 }
 
 .section-header {
@@ -208,9 +205,8 @@
 }
 
 .section-title {
-    font-size: 1.75rem;
-    font-weight: 800;
-    letter-spacing: -0.03em;
+    font-size: 1.6rem;
+    font-weight: 700;
     color: var(--text);
     margin-bottom: 0.25rem;
 }
@@ -224,7 +220,7 @@
 .card {
     background: var(--surface);
     border: 1px solid var(--border);
-    border-radius: 20px;
+    border-radius: var(--radius-lg);
     padding: 2rem;
     box-shadow: var(--shadow-sm);
 }
@@ -260,11 +256,9 @@
 }
 
 label {
-    font-size: 0.8rem;
-    font-weight: 700;
+    font-size: 0.85rem;
+    font-weight: 600;
     color: var(--text-muted);
-    text-transform: uppercase;
-    letter-spacing: 0.05em;
 }
 
 input[type="text"],
@@ -314,7 +308,7 @@ input::placeholder, textarea::placeholder {
 
 select {
     appearance: none;
-    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%2364748b'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='2.5' d='M19 9l-7 7-7-7'%3E%3C/path%3E%3C/svg%3E");
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%23868e96'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='2.5' d='M19 9l-7 7-7-7'%3E%3C/path%3E%3C/svg%3E");
     background-repeat: no-repeat;
     background-position: right 1rem center;
     background-size: 0.85rem;
@@ -333,7 +327,7 @@ select {
 .list-item {
     background: var(--surface);
     border: 1px solid var(--border);
-    border-radius: 20px;
+    border-radius: var(--radius-lg);
     padding: 1.75rem;
     box-shadow: var(--shadow-sm);
     display: flex;
@@ -412,7 +406,7 @@ select {
 .car-photo-container {
     width: 100%;
     height: 220px;
-    border-radius: 12px;
+    border-radius: var(--radius-xl);
     background: var(--bg);
     border: 2px dashed var(--border);
     display: flex;
@@ -436,8 +430,7 @@ select {
 .upload-overlay {
     position: absolute;
     inset: 0;
-    background: rgba(15, 23, 42, 0.85);
-    backdrop-filter: blur(4px);
+    background: rgba(0, 0, 0, 0.6);
     display: flex;
     flex-direction: column;
     align-items: center;
@@ -467,11 +460,11 @@ select {
 /* Особливі стилі для відгуків */
 .review-rating {
     color: #F59E0B;
-    font-weight: 700;
+    font-weight: 600;
     font-size: 0.85rem;
     background: rgba(245, 158, 11, 0.08);
     padding: 0.35rem 0.75rem;
-    border-radius: 8px;
+    border-radius: var(--radius-md);
     display: inline-flex;
     align-items: center;
     gap: 0.25rem;
@@ -482,7 +475,7 @@ select {
     padding: 4rem 2rem;
     background: var(--surface);
     border: 2px dashed var(--border);
-    border-radius: 20px;
+    border-radius: var(--radius-lg);
     color: var(--text-muted);
     box-shadow: var(--shadow-sm);
 }
@@ -539,7 +532,7 @@ select {
     margin-top: 0.5rem;
     padding: 1rem 1.25rem;
     background: var(--accent-dim);
-    border: 1px solid rgba(37, 99, 235, 0.1);
+    border: 1px solid var(--border);
     border-radius: var(--radius-md);
     display: flex;
     align-items: center;
@@ -565,7 +558,7 @@ select {
     margin-bottom: 2rem;
     background: var(--surface);
     border: 1px solid var(--border);
-    border-radius: 20px;
+    border-radius: var(--radius-lg);
     padding: 1.5rem;
     box-shadow: var(--shadow-sm);
 }
@@ -615,9 +608,9 @@ select {
     align-items: center;
     gap: 0.4rem;
     padding: 0.5rem 1.15rem;
-    border-radius: 24px;
+    border-radius: var(--radius-sm);
     font-size: 0.875rem;
-    font-weight: 700;
+    font-weight: 600;
     border: 1px solid var(--border);
     background: var(--surface);
     color: var(--text-muted);
@@ -632,14 +625,14 @@ select {
 
 .tab-filter-btn.active {
     background: var(--accent-dim);
-    border-color: rgba(37, 99, 235, 0.2);
+    border-color: var(--accent-light);
     color: var(--accent);
 }
 
 /* Активний стиль для вкладки "Виконано" */
 .tab-filter-btn[data-status="completed"].active {
     background: var(--success-dim);
-    border-color: rgba(16, 185, 129, 0.2);
+    border-color: var(--success);
     color: var(--success);
 }
 
@@ -659,7 +652,7 @@ select {
 .booking-card {
     background: var(--surface);
     border: 1px solid var(--border);
-    border-radius: 20px;
+    border-radius: var(--radius-lg);
     padding: 1.75rem;
     box-shadow: var(--shadow-sm);
     display: flex;
@@ -712,7 +705,7 @@ select {
     gap: 0.4rem;
     font-size: 0.875rem;
     color: var(--text-muted);
-    font-weight: 700;
+    font-weight: 600;
 }
 
 .calendar-icon {
@@ -729,11 +722,9 @@ select {
 }
 
 .body-label {
-    font-size: 0.8rem;
-    font-weight: 700;
+    font-size: 0.85rem;
+    font-weight: 600;
     color: var(--text-muted);
-    letter-spacing: 0.05em;
-    text-transform: uppercase;
 }
 
 .booking-desc-box {
@@ -762,9 +753,9 @@ select {
     align-items: center;
     gap: 0.35rem;
     padding: 0.4rem 0.9rem;
-    border-radius: 20px;
+    border-radius: var(--radius-full);
     font-size: 0.85rem;
-    font-weight: 700;
+    font-weight: 600;
     border: 1px solid transparent;
     white-space: nowrap;
 }
@@ -772,7 +763,7 @@ select {
 .status-tag.status-pending {
     background: var(--accent-dim);
     color: var(--accent);
-    border-color: rgba(37, 99, 235, 0.15);
+    border-color: var(--accent-light);
 }
 
 .status-tag.status-confirmed {
@@ -784,13 +775,13 @@ select {
 .status-tag.status-completed {
     background: var(--success-dim);
     color: var(--success);
-    border-color: rgba(16, 185, 129, 0.15);
+    border-color: var(--success);
 }
 
 .status-tag.status-cancelled {
     background: var(--error-dim);
     color: var(--error);
-    border-color: rgba(239, 68, 68, 0.15);
+    border-color: var(--error);
 }
 
 .check-icon-small {
@@ -821,7 +812,7 @@ select {
     cursor: pointer;
     transition: all var(--transition-fast);
     appearance: none;
-    background-image: url("data:image/svg+xml;charset=UTF-8,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%2364748b' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E");
+    background-image: url("data:image/svg+xml;charset=UTF-8,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23868e96' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E");
     background-repeat: no-repeat;
     background-position: right 0.75rem center;
     background-size: 0.85rem;
@@ -869,7 +860,7 @@ select {
 .garage-car-card {
     background: var(--surface);
     border: 1px solid var(--border);
-    border-radius: 20px;
+    border-radius: var(--radius-lg);
     padding: 1.5rem 1.75rem;
     display: flex;
     align-items: center;
@@ -887,7 +878,7 @@ select {
     color: var(--accent);
     width: 50px;
     height: 50px;
-    border-radius: 12px;
+    border-radius: var(--radius-xl);
     display: flex;
     align-items: center;
     justify-content: center;
@@ -915,7 +906,7 @@ select {
 .garage-car-vin {
     background: var(--bg);
     padding: 0.15rem 0.5rem;
-    border-radius: 6px;
+    border-radius: var(--radius-sm);
     font-family: monospace;
     font-size: 0.85rem;
     border: 1px solid var(--border);
@@ -958,11 +949,6 @@ select {
     border: 3px solid var(--surface);
     border-radius: 50%;
     box-shadow: 0 0 0 3px var(--accent-dim);
-    transition: transform var(--transition-fast);
-}
-
-.timeline-item:hover .timeline-dot {
-    transform: scale(1.3);
 }
 
 .timeline-content-box {
@@ -971,7 +957,7 @@ select {
     border-radius: var(--radius-md);
     padding: 1.25rem;
     box-shadow: var(--shadow-sm);
-    transition: all var(--transition-normal);
+    transition: border-color var(--transition-fast);
     display: flex;
     flex-direction: column;
     gap: 0.75rem;
@@ -979,8 +965,6 @@ select {
 
 .timeline-content-box:hover {
     border-color: var(--border-hover);
-    box-shadow: var(--shadow-md);
-    transform: translateX(4px);
 }
 
 .timeline-meta-row {
@@ -1028,36 +1012,6 @@ select {
     border-left: 3px solid var(--accent);
     margin: 0;
     font-weight: 500;
-}
-
-/* ── АДАПТИВНІСТЬ ДЛЯ СТАНДАРТНОГО МАКЕТУ ── */
-@media (max-width: 900px) {
-    .profile-page-container {
-        flex-direction: column;
-        padding: 2rem 1.5rem;
-        gap: 2rem;
-    }
-
-    .profile-sidebar {
-        position: static;
-        padding: 1.5rem;
-        width: 100%;
-        height: auto;
-        border-right: none;
-        border-bottom: 1px solid var(--border);
-    }
-
-    .form-row {
-        grid-template-columns: 1fr;
-        gap: 1rem;
-    }
-
-    .profile-summary {
-        flex-direction: row;
-        text-align: left;
-        align-items: center;
-        gap: 1.5rem;
-    }
 }
 
 /* ── СТИЛІ НОВОГО ДИЗАЙНУ ПРОФІЛЮ ── */
@@ -1202,7 +1156,7 @@ body.profile-body .search-box-wrapper {
 body.profile-body #booking-search {
     background: var(--bg);
     border: 1px solid var(--border);
-    border-radius: 20px;
+    border-radius: var(--radius-md);
     padding: 0.65rem 1rem 0.65rem 2.5rem;
     font-size: 0.9rem;
 }
@@ -1221,16 +1175,16 @@ body.profile-body .status-tabs-wrapper {
     flex-shrink: 0;
 }
 
-/* Кнопки фільтрів у стилі пігулок */
+/* Кнопки фільтрів */
 body.profile-body .tab-filter-btn {
     padding: 0.5rem 1.2rem;
-    border-radius: 30px;
+    border-radius: var(--radius-sm);
     font-size: 0.85rem;
-    font-weight: 700;
+    font-weight: 600;
     background: var(--surface-hover);
     border: 1px solid transparent;
     color: var(--text-muted);
-    transition: all 0.2s;
+    transition: all var(--transition-fast);
 }
 
 body.profile-body .tab-filter-btn:hover {
@@ -1240,14 +1194,14 @@ body.profile-body .tab-filter-btn:hover {
 
 body.profile-body .tab-filter-btn.active {
     background: var(--accent-dim);
-    border-color: rgba(37, 99, 235, 0.2);
+    border-color: var(--accent-light);
     color: var(--accent);
 }
 
 /* Стиль для активної вкладки "Виконано" */
 body.profile-body .tab-filter-btn[data-status="completed"].active {
     background: var(--success-dim);
-    border-color: rgba(16, 185, 129, 0.2);
+    border-color: var(--success);
     color: var(--success);
 }
 
@@ -1325,32 +1279,26 @@ body.profile-body .booking-card .booking-footer {
 
 /* Стилізація тегів статусів */
 body.profile-body .status-tag {
-    font-weight: 700;
+    font-weight: 600;
     padding: 0.4rem 1rem;
 }
 
 body.profile-body .status-tag.status-pending {
     background: var(--accent-dim);
     color: var(--accent);
-    border-color: rgba(37, 99, 235, 0.15);
-}
-
-body.profile-body .status-tag.status-confirmed {
-    background: rgba(245, 158, 11, 0.08);
-    color: #D97706;
-    border-color: rgba(245, 158, 11, 0.15);
+    border-color: var(--accent-light);
 }
 
 body.profile-body .status-tag.status-completed {
     background: var(--success-dim);
     color: var(--success);
-    border-color: rgba(16, 185, 129, 0.15);
+    border-color: var(--success);
 }
 
 body.profile-body .status-tag.status-cancelled {
     background: var(--error-dim);
     color: var(--error);
-    border-color: rgba(239, 68, 68, 0.15);
+    border-color: var(--error);
 }
 
 /* Форма оновлення статусу */
@@ -1361,7 +1309,7 @@ body.profile-body .status-update-form {
 body.profile-body .status-select-element {
     padding: 0.5rem 2.25rem 0.5rem 1rem;
     font-size: 0.9rem;
-    border-radius: 6px;
+    border-radius: var(--radius-sm);
     border-color: var(--border);
 }
 
@@ -1373,10 +1321,10 @@ body.profile-body .status-select-element:focus {
 body.profile-body .btn-primary-save {
     padding: 0.5rem 1.5rem;
     font-size: 0.9rem;
-    font-weight: 700;
+    font-weight: 600;
     background-color: var(--accent);
-    border-radius: 6px;
-    transition: background-color 0.15s ease;
+    border-radius: var(--radius-sm);
+    transition: background-color var(--transition-fast);
 }
 
 body.profile-body .btn-primary-save:hover {
@@ -1467,7 +1415,7 @@ body.profile-body .btn-primary-save:hover {
         padding: 1rem;
     }
 
-    /* Адаптация формы личных данных */
+    /* Адаптація форми особистих даних */
     .form-row {
         grid-template-columns: 1fr !important;
         gap: 1rem !important;
@@ -1491,7 +1439,7 @@ body.profile-body .btn-primary-save:hover {
 
     body.profile-body .booking-card {
         padding: 1.1rem;
-        border-radius: 16px;
+        border-radius: var(--radius-lg);
     }
 
     body.profile-body .booking-card .item-title {
@@ -1507,15 +1455,6 @@ body.profile-body .btn-primary-save:hover {
     .cars-grid-layout {
         grid-template-columns: 1fr !important;
         gap: 1rem !important;
-    }
-
-    /* Мобільна адаптація модального вікна чату */
-    .chat-modal-content {
-        width: 100% !important;
-        height: 100vh !important;
-        height: 100dvh !important;
-        max-width: 100% !important;
-        border-radius: 0 !important;
     }
 
     .chat-text-input {
@@ -1534,23 +1473,23 @@ body.profile-body .btn-primary-save:hover {
 }
 
 .history-toggle-btn {
-    transition: all 0.2s ease-in-out;
+    transition: background var(--transition-fast), border-color var(--transition-fast);
 }
 
 .history-toggle-btn:hover {
-    background: var(--bg-hover, #e5e7eb) !important;
-    border-color: var(--border-hover, #9ca3af) !important;
+    background: var(--surface-hover) !important;
+    border-color: var(--border-hover) !important;
 }
 
 .history-card {
-    transition: transform 0.15s ease, box-shadow 0.15s ease;
+    transition: box-shadow var(--transition-fast);
 }
 
 .history-card:hover {
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+    box-shadow: var(--shadow-md);
 }
 
-/* ══ СТИЛІ МОДУЛЯ ЧАТУ ЗАМОВЛЕННЯ ══ */
+/* СТИЛІ МОДУЛЯ ЧАТУ ЗАМОВЛЕННЯ */
 .btn-chat-trigger {
     display: inline-flex;
     align-items: center;
@@ -1558,19 +1497,22 @@ body.profile-body .btn-primary-save:hover {
     padding: 0.4rem 0.75rem;
     font-size: 0.85rem;
     font-weight: 600;
-    color: #2563eb;
-    background: rgba(37, 99, 235, 0.08);
-    border: 1px solid rgba(37, 99, 235, 0.2);
-    border-radius: 8px;
+    color: var(--accent);
+    background: var(--accent-dim);
+    border: 1px solid var(--accent-light);
+    border-radius: var(--radius-md);
     cursor: pointer;
-    transition: all 0.2s ease;
+    transition: background var(--transition-fast), color var(--transition-fast), border-color var(--transition-fast);
 }
 
 .btn-chat-trigger:hover {
-    background: #2563eb;
+    background: var(--accent);
     color: #ffffff;
-    border-color: #2563eb;
-    box-shadow: 0 4px 12px rgba(37, 99, 235, 0.25);
+    border-color: var(--accent);
+}
+
+.btn-chat-trigger:active {
+    transform: translateY(1px);
 }
 
 .btn-pdf-act {
@@ -1580,33 +1522,19 @@ body.profile-body .btn-primary-save:hover {
     padding: 0.4rem 0.75rem;
     font-size: 0.85rem;
     font-weight: 600;
-    color: #0f172a;
-    background: #f1f5f9;
-    border: 1px solid #cbd5e1;
-    border-radius: 8px;
+    color: var(--text-muted);
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-md);
     text-decoration: none;
     cursor: pointer;
-    transition: all 0.2s ease;
-}
-
-html.dark .btn-pdf-act {
-    color: #f8fafc;
-    background: #334155;
-    border-color: #475569;
+    transition: background var(--transition-fast), color var(--transition-fast), border-color var(--transition-fast);
 }
 
 .btn-pdf-act:hover {
-    background: #0f172a;
-    color: #ffffff;
-    border-color: #0f172a;
-    box-shadow: 0 4px 12px rgba(15, 23, 42, 0.2);
-}
-
-html.dark .btn-pdf-act:hover {
-    background: #38bdf8;
-    color: #0f172a;
-    border-color: #38bdf8;
-    box-shadow: 0 4px 12px rgba(56, 189, 248, 0.25);
+    background: var(--surface-hover);
+    color: var(--text);
+    border-color: var(--border-hover);
 }
 
 .chat-modal-content {
@@ -1616,13 +1544,13 @@ html.dark .btn-pdf-act:hover {
     flex-direction: column;
     padding: 0 !important;
     overflow: hidden;
-    border-radius: 16px;
+    border-radius: var(--radius-xl);
 }
 
 .chat-modal-header {
     padding: 1rem 1.25rem;
-    background: var(--bg-hover, #f8fafc);
-    border-bottom: 1px solid var(--border-color, #e2e8f0);
+    background: var(--bg);
+    border-bottom: 1px solid var(--border);
     display: flex;
     justify-content: space-between;
     align-items: center;
@@ -1632,12 +1560,12 @@ html.dark .btn-pdf-act:hover {
     margin: 0;
     font-size: 1.1rem;
     font-weight: 700;
-    color: var(--text-color, #1e293b);
+    color: var(--text);
 }
 
 .chat-modal-subtitle {
     font-size: 0.8rem;
-    color: var(--text-muted, #64748b);
+    color: var(--text-muted);
 }
 
 .chat-body-stream {
@@ -1647,7 +1575,7 @@ html.dark .btn-pdf-act:hover {
     display: flex;
     flex-direction: column;
     gap: 1rem;
-    background: var(--bg-color, #f1f5f9);
+    background: var(--bg);
 }
 
 .chat-message-row {
@@ -1669,55 +1597,49 @@ html.dark .btn-pdf-act:hover {
 .chat-sender-name {
     font-size: 0.75rem;
     font-weight: 600;
-    color: var(--text-muted, #64748b);
+    color: var(--text-muted);
     margin-bottom: 0.25rem;
     padding: 0 0.25rem;
 }
 
 .chat-bubble {
     padding: 0.75rem 1rem;
-    border-radius: 14px;
+    border-radius: var(--radius-md);
     font-size: 0.9rem;
     line-height: 1.45;
     position: relative;
     word-break: break-word;
-    box-shadow: 0 2px 6px rgba(0,0,0,0.04);
 }
 
+/* Свої повідомлення — суцільний синій фон */
 .chat-message-row.me .chat-bubble {
-    background: linear-gradient(135deg, #2563eb, #1d4ed8);
+    background: var(--accent);
     color: #ffffff;
     border-bottom-right-radius: 2px;
 }
 
 .chat-message-row.other .chat-bubble {
-    background: #ffffff;
-    color: #1e293b;
-    border: 1px solid var(--border-color, #e2e8f0);
+    background: var(--surface);
+    color: var(--text);
+    border: 1px solid var(--border);
     border-bottom-left-radius: 2px;
 }
 
 .chat-defect-photo {
     width: 100%;
     max-width: 260px;
-    border-radius: 10px;
+    border-radius: var(--radius-sm);
     margin-top: 0.5rem;
     cursor: pointer;
-    transition: transform 0.2s ease, box-shadow 0.2s ease;
-    border: 2px solid rgba(255,255,255,0.2);
-}
-
-.chat-defect-photo:hover {
-    transform: scale(1.02);
-    box-shadow: 0 6px 16px rgba(0,0,0,0.2);
+    border: 1px solid var(--border);
 }
 
 .chat-cost-card {
     margin-top: 0.5rem;
     padding: 0.75rem;
-    background: rgba(254, 243, 199, 0.9);
+    background: #fef3c7;
     border: 1px solid #f59e0b;
-    border-radius: 10px;
+    border-radius: var(--radius-sm);
     color: #78350f;
     font-size: 0.85rem;
 }
@@ -1735,10 +1657,10 @@ html.dark .btn-pdf-act:hover {
 
 .btn-approve-cost {
     padding: 0.35rem 0.75rem;
-    background: #10b981;
+    background: var(--success);
     color: #ffffff;
     border: none;
-    border-radius: 6px;
+    border-radius: var(--radius-sm);
     font-size: 0.8rem;
     font-weight: 600;
     cursor: pointer;
@@ -1746,10 +1668,10 @@ html.dark .btn-pdf-act:hover {
 
 .btn-decline-cost {
     padding: 0.35rem 0.75rem;
-    background: #ef4444;
+    background: var(--error);
     color: #ffffff;
     border: none;
-    border-radius: 6px;
+    border-radius: var(--radius-sm);
     font-size: 0.8rem;
     font-weight: 600;
     cursor: pointer;
@@ -1764,8 +1686,8 @@ html.dark .btn-pdf-act:hover {
 
 .chat-footer-controls {
     padding: 0.75rem 1rem;
-    background: var(--surface, #ffffff);
-    border-top: 1px solid var(--border-color, #e2e8f0);
+    background: var(--surface);
+    border-top: 1px solid var(--border);
 }
 
 .chat-send-form {
@@ -1777,15 +1699,15 @@ html.dark .btn-pdf-act:hover {
 .chat-text-input {
     flex: 1;
     padding: 0.6rem 0.85rem;
-    border: 1px solid var(--border-color, #cbd5e1);
-    border-radius: 10px;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-md);
     font-size: 0.9rem;
     outline: none;
-    transition: border-color 0.2s;
+    transition: border-color var(--transition-fast);
 }
 
 .chat-text-input:focus {
-    border-color: #2563eb;
+    border-color: var(--accent);
 }
 
 .btn-chat-attach {
@@ -1793,22 +1715,22 @@ html.dark .btn-pdf-act:hover {
     align-items: center;
     gap: 0.3rem;
     padding: 0.6rem 0.75rem;
-    background: var(--bg-hover, #f1f5f9);
-    border: 1px solid var(--border-color, #cbd5e1);
-    border-radius: 10px;
+    background: var(--surface-hover);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-md);
     cursor: pointer;
     font-size: 0.85rem;
     font-weight: 600;
-    color: var(--text-color, #334155);
+    color: var(--text-muted);
 }
 
 .btn-chat-attach:hover {
-    background: #e2e8f0;
+    background: var(--border);
 }
 
 .btn-chat-send {
     padding: 0.6rem 1.1rem;
-    border-radius: 10px;
+    border-radius: var(--radius-sm);
     font-weight: 600;
 }
 
@@ -1820,15 +1742,15 @@ html.dark .btn-pdf-act:hover {
 
 .chat-image-preview-box img {
     height: 60px;
-    border-radius: 8px;
-    border: 1px solid var(--border-color);
+    border-radius: var(--radius-sm);
+    border: 1px solid var(--border);
 }
 
 .btn-remove-preview {
     position: absolute;
     top: -6px;
     right: -6px;
-    background: #ef4444;
+    background: var(--error);
     color: #ffffff;
     border: none;
     border-radius: 50%;
@@ -1841,181 +1763,90 @@ html.dark .btn-pdf-act:hover {
     justify-content: center;
 }
 
-/* ── Мобільна адаптація профілю (Планшети та Смартфони) ── */
-@media (max-width: 1024px) {
-    .profile-page-container {
-        flex-direction: column;
-        padding: 1rem;
-        gap: 1.25rem;
-        min-height: auto;
-    }
 
-    .profile-sidebar {
-        position: relative;
-        top: 0;
-        z-index: 10;
-        width: 100%;
-        height: auto;
-        border-right: none;
-        border-bottom: none;
-        padding: 0;
-        flex-direction: column;
-        gap: 0.85rem;
-        background: transparent;
-        box-shadow: none;
-        border-radius: 0;
-    }
-
-    .profile-summary {
+/* ═══ МОБІЛЬНА АДАПТАЦІЯ КАБІНЕТУ (консолідовано) ═══ */
+@media (max-width: 768px) {
+    /* Компактна картка профілю у верхній панелі */
+    body.profile-body .profile-summary {
         flex-direction: row;
         align-items: center;
         text-align: left;
-        padding: 0.85rem 1rem;
         gap: 1rem;
-        width: 100%;
-        background: var(--surface);
+        padding: 0.85rem 1rem;
+        background: var(--bg);
         border: 1px solid var(--border);
         border-radius: var(--radius-md);
-        box-shadow: var(--shadow-sm);
     }
-
-    .avatar-wrapper {
+    body.profile-body .avatar-wrapper {
         width: 52px;
         height: 52px;
         font-size: 1.25rem;
-        flex-shrink: 0;
     }
-
-    .profile-name {
+    body.profile-body .profile-name {
         font-size: 1rem;
     }
-
-    .profile-email {
+    body.profile-body .profile-email {
         font-size: 0.8rem;
-        margin-bottom: 0.25rem;
+        margin-bottom: 0;
     }
 
-    /* На мобільних пристроях відображаємо всі вкладки у сітці з 2 колонок */
-    .nav-list {
-        position: relative;
-        top: 0;
-        z-index: 5;
-        display: grid;
-        grid-template-columns: repeat(2, 1fr);
+    /* Календар: не ламається на вузьких екранах */
+    #calendar {
+        overflow-x: auto;
+    }
+    #calendar .fc {
+        font-size: 0.82rem;
+        min-width: 360px;
+    }
+    #calendar .fc .fc-toolbar {
+        flex-wrap: wrap;
         gap: 0.5rem;
-        width: 100%;
-        padding: 0.6rem;
-        background: var(--surface);
-        border: 1px solid var(--border);
-        border-radius: var(--radius-md);
-        box-shadow: var(--shadow-sm);
-        overflow: visible;
+        row-gap: 0.75rem;
+    }
+    #calendar .fc .fc-toolbar-title {
+        font-size: 1.05rem;
+    }
+    #calendar .fc .fc-button {
+        min-height: 36px;
+        padding: 0.25rem 0.6rem;
+        font-size: 0.8rem;
     }
 
-    .nav-item {
-        white-space: normal;
-        padding: 0.65rem 0.75rem;
-        font-size: 0.85rem;
-        font-weight: 600;
-        border-radius: var(--radius-sm);
-        border: 1px solid var(--border);
-        background: var(--bg);
-        color: var(--text-muted);
-        display: flex;
-        align-items: center;
-        justify-content: flex-start;
-        gap: 0.5rem;
-        width: 100%;
-        text-align: left;
+    /* Таблиця складу: гортається, а не стискається */
+    .inventory-table {
+        min-width: 780px;
+    }
+
+    /* Чат заявки — «аркуш», що виїжджає знизу */
+    body.profile-body .acc-modal-overlay#bookingChatModal {
+        align-items: flex-end;
+        padding: 0;
+    }
+    body.profile-body .chat-modal-content {
+        width: 100% !important;
+        max-width: 100% !important;
+        height: 92vh !important;
+        height: 92dvh !important;
+        max-height: 92vh !important;
+        max-height: 92dvh !important;
+        border-radius: var(--radius-xl) var(--radius-xl) 0 0 !important;
+        overflow: hidden;
+    }
+    .chat-text-input {
+        font-size: 16px !important;
         min-height: 44px;
     }
-
-    .nav-item.active {
-        background: var(--accent);
-        color: #ffffff;
-        border-color: var(--accent);
+    .btn-chat-send,
+    .btn-chat-attach {
+        min-height: 44px;
     }
-
-    .nav-item.active svg {
-        stroke: #ffffff;
-    }
-
-    .nav-item svg {
-        width: 18px;
-        height: 18px;
-        flex-shrink: 0;
-    }
-
-    .profile-content {
-        width: 100%;
-    }
-}
-
-@media (max-width: 480px) {
-    .nav-list {
-        grid-template-columns: 1fr;
-    }
-}
-
-@media (max-width: 768px) {
-    .form-row {
-        grid-template-columns: 1fr;
-        gap: 1rem;
-    }
-
-    .card {
-        padding: 1.25rem;
-        border-radius: 16px;
-    }
-
-    .section-title {
-        font-size: 1.4rem;
-    }
-
-    .list-item {
-        padding: 1.25rem;
-        border-radius: 16px;
-    }
-
-    .item-header {
-        flex-direction: column;
-        align-items: flex-start;
-        gap: 0.75rem;
-    }
-
-    .item-actions {
-        width: 100%;
-        justify-content: flex-end;
-    }
-
-    /* Запобігання зуму на iOS Safari */
-    .form-group input,
-    .form-group select,
-    .form-group textarea {
-        font-size: 16px !important;
-        min-height: 48px;
-    }
-
-    /* Мобільний чат замовлення */
-    .chat-modal-box {
-        width: 95% !important;
-        max-width: 100% !important;
-        height: 90vh !important;
-        max-height: 90dvh !important;
-        border-radius: 20px !important;
-        padding: 1rem !important;
-        margin: auto !important;
-    }
-
     .chat-footer-controls {
         padding-bottom: max(0.75rem, env(safe-area-inset-bottom));
     }
-
     .chat-approval-actions {
         flex-direction: column;
         width: 100%;
     }
-
     .btn-approve-cost,
     .btn-decline-cost {
         width: 100%;
@@ -2026,28 +1857,63 @@ html.dark .btn-pdf-act:hover {
 }
 
 @media (max-width: 480px) {
-    .profile-page-container {
-        padding: 0.5rem;
+    body.profile-body .profile-content {
+        padding: 0.75rem;
     }
-
-    .card {
+    body.profile-body .card,
+    body.profile-body .list-item {
         padding: 1rem;
-        border-radius: 14px;
+        border-radius: var(--radius-lg);
     }
-
-    .profile-sidebar {
-        padding: 0.65rem;
+    body.profile-body .section-title {
+        font-size: 1.3rem;
     }
-
-    .nav-item {
-        font-size: 0.8rem;
-        padding: 0.45rem 0.75rem;
+    body.profile-body .booking-card {
+        padding: 1.1rem;
+        border-radius: var(--radius-lg);
     }
+    .form-group input,
+    .form-group select,
+    .form-group textarea {
+        font-size: 16px !important;
+        min-height: 48px;
+    }
+}
 
-    .btn-primary,
-    .btn-outline {
+/* Доповнення до мобільної адаптації кабінету */
+@media (max-width: 768px) {
+    body.profile-body .card {
+        padding: 1.25rem;
+        border-radius: var(--radius-lg);
+    }
+    body.profile-body .list-item {
+        padding: 1.25rem;
+        border-radius: var(--radius-lg);
+    }
+    body.profile-body .section-title {
+        font-size: 1.4rem;
+    }
+    .item-header {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 0.75rem;
+    }
+    .item-actions {
+        width: 100%;
+        justify-content: flex-end;
+    }
+    .form-group input,
+    .form-group select,
+    .form-group textarea {
+        font-size: 16px !important;
+        min-height: 48px;
+    }
+}
+
+@media (max-width: 480px) {
+    body.profile-body .btn-primary,
+    body.profile-body button.btn-outline {
         min-height: 48px;
         font-size: 0.95rem;
     }
 }
-

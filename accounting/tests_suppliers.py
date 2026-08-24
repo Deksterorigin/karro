@@ -38,6 +38,11 @@ class SupplierPartsTestCase(TestCase):
         self.assertGreater(result['count'], 0)
 
     def test_supplier_search_api_endpoint(self):
+        # Доступ до пошуку дозволено лише авторизованим власникам СТО
+        response = self.client.get('/accounting/api/suppliers/parts/search/?query=Brembo')
+        self.assertEqual(response.status_code, 302)
+
+        self.client.force_login(self.station_user)
         response = self.client.get('/accounting/api/suppliers/parts/search/?query=Brembo')
         self.assertEqual(response.status_code, 200)
         data = response.json()

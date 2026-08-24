@@ -9,12 +9,11 @@
 .auth-card {
     background-color: var(--surface);
     border: 1px solid var(--border);
-    border-radius: 20px;
+    border-radius: var(--radius-xl);
     padding: 3rem 2.5rem;
     box-shadow: var(--shadow-sm);
     width: 100%;
     max-width: 480px;
-    transition: all var(--transition-normal);
 }
 
 /* Селектор вкладок */
@@ -22,7 +21,7 @@
     display: flex;
     background-color: var(--bg);
     border: 1px solid var(--border);
-    border-radius: 12px;
+    border-radius: var(--radius-xl);
     padding: 4px;
     margin-bottom: 2.5rem;
     gap: 4px;
@@ -59,18 +58,11 @@
 
 .form-panel.active {
     display: block;
-    animation: fadeIn 0.4s cubic-bezier(0.16, 1, 0.3, 1);
-}
-
-@keyframes fadeIn {
-    from { opacity: 0; transform: translateY(8px); }
-    to { opacity: 1; transform: translateY(0); }
 }
 
 .form-title {
     font-size: 1.75rem;
-    font-weight: 800;
-    letter-spacing: -0.03em;
+    font-weight: 700;
     margin-bottom: 0.5rem;
     color: var(--text);
 }
@@ -89,11 +81,9 @@
 }
 
 .form-group label {
-    font-size: 0.75rem;
-    font-weight: 700;
+    font-size: 0.85rem;
+    font-weight: 600;
     color: var(--text-muted);
-    text-transform: uppercase;
-    letter-spacing: 0.05em;
 }
 
 .form-group input[type="text"],
@@ -107,7 +97,6 @@
     border-radius: var(--radius-md);
     color: var(--text);
     font-size: 0.9rem;
-    font-weight: 600;
     font-family: inherit;
     transition: all var(--transition-fast);
     outline: none;
@@ -156,7 +145,7 @@
     padding: 1.5rem 1rem;
     background: var(--bg);
     border: 1px solid var(--border);
-    border-radius: 12px;
+    border-radius: var(--radius-xl);
     cursor: pointer;
     transition: all var(--transition-fast);
     font-size: 0.9rem;
@@ -174,7 +163,6 @@
     border-color: var(--accent);
     background: var(--accent-dim);
     color: var(--accent);
-    box-shadow: 0 0 0 1px var(--accent);
 }
 
 .role-label svg {
@@ -200,7 +188,10 @@
 
 .btn-submit:hover {
     background: var(--accent-hover);
-    box-shadow: 0 4px 12px rgba(37, 99, 235, 0.2);
+}
+
+.btn-submit:active {
+    transform: translateY(1px);
 }
 
 .divider-text {
@@ -208,11 +199,9 @@
     align-items: center;
     gap: 1rem;
     margin: 2rem 0;
-    font-size: 0.75rem;
+    font-size: 0.85rem;
     color: var(--text-faint);
-    text-transform: uppercase;
-    letter-spacing: 0.05em;
-    font-weight: 700;
+    font-weight: 600;
 }
 
 .divider-text::before,
@@ -247,7 +236,7 @@
 
     .auth-card {
         padding: 1.75rem 1.25rem;
-        border-radius: 20px;
+        border-radius: var(--radius-xl);
         border: 1px solid var(--border);
         box-shadow: var(--shadow-sm);
         background: var(--surface);

@@ -1,5 +1,4 @@
 import calendar
-import csv
 import datetime
 from decimal import Decimal, InvalidOperation
 import json
@@ -306,7 +305,13 @@ def add_transaction_view(request):
     elif amount <= 0:
         messages.error(request, "Сума має бути більшою за нуль.")
     else:
-        t_date = datetime.datetime.strptime(date_str, "%Y-%m-%d").date() if date_str else datetime.date.today()
+        t_date = datetime.date.today()
+        if date_str:
+            try:
+                t_date = datetime.datetime.strptime(date_str, "%Y-%m-%d").date()
+            except ValueError:
+                messages.error(request, "Невірний формат дати. Використовуйте РРРР-ММ-ДД.")
+                return _redirect_to_dashboard(station.pk)
         Transaction.objects.create(
             station=station, type=t_type, category=category,
             amount=amount, description=description, date=t_date
@@ -376,24 +381,29 @@ def complete_booking_view(request):
             parts_summary = []
             for item in used_parts_data:
                 p_id = item.get('part_id')
-                p_qty = int(item.get('qty', 0))
+                try:
+                    p_qty = int(item.get('qty', 0))
+                except (TypeError, ValueError):
+                    p_qty = 0
                 if p_id and p_qty > 0:
                     try:
                         sp = SparePart.objects.select_for_update().get(pk=p_id, station=booking.station)
-                        actual_deduct = min(sp.quantity, p_qty) if sp.quantity > 0 else 0
-                        if actual_deduct > 0:
-                            sp.quantity = F('quantity') - actual_deduct
-                            sp.save(update_fields=['quantity'])
-                            UsedSparePart.objects.create(
-                                booking=booking, spare_part=sp, part_name=sp.name,
-                                quantity=actual_deduct, cost_price=sp.cost_price, selling_price=sp.selling_price
-                            )
-                            line_cost = sp.cost_price * actual_deduct
-                            line_sell = sp.selling_price * actual_deduct
-                            total_parts_cost += line_cost
-                            parts_summary.append(f"{sp.name} x{actual_deduct} ({line_sell} грн)")
                     except SparePart.DoesNotExist:
-                        pass
+                        continue
+                    if sp.quantity < p_qty:
+                        raise ValueError(
+                            f"Недостатньо запчастини \"{sp.name}\" на складі: є {sp.quantity} шт, потрібно {p_qty} шт."
+                        )
+                    sp.quantity = F('quantity') - p_qty
+                    sp.save(update_fields=['quantity'])
+                    UsedSparePart.objects.create(
+                        booking=booking, spare_part=sp, part_name=sp.name,
+                        quantity=p_qty, cost_price=sp.cost_price, selling_price=sp.selling_price
+                    )
+                    line_cost = sp.cost_price * p_qty
+                    line_sell = sp.selling_price * p_qty
+                    total_parts_cost += line_cost
+                    parts_summary.append(f"{sp.name} x{p_qty} ({line_sell} грн)")
 
             if total_parts_cost > 0:
                 Transaction.objects.create(
@@ -417,6 +427,9 @@ def complete_booking_view(request):
         messages.success(request, f"Ремонт за заявкою #{booking.id} успішно завершено.")
     except Booking.DoesNotExist:
         messages.error(request, "Заявку не знайдено.")
+    except ValueError as err:
+        # Недостатня кількість запчастин — транзакція відкочується повністю
+        messages.error(request, str(err))
     except Exception as err:
         logger.error("Помилка завершення ремонту: %s", err, exc_info=True)
         messages.error(request, "Помилка при завершенні ремонту.")
@@ -485,7 +498,7 @@ def delete_spare_part_view(request):
 
 @login_required_session
 @role_required('station')
-def export_transactions_csv(request):
+def export_transactions_xlsx(request):
     user = get_current_user(request)
     if not user or not (st_id := _safe_int(request.GET.get('station_id'))):
         messages.error(request, "Не вказано СТО для експорту.")
@@ -632,6 +645,8 @@ def export_financial_report_pdf(request):
 
 # --- Пошук та Імпорт Запчастин від Постачальників ---
 
+@login_required_session
+@role_required('station')
 def search_supplier_parts_api(request):
     query = request.GET.get('query', '').strip()
     supplier = request.GET.get('supplier', 'all').strip()

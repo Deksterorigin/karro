@@ -75,7 +75,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const lang = getActiveLang();
 
         if (notifications.length === 0) {
-            const emptyMsg = lang === 'uk' ? 'Немає нових сповіщень' : 'No new notifications';
+            const emptyMsg = t('notifications.empty');
             list.innerHTML = `
                 <div class="notification-empty">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">

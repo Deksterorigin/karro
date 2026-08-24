@@ -57,8 +57,8 @@
     width: 360px;
     background: var(--surface);
     border: 1px solid var(--border);
-    border-radius: 14px;
-    box-shadow: 0 20px 40px rgba(0, 0, 0, 0.25);
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-lg);
     z-index: 999999 !important;
     display: none;
     flex-direction: column;
@@ -134,7 +134,7 @@
 }
 
 .notification-item.unread:hover {
-    background: rgba(0, 82, 204, 0.08);
+    background: var(--accent-glow);
 }
 
 .notification-item-text {
@@ -180,6 +180,6 @@
         left: 10px;
         width: auto;
         max-width: calc(100vw - 20px);
-        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+        box-shadow: var(--shadow-lg);
     }
 }

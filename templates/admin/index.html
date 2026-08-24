@@ -60,9 +60,10 @@
     {% if chart_data %}
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="{% static 'js/admin_index.js' %}"></script>
+    {{ chart_data|json_script:"admin-chart-data" }}
     <script>
         document.addEventListener('DOMContentLoaded', function() {
-            const chartData = {{ chart_data|safe }};
+            const chartData = JSON.parse(document.getElementById('admin-chart-data').textContent);
             initAdminCharts(chartData);
         });
     </script>

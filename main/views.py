@@ -15,8 +15,9 @@ from django.contrib import messages
 from django.contrib.auth import login, logout, authenticate, update_session_auth_hash
 from django.contrib.auth.password_validation import validate_password
 from django.core.exceptions import ValidationError
+from django.db import transaction
 from django.db.models import Prefetch
-from django.http import JsonResponse, HttpResponse, StreamingHttpResponse
+from django.http import JsonResponse, HttpResponse
 from django.shortcuts import render, redirect, get_object_or_404
 from django.urls import reverse
 from django.utils import timezone
@@ -614,36 +615,37 @@ def create_booking_api(request):
                 'message': f'У СТО обідня перерва з {sch.break_start.strftime("%H:%M")} до {sch.break_end.strftime("%H:%M")}.'
             }, status=400)
 
-        boxes = station.boxes.filter(is_active=True)
-        if not boxes.exists():
-            StationBox.objects.create(station=station, name="Бокс 1", is_active=True)
-            boxes = station.boxes.filter(is_active=True)
+        # Блокуємо записи боксів, щоб два одночасні запити не отримали той самий вільний бокс
+        with transaction.atomic():
+            boxes = station.boxes.select_for_update().filter(is_active=True)
+            if not boxes.exists():
+                StationBox.objects.create(station=station, name="Бокс 1", is_active=True)
+                boxes = station.boxes.select_for_update().filter(is_active=True)
 
-        duration = max(15, min(_safe_int(data.get('duration'), 60), 480))
-        slot_start = scheduled_dt
-        slot_end = slot_start + datetime.timedelta(minutes=duration)
+            duration = max(15, min(_safe_int(data.get('duration'), 60), 480))
+            slot_start = scheduled_dt
+            slot_end = slot_start + datetime.timedelta(minutes=duration)
 
-        conflicting = Booking.objects.filter(
-            station=station, status__in=['pending', 'confirmed'],
-            scheduled_time__gte=slot_start - datetime.timedelta(days=1), scheduled_time__lt=slot_end
-        )
-        occupied_box_ids = {
-            b.box_id for b in conflicting
-            if (b.scheduled_time + datetime.timedelta(minutes=b.duration)) > slot_start
-        }
+            conflicting = Booking.objects.filter(
+                station=station, status__in=['pending', 'confirmed'],
+                scheduled_time__gte=slot_start - datetime.timedelta(days=1), scheduled_time__lt=slot_end
+            )
+            occupied_box_ids = {
+                b.box_id for b in conflicting
+                if (b.scheduled_time + datetime.timedelta(minutes=b.duration)) > slot_start
+            }
 
-        free_box = next((box for box in boxes if box.pk not in occupied_box_ids), None)
-        if not free_box:
-            return JsonResponse({
-                'status': 'error',
-                'message': 'Нажаль, на цей час усі бокси вже зайняті. Будь ласка, оберіть інший час.'
-            }, status=400)
+            free_box = next((box for box in boxes if box.pk not in occupied_box_ids), None)
+            if not free_box:
+                return JsonResponse({
+                    'status': 'error',
+                    'message': 'Нажаль, на цей час усі бокси вже зайняті. Будь ласка, оберіть інший час.'
+                }, status=400)
 
-
-        booking = Booking.objects.create(
-            client=client, station=station, car=car, service_name=service_name,
-            description=description, scheduled_time=scheduled_dt, box=free_box, duration=duration
-        )
+            booking = Booking.objects.create(
+                client=client, station=station, car=car, service_name=service_name,
+                description=description, scheduled_time=scheduled_dt, box=free_box, duration=duration
+            )
         Notification.objects.create(
             recipient=station.user, booking=booking,
             message=f"Нова заявка #{booking.id}: {client.full_name} на {scheduled_dt.strftime('%d.%m.%Y %H:%M')}"
@@ -1017,82 +1019,3 @@ def decode_vin_api(request):
     result = decode_vin(request.GET.get('vin', '').strip())
     status_code = 400 if result.get('status') == 'error' else 200
     return JsonResponse(result, status=status_code)
-
-@login_required_session
-def chat_events_sse(request, booking_id):
-    user = get_current_user(request)
-    if not user:
-        return JsonResponse({'status': 'error', 'message': 'Unauthorized'}, status=401)
-
-    booking = get_object_or_404(Booking, pk=booking_id)
-    is_client = (booking.client_id == user.user_id)
-    is_station_owner = bool(booking.station and booking.station.user_id == user.user_id)
-
-    if not (is_client or is_station_owner or user.is_superuser):
-        return JsonResponse({'status': 'error', 'message': 'Доступ заборонено.'}, status=403)
-
-    last_id = _safe_int(request.GET.get('last_id'), 0)
-
-    def event_stream():
-        nonlocal last_id
-        yield f"event: connected\ndata: {json.dumps({'status': 'connected'})}\n\n"
-        for _ in range(25):
-            messages_qs = BookingChatMessage.objects.filter(
-                booking=booking, pk__gt=last_id
-            ).select_related('sender').order_by('created_at')
-
-            if messages_qs.exists():
-                data = []
-                for msg in messages_qs:
-                    last_id = max(last_id, msg.pk)
-                    data.append({
-                        'id': msg.pk,
-                        'sender_id': msg.sender_id,
-                        'sender_name': msg.sender.full_name,
-                        'sender_role': msg.sender.role,
-                        'is_me': (msg.sender_id == user.user_id),
-                        'text': msg.text or '',
-                        'image_url': msg.image.url if msg.image else None,
-                        'proposed_cost': str(msg.proposed_cost) if msg.proposed_cost is not None else None,
-                        'is_approved': msg.is_approved,
-                        'created_at': msg.created_at.strftime('%d.%m.%Y %H:%M')
-                    })
-                yield f"event: message\ndata: {json.dumps({'messages': data, 'last_id': last_id})}\n\n"
-            time.sleep(1)
-
-    resp = StreamingHttpResponse(event_stream(), content_type='text/event-stream')
-    resp['Cache-Control'] = 'no-cache'
-    resp['X-Accel-Buffering'] = 'no'
-    return resp
-
-@login_required_session
-def notification_events_sse(request):
-    user = get_current_user(request)
-    if not user:
-        return JsonResponse({'status': 'error', 'message': 'Unauthorized'}, status=401)
-
-    last_id = _safe_int(request.GET.get('last_id'), 0)
-
-    def event_stream():
-        nonlocal last_id
-        yield f"event: connected\ndata: {json.dumps({'status': 'connected'})}\n\n"
-        for _ in range(25):
-            notifs_qs = Notification.objects.filter(recipient=user, pk__gt=last_id).order_by('created_at')
-            if notifs_qs.exists():
-                data = []
-                for n in notifs_qs:
-                    last_id = max(last_id, n.pk)
-                    data.append({
-                        'id': n.pk,
-                        'booking_id': n.booking_id,
-                        'message': n.message,
-                        'is_read': n.is_read,
-                        'created_at': n.created_at.strftime('%d.%m.%Y %H:%M')
-                    })
-                yield f"event: notification\ndata: {json.dumps({'notifications': data, 'last_id': last_id})}\n\n"
-            time.sleep(1)
-
-    resp = StreamingHttpResponse(event_stream(), content_type='text/event-stream')
-    resp['Cache-Control'] = 'no-cache'
-    resp['X-Accel-Buffering'] = 'no'
-    return resp
