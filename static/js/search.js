@@ -1,184 +1,177 @@
 let map;
-let markers = {};
-
-function escapeHtml(text) {
-    const div = document.createElement('div');
-    div.textContent = text;
-    return div.innerHTML;
-}
+const markers = {};
 
 function requestUserLocation() {
-    const btnNearby = document.getElementById('btnNearby');
+    const button = document.getElementById('btnNearby');
+
     if (!navigator.geolocation) {
         alert(t('search.geo_unsupported'));
         return;
     }
 
-    if (btnNearby) {
-        btnNearby.textContent = t('search.locating');
-        btnNearby.disabled = true;
+    if (button) {
+        button.textContent = t('search.locating');
+        button.disabled = true;
     }
 
-    function handleSuccess(pos) {
-        const latInput = document.getElementById('userLat');
-        const lngInput = document.getElementById('userLng');
-        if (latInput && lngInput) {
-            latInput.value = pos.coords.latitude;
-            lngInput.value = pos.coords.longitude;
+    const restoreButton = () => {
+        if (button) {
+            button.textContent = t('search.btn_nearby');
+            button.disabled = false;
         }
-        const searchForm = document.getElementById('searchForm');
-        if (searchForm) {
-            searchForm.submit();
-        }
-    }
+    };
 
-    function handleFallback() {
-        navigator.geolocation.getCurrentPosition(
-            handleSuccess,
-            err => {
-                let msg = t('search.geo_denied_short');
-                if (err.code === 1) {
-                    msg = t('search.geo_denied');
-                }
-                alert(msg);
-                if (btnNearby) {
-                    btnNearby.textContent = t('search.btn_nearby');
-                    btnNearby.disabled = false;
-                }
-            },
-            { enableHighAccuracy: false, timeout: 10000, maximumAge: 600000 }
-        );
-    }
+    const success = position => {
+        const lat = document.getElementById('userLat');
+        const lng = document.getElementById('userLng');
+        const form = document.getElementById('searchForm');
+
+        if (!lat || !lng || !form) {
+            restoreButton();
+            return;
+        }
+
+        lat.value = position.coords.latitude;
+        lng.value = position.coords.longitude;
+        form.submit();
+    };
 
     navigator.geolocation.getCurrentPosition(
-        handleSuccess,
-        handleFallback,
+        success,
+        () => navigator.geolocation.getCurrentPosition(
+            success,
+            error => {
+                alert(error.code === 1
+                    ? t('search.geo_denied')
+                    : t('search.geo_denied_short'));
+                restoreButton();
+            },
+            { timeout: 10000, maximumAge: 600000 }
+        ),
         { enableHighAccuracy: true, timeout: 5000, maximumAge: 300000 }
     );
 }
 
-function initMap() {
-    map = L.map('map', { zoomControl: true }).setView([49.0, 31.5], 6);
-
-    L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}.png', {
-        maxZoom: 19,
-        attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>'
-    }).addTo(map);
-
-    const bounds = [];
-
-    if (typeof USER_LAT !== 'undefined' && USER_LAT && typeof USER_LNG !== 'undefined' && USER_LNG) {
-        const userIcon = L.divIcon({
-            html: `
-                <div style="position:relative; width:24px; height:24px;">
-                    <div style="position:absolute; width:24px; height:24px; border-radius:50%; background:rgba(16,185,129,0.3);"></div>
-                    <div style="position:absolute; top:4px; left:4px; width:16px; height:16px; border-radius:50%; background:#10B981; border:2px solid #FFFFFF; box-shadow:0 2px 6px rgba(0,0,0,0.3);"></div>
-                </div>
-            `,
-            className: 'user-pin-marker',
-            iconSize: [24, 24],
-            iconAnchor: [12, 12]
-        });
-
-        const userMarker = L.marker([USER_LAT, USER_LNG], { icon: userIcon }).addTo(map);
-        userMarker.bindPopup('<div style="font-family:sans-serif; font-weight:700; font-size:0.85rem; color:#10B981;">' + t('search.you_are_here') + '</div>');
-        bounds.push([USER_LAT, USER_LNG]);
-
-        if (typeof SELECTED_RADIUS !== 'undefined' && SELECTED_RADIUS && SELECTED_RADIUS > 0) {
-            const radiusMeters = SELECTED_RADIUS * 1000;
-            const radiusCircle = L.circle([USER_LAT, USER_LNG], {
-                color: '#0052CC',
-                fillColor: '#0052CC',
-                fillOpacity: 0.08,
-                weight: 1.5,
-                dashArray: '4, 4',
-                radius: radiusMeters
-            }).addTo(map);
-            bounds.push(radiusCircle.getBounds().getNorthEast());
-            bounds.push(radiusCircle.getBounds().getSouthWest());
-        }
-    }
-
-    if (!STATIONS.length) {
-        if (bounds.length) {
-            map.setView(bounds[0], 12);
-        }
-        return;
-    }
-
-    const pinIcon = L.divIcon({
-        html: `
-            <svg viewBox="0 0 24 24" width="32" height="32" fill="none" style="filter: drop-shadow(0 4px 8px rgba(0,82,204,0.25));">
-                <path d="M12 2C8.13 2 5 5.13 5 9C5 14.25 12 22 12 22S19 14.25 19 9C19 5.13 15.87 2 12 2Z" fill="#0052CC" stroke="#ffffff" stroke-width="1.5"/>
-                <circle cx="12" cy="9" r="3" fill="#ffffff"/>
-            </svg>
-        `,
-        className: 'custom-pin-marker',
-        iconSize: [32, 32],
-        iconAnchor: [16, 32],
-        popupAnchor: [0, -32]
-    });
-
-    STATIONS.forEach(s => {
-        const marker = L.marker([s.lat, s.lng], { icon: pinIcon }).addTo(map);
-
-        const escapedName = escapeHtml(s.name);
-        const escapedCity = s.city ? escapeHtml(s.city) + ', ' : '';
-        const escapedAddress = escapeHtml(s.address);
-        const distStr = s.distance ? `<div style="color:#059669; font-weight:700; font-size:0.8rem; margin-top:2px;">${t('search.distance')} ${s.distance} ${t('common.km')}</div>` : '';
-
-        marker.bindPopup(`
-            <div style="min-width: 190px; padding: 4px;">
-                <a href="/station/${s.id}/" style="font-weight: 700; font-size: 0.95rem; margin-bottom: 4px; color: var(--accent); text-decoration: none; display: block;">${escapedName} &rarr;</a>
-                <div style="font-size: 0.75rem; color: var(--text-muted); line-height: 1.3;">${escapedCity}${escapedAddress}</div>
-                ${distStr}
-                ${s.rating ? `<div style="margin-top: 6px; color: var(--accent); font-weight: 700; font-size: 0.85rem; display: flex; align-items: center; gap: 2px;">★ ${escapeHtml(String(s.rating))}</div>` : ''}
-                <div style="margin-top: 10px;">
-                    <a href="/station/${s.id}/" style="display: inline-block; font-size: 0.75rem; font-weight: 700; color: #ffffff; background: #0052CC; padding: 5px 12px; border-radius: 6px; text-decoration: none;">${t('search.popup_details')}</a>
-                </div>
-            </div>
-        `);
-
-        marker.on('click', () => {
-            highlightCard(s.id);
-        });
-
-        markers[s.id] = marker;
-        bounds.push([s.lat, s.lng]);
-    });
-
-    if (bounds.length === 1) {
-        map.setView(bounds[0], 14);
-    } else if (bounds.length > 1) {
-        map.fitBounds(bounds, { padding: [40, 40] });
-    }
-}
-
-function focusMarker(id, lat, lng) {
-    document.querySelectorAll('.station-card').forEach(c => c.classList.remove('active'));
-    const card = document.getElementById('card-' + id);
-    if (card) card.classList.add('active');
-
-    if (lat !== null && lng !== null && markers[id]) {
-        map.setView([parseFloat(lat), parseFloat(lng)], 15);
-        markers[id].openPopup();
-    }
-}
-
 function highlightCard(id) {
-    document.querySelectorAll('.station-card').forEach(c => c.classList.remove('active'));
-    const card = document.getElementById('card-' + id);
+    document.querySelectorAll('.station-card').forEach(card => {
+        card.classList.remove('active');
+    });
+
+    const card = document.getElementById(`card-${id}`);
     if (card) {
         card.classList.add('active');
         card.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
     }
 }
 
-document.addEventListener('DOMContentLoaded', () => {
-    initMap();
-    setTimeout(() => {
-        if (map) {
-            map.invalidateSize();
+function focusMarker(id, lat, lng) {
+    document.querySelectorAll('.station-card').forEach(card => {
+        card.classList.remove('active');
+    });
+    document.getElementById(`card-${id}`)?.classList.add('active');
+
+    const latitude = Number(lat);
+    const longitude = Number(lng);
+    if (map && markers[id] &&
+        Number.isFinite(latitude) && Number.isFinite(longitude)) {
+        map.setView([latitude, longitude], 15);
+        markers[id].openPopup();
+    }
+}
+
+function initMap() {
+    const element = document.getElementById('map');
+    if (!element || typeof L === 'undefined') return;
+
+    map = L.map(element).setView([49, 31.5], 6);
+    L.tileLayer(
+        'https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}.png',
+        {
+            maxZoom: 19,
+            attribution: '&copy; OpenStreetMap contributors &copy; CARTO'
         }
-    }, 250);
-});
+    ).addTo(map);
+
+    const bounds = L.latLngBounds([]);
+    const userLat = Number(window.USER_LAT);
+    const userLng = Number(window.USER_LNG);
+    const hasUserLocation = window.USER_LAT !== null &&
+        window.USER_LAT !== undefined &&
+        window.USER_LNG !== null &&
+        window.USER_LNG !== undefined &&
+        Number.isFinite(userLat) && Number.isFinite(userLng) &&
+        Math.abs(userLat) <= 90 && Math.abs(userLng) <= 180;
+
+    if (hasUserLocation) {
+        L.circleMarker([userLat, userLng], {
+            radius: 9,
+            color: '#ffffff',
+            weight: 2,
+            fillColor: '#10B981',
+            fillOpacity: 1
+        }).addTo(map).bindPopup(t('search.you_are_here'));
+        bounds.extend([userLat, userLng]);
+
+        const radius = Number(window.SELECTED_RADIUS);
+        if (Number.isFinite(radius) && radius > 0) {
+            const circle = L.circle([userLat, userLng], {
+                radius: radius * 1000,
+                color: '#0052CC',
+                fillOpacity: 0.08,
+                weight: 1.5,
+                dashArray: '4, 4'
+            }).addTo(map);
+            bounds.extend(circle.getBounds());
+        }
+    }
+
+    (Array.isArray(window.STATIONS) ? window.STATIONS : []).forEach(station => {
+        const lat = Number(station.lat);
+        const lng = Number(station.lng);
+        if (!Number.isFinite(lat) || !Number.isFinite(lng) ||
+            Math.abs(lat) > 90 || Math.abs(lng) > 180) return;
+
+        const popup = document.createElement('div');
+        const link = document.createElement('a');
+        const address = document.createElement('div');
+
+        link.href = `/station/${encodeURIComponent(station.id)}/`;
+        link.textContent = `${station.name} →`;
+        link.style.fontWeight = '700';
+        address.textContent = [station.city, station.address]
+            .filter(Boolean).join(', ');
+
+        popup.append(link, address);
+
+        if (station.distance !== null && station.distance !== undefined) {
+            const distance = document.createElement('div');
+            distance.textContent = (
+                `${t('search.distance')} ${station.distance} ${t('common.km')}`
+            );
+            popup.appendChild(distance);
+        }
+
+        if (station.rating !== null && station.rating !== undefined) {
+            const rating = document.createElement('div');
+            rating.textContent = `★ ${station.rating}`;
+            popup.appendChild(rating);
+        }
+
+        const marker = L.marker([lat, lng]).addTo(map).bindPopup(popup);
+        marker.on('click', () => highlightCard(station.id));
+        markers[station.id] = marker;
+        bounds.extend([lat, lng]);
+    });
+
+    if (bounds.isValid()) {
+        if (bounds.getNorthEast().equals(bounds.getSouthWest())) {
+            map.setView(bounds.getCenter(), hasUserLocation ? 12 : 14);
+        } else {
+            map.fitBounds(bounds, { padding: [40, 40] });
+        }
+    }
+
+    setTimeout(() => map.invalidateSize(), 250);
+}
+
+document.addEventListener('DOMContentLoaded', initMap);

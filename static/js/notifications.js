@@ -1,162 +1,121 @@
-// Система сповіщень для власників СТО
 document.addEventListener('DOMContentLoaded', () => {
-    const bellBtn = document.getElementById('notification-bell-btn');
+    const bell = document.getElementById('notification-bell-btn');
     const dropdown = document.getElementById('notification-dropdown');
     const badge = document.getElementById('notification-badge');
     const list = document.getElementById('notification-list');
-    const markAllBtn = document.getElementById('mark-all-read-btn');
+    const markAll = document.getElementById('mark-all-read-btn');
 
-    if (!bellBtn || !dropdown) return;
+    if (!bell || !dropdown || !list) return;
 
-    // Отримання CSRF токена з cookie
-    function getCookie(name) {
-        let cookieValue = null;
-        if (document.cookie && document.cookie !== '') {
-            const cookies = document.cookie.split(';');
-            for (let i = 0; i < cookies.length; i++) {
-                const cookie = cookies[i].trim();
-                if (cookie.substring(0, name.length + 1) === (name + '=')) {
-                    cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
-                    break;
-                }
+    let loading = false;
+    const destination = '/profile/?tab=bookings';
+
+    function csrfToken() {
+        const input = document.querySelector('[name="csrfmiddlewaretoken"]');
+        if (input) return input.value;
+
+        const cookie = document.cookie.split('; ').find(item => {
+            return item.startsWith('csrftoken=');
+        });
+        return cookie ? decodeURIComponent(cookie.slice(10)) : '';
+    }
+
+    async function post(url) {
+        const response = await fetch(url, {
+            method: 'POST',
+            headers: { 'X-CSRFToken': csrfToken() }
+        });
+        const data = await response.json();
+
+        if (!response.ok || data.status !== 'success') {
+            throw new Error(data.message || t('common.connection_error'));
+        }
+    }
+
+    async function fetchNotifications() {
+        if (loading) return;
+        loading = true;
+
+        try {
+            const response = await fetch('/api/notifications/');
+            const data = await response.json();
+            if (!response.ok || data.status !== 'success') return;
+
+            if (badge) {
+                const count = Number(data.unread_count) || 0;
+                badge.textContent = count;
+                badge.style.display = count ? 'flex' : 'none';
             }
+
+            list.replaceChildren();
+
+            if (!data.notifications?.length) {
+                const empty = document.createElement('div');
+                empty.className = 'notification-empty';
+                empty.textContent = t('notifications.empty');
+                list.appendChild(empty);
+                return;
+            }
+
+            data.notifications.forEach(item => {
+                const row = document.createElement('div');
+                const text = document.createElement('div');
+                const time = document.createElement('div');
+
+                row.className = `notification-item${item.is_read ? '' : ' unread'}`;
+                text.className = 'notification-item-text';
+                time.className = 'notification-item-time';
+                text.textContent = item.message;
+                time.textContent = item.created_at;
+                row.append(text, time);
+
+                row.addEventListener('click', async () => {
+                    if (!item.is_read) {
+                        try {
+                            await post(
+                                `/api/notifications/mark-read/${encodeURIComponent(item.id)}/`
+                            );
+                        } catch (error) {
+                            alert(error.message);
+                            return;
+                        }
+                    }
+                    location.href = destination;
+                });
+
+                list.appendChild(row);
+            });
+        } catch (error) {
+            console.error('Не вдалося завантажити сповіщення:', error);
+        } finally {
+            loading = false;
         }
-        return cookieValue;
     }
 
-    // Отримання поточної мови сайту
-    function getActiveLang() {
-        return localStorage.getItem('karro_lang') || 'uk';
-    }
-
-    // Перемикач випадаючого списку
-    bellBtn.addEventListener('click', (e) => {
-        e.stopPropagation();
-        const isVisible = dropdown.style.display === 'flex';
-        dropdown.style.display = isVisible ? 'none' : 'flex';
-        if (!isVisible) {
-            fetchNotifications();
-        }
+    bell.addEventListener('click', event => {
+        event.stopPropagation();
+        const opening = dropdown.style.display !== 'flex';
+        dropdown.style.display = opening ? 'flex' : 'none';
+        if (opening) fetchNotifications();
     });
 
-    // Закриття при кліку поза межами списку
-    document.addEventListener('click', (e) => {
-        if (!dropdown.contains(e.target) && !bellBtn.contains(e.target)) {
+    document.addEventListener('click', event => {
+        if (!dropdown.contains(event.target) && !bell.contains(event.target)) {
             dropdown.style.display = 'none';
         }
     });
 
-    // Отримання та відображення сповіщень
-    function fetchNotifications() {
-        fetch('/api/notifications/')
-            .then(res => res.json())
-            .then(data => {
-                if (data.status === 'success') {
-                    updateBadge(data.unread_count);
-                    renderNotifications(data.notifications);
-                }
-            })
-            .catch(err => console.error('Error fetching notifications:', err));
-    }
+    markAll?.addEventListener('click', async event => {
+        event.stopPropagation();
 
-    // Оновлення бейджа з кількістю непрочитаних
-    function updateBadge(count) {
-        if (count > 0) {
-            badge.innerText = count;
-            badge.style.display = 'flex';
-        } else {
-            badge.style.display = 'none';
+        try {
+            await post('/api/notifications/mark-all-read/');
+            await fetchNotifications();
+        } catch (error) {
+            alert(error.message);
         }
-    }
-
-    // Відображення списку сповіщень
-    function renderNotifications(notifications) {
-        list.innerHTML = '';
-        const lang = getActiveLang();
-
-        if (notifications.length === 0) {
-            const emptyMsg = t('notifications.empty');
-            list.innerHTML = `
-                <div class="notification-empty">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                        <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path>
-                        <path d="M13.73 21a2 2 0 0 1-3.46 0"></path>
-                    </svg>
-                    <span>${emptyMsg}</span>
-                </div>
-            `;
-            return;
-        }
-
-        notifications.forEach(item => {
-            const div = document.createElement('div');
-            div.className = `notification-item ${item.is_read ? '' : 'unread'}`;
-            
-            div.innerHTML = `
-                <div class="notification-item-text">${escapeHtml(item.message)}</div>
-                <div class="notification-item-time">${item.created_at}</div>
-            `;
-
-            div.addEventListener('click', (e) => {
-                e.preventDefault();
-                if (!item.is_read) {
-                    // Позначаємо прочитаним через API
-                    fetch(`/api/notifications/mark-read/${item.id}/`, {
-                        method: 'POST',
-                        headers: {
-                            'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]')?.value || getCookie('csrftoken'),
-                            'Content-Type': 'application/json'
-                        }
-                    })
-                    .then(res => res.json())
-                    .then(data => {
-                        window.location.href = '/profile/?tab=bookings';
-                    })
-                    .catch(err => {
-                        console.error('Error marking notification as read:', err);
-                        window.location.href = '/profile/?tab=bookings';
-                    });
-                } else {
-                    window.location.href = '/profile/?tab=bookings';
-                }
-            });
-
-            list.appendChild(div);
-        });
-    }
-
-    // Позначення всіх сповіщень як прочитаних
-    markAllBtn.addEventListener('click', (e) => {
-        e.stopPropagation();
-        fetch('/api/notifications/mark-all-read/', {
-            method: 'POST',
-            headers: {
-                'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]')?.value || getCookie('csrftoken'),
-                'Content-Type': 'application/json'
-            }
-        })
-        .then(res => res.json())
-        .then(data => {
-            if (data.status === 'success') {
-                fetchNotifications();
-            }
-        })
-        .catch(err => console.error('Error marking all as read:', err));
     });
 
-    // Допоміжна функція екранування HTML
-    function escapeHtml(text) {
-        const map = {
-            '&': '&amp;',
-            '<': '&lt;',
-            '>': '&gt;',
-            '"': '&quot;',
-            "'": '&#039;'
-        };
-        return text.replace(/[&<>"']/g, function(m) { return map[m]; });
-    }
-
-    // Первинне завантаження та запуск опитування (інтервал 30 секунд)
     fetchNotifications();
     setInterval(fetchNotifications, 30000);
 });

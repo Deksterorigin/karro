@@ -1,37 +1,36 @@
 from pathlib import Path
-import os
-from decouple import config, Csv
+
+from decouple import Csv, config
+from django.core.exceptions import ImproperlyConfigured
+
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 
-# Каталог для логів має існувати до старту FileHandler
-(BASE_DIR / 'logs').mkdir(exist_ok=True)
+DEBUG = config('DEBUG', default=True, cast=bool)
+SECRET_KEY = config(
+    'SECRET_KEY',
+    default='django-insecure-dev-key-change-in-prod' if DEBUG else '',
+)
 
-SECRET_KEY = config('SECRET_KEY')
-DEBUG = config('DEBUG', default=False, cast=bool)
-ALLOWED_HOSTS = config('ALLOWED_HOSTS', default='127.0.0.1,localhost', cast=Csv())
+if not SECRET_KEY:
+    raise ImproperlyConfigured('Задайте SECRET_KEY для запуску з DEBUG=False.')
 
-# Налаштування сесій
+ALLOWED_HOSTS = config(
+    'ALLOWED_HOSTS',
+    default='127.0.0.1,localhost',
+    cast=Csv(),
+)
+
 SESSION_COOKIE_AGE = 86400
 SESSION_EXPIRE_AT_BROWSER_CLOSE = True
 SESSION_COOKIE_HTTPONLY = True
 SESSION_COOKIE_SECURE = not DEBUG
 SESSION_COOKIE_SAMESITE = 'Lax'
 
-# Налаштування CSRF. Дозволяємо доступ з JS для AJAX-запитів.
 CSRF_COOKIE_HTTPONLY = False
 CSRF_COOKIE_SECURE = not DEBUG
 CSRF_COOKIE_SAMESITE = 'Lax'
 
-# Захист з'єднання (тільки для production)
-if not DEBUG:
-    SECURE_SSL_REDIRECT = True
-    SECURE_HSTS_SECONDS = 31536000
-    SECURE_HSTS_INCLUDE_SUBDOMAINS = True
-    SECURE_HSTS_PRELOAD = True
-    SECURE_CONTENT_TYPE_NOSNIFF = True
-
-# Обмеження розміру завантажуваних файлів
 DATA_UPLOAD_MAX_MEMORY_SIZE = 5 * 1024 * 1024
 FILE_UPLOAD_MAX_MEMORY_SIZE = 5 * 1024 * 1024
 
@@ -82,8 +81,7 @@ TEMPLATES = [
 
 WSGI_APPLICATION = 'sto.wsgi.application'
 
-# Налаштування бази даних (MySQL / SQLite)
-if config('USE_SQLITE', default=False, cast=bool):
+if config('USE_SQLITE', default=True, cast=bool):
     DATABASES = {
         'default': {
             'ENGINE': 'django.db.backends.sqlite3',
@@ -94,36 +92,23 @@ else:
     DATABASES = {
         'default': {
             'ENGINE': 'django.db.backends.mysql',
-            'NAME':     config('DB_NAME',     default='STO_app'),
-            'USER':     config('DB_USER',     default='root'),
+            'NAME': config('DB_NAME', default='STO_app'),
+            'USER': config('DB_USER', default='root'),
             'PASSWORD': config('DB_PASSWORD', default=''),
-            'HOST':     config('DB_HOST',     default='localhost'),
-            'PORT':     config('DB_PORT',     default='3306'),
+            'HOST': config('DB_HOST', default='localhost'),
+            'PORT': config('DB_PORT', default='3306'),
         }
     }
 
 AUTH_PASSWORD_VALIDATORS = [
-    {
-        'NAME': 'django.contrib.auth.password_validation.UserAttributeSimilarityValidator',
-    },
-    {
-        'NAME': 'django.contrib.auth.password_validation.MinimumLengthValidator',
-    },
-    {
-        'NAME': 'django.contrib.auth.password_validation.CommonPasswordValidator',
-    },
-    {
-        'NAME': 'django.contrib.auth.password_validation.NumericPasswordValidator',
-    },
+    {'NAME': 'django.contrib.auth.password_validation.MinimumLengthValidator'},
 ]
 
-# Локалізація
 LANGUAGE_CODE = 'uk'
 TIME_ZONE = 'Europe/Kyiv'
 USE_I18N = True
 USE_TZ = True
 
-# Статичні та медіа файли
 STATIC_URL = 'static/'
 STATICFILES_DIRS = [BASE_DIR / 'static']
 STATIC_ROOT = BASE_DIR / 'staticfiles'
@@ -131,48 +116,11 @@ STATIC_ROOT = BASE_DIR / 'staticfiles'
 MEDIA_URL = '/media/'
 MEDIA_ROOT = BASE_DIR / 'media'
 
-# Логування помилок та загроз безпеки
-LOGGING = {
-    'version': 1,
-    'disable_existing_loggers': False,
-    'formatters': {
-        'verbose': {
-            'format': '[{asctime}] {levelname} {name} {message}',
-            'style': '{',
-        },
-    },
-    'handlers': {
-        'console': {
-            'class': 'logging.StreamHandler',
-            'formatter': 'verbose',
-        },
-        'file': {
-            'level': 'WARNING',
-            'class': 'logging.FileHandler',
-            'filename': BASE_DIR / 'logs' / 'security.log',
-        },
-    },
-    'loggers': {
-        'django.security': {
-            'handlers': ['file'],
-            'level': 'WARNING',
-            'propagate': True,
-        },
-        'django.request': {
-            'handlers': ['console', 'file'],
-            'level': 'ERROR',
-            'propagate': False,
-        },
-    },
-}
-
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
-
 AUTH_USER_MODEL = 'main.User'
 
-# Налаштування інтерфейсу Django Unfold
 UNFOLD = {
-    "SITE_TITLE": "Karro Admin",
-    "SITE_HEADER": "Karro",
-    "DASHBOARD_CALLBACK": "main.dashboard.dashboard_callback",
+    'SITE_TITLE': 'Karro Admin',
+    'SITE_HEADER': 'Karro',
+    'DASHBOARD_CALLBACK': 'main.dashboard.dashboard_callback',
 }

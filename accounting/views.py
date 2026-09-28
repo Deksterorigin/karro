@@ -1,164 +1,231 @@
 import calendar
 import datetime
-from decimal import Decimal, InvalidOperation
 import json
-import logging
-import re
+from collections import Counter
+from decimal import Decimal, InvalidOperation
+from io import BytesIO
+from pathlib import Path
 
+from django import forms
+from django.conf import settings
 from django.contrib import messages
-from django.db import transaction
-from django.db.models import F, Sum, Case, When, Value, DecimalField
+from django.db import models, transaction
+from django.db.models import Case, DecimalField, Sum, Value, When
 from django.http import HttpResponse, JsonResponse
-from django.shortcuts import render, redirect, get_object_or_404
+from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
-from django.views.decorators.http import require_POST
+from django.utils import timezone
+from django.views.decorators.http import require_GET, require_POST
+from openpyxl import Workbook
+from openpyxl.styles import Font
+from reportlab.lib.pagesizes import A4
+from reportlab.pdfbase import pdfmetrics
+from reportlab.pdfbase.ttfonts import TTFont
+from reportlab.pdfgen import canvas
 
 from main.decorators import login_required_session, role_required
-from main.models import User, ServiceStation, Booking, CarHistory
-from main.pdf_utils import generate_financial_report_pdf
-from main.views import get_current_user
-from .models import Employee, SalaryBalance, Transaction, SparePart, UsedSparePart
-from .supplier_api import search_supplier_parts, SUPPLIERS
+from main.models import Booking, CarHistory, ServiceStation
 
-logger = logging.getLogger(__name__)
+from .models import Employee, SalaryBalance, SparePart, Transaction, UsedSparePart
+from .supplier_api import CATALOG_DATABASE, search_supplier_parts
 
-# Допоміжні конвертери типів
-def _safe_int(val, default=0):
-    if val is None or val == '':
-        return default
+
+class EmployeeForm(forms.ModelForm):
+    class Meta:
+        model = Employee
+        fields = ['full_name', 'phone', 'email', 'position', 'base_salary', 'commission_percent', 'is_active']
+
+
+class SparePartForm(forms.ModelForm):
+    class Meta:
+        model = SparePart
+        fields = ['name', 'sku', 'quantity', 'cost_price', 'selling_price', 'min_quantity']
+
+
+class TransactionForm(forms.ModelForm):
+    class Meta:
+        model = Transaction
+        fields = ['type', 'category', 'amount', 'description', 'date']
+
+    def clean(self):
+        data = super().clean()
+        cat, t_type, amount = data.get('category'), data.get('type'), data.get('amount')
+        if amount is not None and amount <= 0:
+            raise forms.ValidationError('Сума має бути більшою за нуль.')
+        incomes = {'service', 'other_income'}
+        expenses = {'salary', 'spare_parts', 'rent', 'utilities', 'other_expense'}
+        if (t_type == 'income' and cat not in incomes) or (t_type == 'expense' and cat not in expenses):
+            raise forms.ValidationError('Категорія не відповідає типу операції.')
+        return data
+
+
+def _show_errors(request, form):
+    for errors in form.errors.values():
+        for error in errors:
+            messages.error(request, error)
+
+
+def _owned_station(request, *, required=True):
+    station_id = request.POST.get('station_id') or request.GET.get('station_id')
+    stations = ServiceStation.objects.filter(user=request.user)
+    if station_id:
+        return get_object_or_404(stations, pk=station_id)
+    return get_object_or_404(stations.order_by('pk')) if required else stations.order_by('pk').first()
+
+
+def _money(value):
     try:
-        return int(val)
-    except (ValueError, TypeError):
-        return default
+        amount = Decimal(str(value))
+    except (InvalidOperation, TypeError, ValueError):
+        return None
+    if not amount.is_finite() or amount <= 0 or amount > Decimal('99999999.99') or amount.as_tuple().exponent < -2:
+        return None
+    return amount
 
-def _safe_decimal(val, default=Decimal('0.00')):
-    if val is None or val == '':
-        return default
+
+def _positive_int(value):
     try:
-        return Decimal(str(val))
-    except (InvalidOperation, ValueError, TypeError):
-        return default
+        num = int(value)
+        return num if num > 0 else None
+    except (TypeError, ValueError):
+        return None
 
-def _redirect_to_dashboard(station_pk):
-    return redirect(reverse('accounting:dashboard') + f'?station_id={station_pk}')
 
 def _parse_date_range(request):
     today = datetime.date.today()
     first_day = today.replace(day=1)
     _, last_day_num = calendar.monthrange(today.year, today.month)
     last_day = today.replace(day=last_day_num)
-
     start_date, end_date = first_day, last_day
+
     if start_str := request.GET.get('start_date'):
         try:
-            start_date = datetime.datetime.strptime(start_str, "%Y-%m-%d").date()
+            start_date = datetime.date.fromisoformat(start_str)
         except ValueError:
             pass
     if end_str := request.GET.get('end_date'):
         try:
-            end_date = datetime.datetime.strptime(end_str, "%Y-%m-%d").date()
+            end_date = datetime.date.fromisoformat(end_str)
         except ValueError:
             pass
     return start_date, end_date
+
 
 def _build_daily_chart(period_transactions, start_date, end_date):
     daily_data = {}
     curr_d = start_date
     while curr_d <= end_date:
-        daily_data[curr_d.strftime("%d.%m")] = {'income': Decimal('0.00'), 'expense': Decimal('0.00')}
+        daily_data[curr_d.strftime('%d.%m')] = {'income': Decimal('0.00'), 'expense': Decimal('0.00')}
         curr_d += datetime.timedelta(days=1)
 
-    for t in period_transactions:
-        t_date_str = t.date.strftime("%d.%m")
-        if t_date_str in daily_data:
-            if t.type == 'income':
-                daily_data[t_date_str]['income'] += t.amount
+    for record in period_transactions:
+        day_key = record.date.strftime('%d.%m')
+        if day_key in daily_data:
+            if record.type == 'income':
+                daily_data[day_key]['income'] += record.amount
             else:
-                daily_data[t_date_str]['expense'] += t.amount
+                daily_data[day_key]['expense'] += record.amount
 
     dates = list(daily_data.keys())
-    incomes = [float(daily_data[d]['income']) for d in dates]
-    expenses = [float(daily_data[d]['expense']) for d in dates]
-    return dates, incomes, expenses
+    return dates, [float(daily_data[d]['income']) for d in dates], [float(daily_data[d]['expense']) for d in dates]
+
 
 def _build_expense_categories(period_transactions, total_expense):
     categories = {}
     for cat_code, cat_name in Transaction.TRANSACTION_CATEGORIES:
         if cat_code in ['salary', 'spare_parts', 'rent', 'utilities', 'other_expense']:
-            categories[cat_code] = {
-                'label': cat_name.split(' (')[0],
-                'amount': Decimal('0.00'),
-                'percent': 0
-            }
+            categories[cat_code] = {'label': cat_name.split(' (')[0], 'amount': Decimal('0.00'), 'percent': 0}
 
-    for t in period_transactions:
-        if t.type == 'expense':
-            cat = t.category if t.category in categories else 'other_expense'
-            if cat in categories:
-                categories[cat]['amount'] += t.amount
-
-    if total_expense > 0:
-        for cat in categories:
-            categories[cat]['percent'] = int(round((categories[cat]['amount'] / total_expense) * 100))
+    for record in period_transactions:
+        if record.type == 'expense':
+            cat_key = record.category if record.category in categories else 'other_expense'
+            if cat_key in categories:
+                categories[cat_key]['amount'] += record.amount
 
     labels, values = [], []
-    for cat_data in categories.values():
-        if cat_data['amount'] > 0:
-            labels.append(cat_data['label'])
-            values.append(float(cat_data['amount']))
+    for cat_code, data in categories.items():
+        if total_expense > 0:
+            data['percent'] = round(float((data['amount'] / total_expense) * 100), 1)
+        if data['amount'] > 0:
+            labels.append(data['label'])
+            values.append(float(data['amount']))
 
     return categories, labels, values
 
-# --- Основний Дашборд ---
+
+def _posted_parts(raw):
+    if not raw:
+        return {}
+    try:
+        data = json.loads(raw)
+    except (TypeError, ValueError):
+        raise ValueError('Не вдалося прочитати список запчастин.')
+    if not isinstance(data, list):
+        raise ValueError('Список запчастин має бути масивом.')
+
+    quantities = Counter()
+    for item in data:
+        if not isinstance(item, dict):
+            raise ValueError('Перевірте дані запчастин.')
+        part_id = _positive_int(item.get('part_id', item.get('spare_part_id')))
+        quantity = _positive_int(item.get('quantity', item.get('qty')))
+        if part_id is None or quantity is None:
+            raise ValueError('Вкажіть запчастину та додатну кількість.')
+        quantities[part_id] += quantity
+    return quantities
+
+
+def _lock_station(station_id):
+    ServiceStation.objects.filter(pk=station_id).update(is_verified=models.F('is_verified'))
+
 
 @login_required_session
 @role_required('station')
 def dashboard_view(request):
-    user = get_current_user(request)
-    if not user:
-        return redirect('login')
-
-    stations = ServiceStation.objects.filter(user=user)
+    stations = ServiceStation.objects.filter(user=request.user)
     if not stations.exists():
-        messages.warning(request, "Будь ласка, спочатку створіть СТО в профілі.")
+        messages.warning(request, 'Будь ласка, спочатку створіть СТО в профілі.')
         return redirect('profile')
 
-    st_id = _safe_int(request.GET.get('station_id'))
-    selected_station = stations.filter(pk=st_id).first() if st_id else stations.first()
-    start_date, end_date = _parse_date_range(request)
+    station_id = request.GET.get('station_id')
+    selected_station = stations.filter(pk=station_id).first() if station_id else stations.first()
 
-    t_type = request.GET.get('type', '')
+    start_date, end_date = _parse_date_range(request)
+    transaction_type = request.GET.get('type', '')
     category = request.GET.get('category', '')
     employee_id_filter = request.GET.get('employee_id', '')
 
-    employees = Employee.objects.filter(station=selected_station).select_related('salary_balance')
     all_transactions = Transaction.objects.filter(station=selected_station).select_related('employee', 'booking')
     period_transactions = all_transactions.filter(date__range=[start_date, end_date])
 
     totals = period_transactions.aggregate(
-        total_income=Sum(Case(When(type='income', then='amount'), default=Value(Decimal('0.00')), output_field=DecimalField())),
-        total_expense=Sum(Case(When(type='expense', then='amount'), default=Value(Decimal('0.00')), output_field=DecimalField())),
+        income=Sum(Case(When(type='income', then='amount'), default=Value(Decimal('0.00')), output_field=DecimalField())),
+        expense=Sum(Case(When(type='expense', then='amount'), default=Value(Decimal('0.00')), output_field=DecimalField())),
     )
-    total_income = totals['total_income'] or Decimal('0.00')
-    total_expense = totals['total_expense'] or Decimal('0.00')
+    total_income = totals['income'] or Decimal('0.00')
+    total_expense = totals['expense'] or Decimal('0.00')
     net_profit = total_income - total_expense
 
     chart_dates, chart_incomes, chart_expenses = _build_daily_chart(period_transactions, start_date, end_date)
     expense_categories, cat_labels, cat_values = _build_expense_categories(period_transactions, total_expense)
 
     filtered_transactions = period_transactions
-    if t_type in ['income', 'expense']:
-        filtered_transactions = filtered_transactions.filter(type=t_type)
+    if transaction_type in ('income', 'expense'):
+        filtered_transactions = filtered_transactions.filter(type=transaction_type)
     if category and category != 'all':
         filtered_transactions = filtered_transactions.filter(category=category)
     if employee_id_filter and employee_id_filter != 'all':
-        if emp_id := _safe_int(employee_id_filter):
-            filtered_transactions = filtered_transactions.filter(employee_id=emp_id)
+        try:
+            filtered_transactions = filtered_transactions.filter(employee_id=int(employee_id_filter))
+        except (ValueError, TypeError):
+            pass
 
     salary_payouts = all_transactions.filter(category='salary', date__range=[start_date, end_date])
     if employee_id_filter and employee_id_filter != 'all':
-        if emp_id := _safe_int(employee_id_filter):
-            salary_payouts = salary_payouts.filter(employee_id=emp_id)
+        try:
+            salary_payouts = salary_payouts.filter(employee_id=int(employee_id_filter))
+        except (ValueError, TypeError):
+            pass
 
     unpaid_salaries = sum(
         sb.current_balance for sb in SalaryBalance.objects.filter(
@@ -167,21 +234,23 @@ def dashboard_view(request):
     )
 
     return render(request, 'accounting/dashboard.html', {
-        'user': user,
+        'user': request.user,
         'stations': stations,
         'selected_station': selected_station,
-        'employees': employees,
+        'employees': Employee.objects.filter(station=selected_station).select_related('salary_balance'),
         'transactions': filtered_transactions[:100],
         'salary_payouts': salary_payouts[:100],
+        'spare_parts': SparePart.objects.filter(station=selected_station),
+        'bookings': Booking.objects.filter(station=selected_station, status__in=['pending', 'confirmed']).select_related('client', 'car'),
         'total_income': total_income,
         'total_expense': total_expense,
         'net_profit': net_profit,
         'unpaid_salaries': unpaid_salaries,
-        'start_date': start_date.strftime("%Y-%m-%d"),
-        'end_date': end_date.strftime("%Y-%m-%d"),
+        'start_date': start_date.strftime('%Y-%m-%d'),
+        'end_date': end_date.strftime('%Y-%m-%d'),
         'categories_choices': Transaction.TRANSACTION_CATEGORIES,
         'expense_categories': expense_categories.values(),
-        'selected_type': t_type,
+        'selected_type': transaction_type,
         'selected_category': category,
         'selected_employee_id': employee_id_filter,
         'chart_dates_json': json.dumps(chart_dates),
@@ -191,502 +260,444 @@ def dashboard_view(request):
         'category_values_json': json.dumps(cat_values),
     })
 
-# --- Управління Працівниками та Виплатами ---
 
-@login_required_session
 @role_required('station')
 @require_POST
 def add_employee_view(request):
-    user = get_current_user(request)
-    station = get_object_or_404(ServiceStation, pk=_safe_int(request.POST.get('station_id')), user=user)
-
-    full_name = request.POST.get('full_name', '').strip()
-    phone = request.POST.get('phone', '').strip() or None
-    email = request.POST.get('email', '').strip() or None
-    position = request.POST.get('position', '').strip()
-    base_salary = _safe_decimal(request.POST.get('base_salary'))
-    commission = _safe_decimal(request.POST.get('commission_percent'))
-
-    if not full_name or not position:
-        messages.error(request, "Ім'я та посада є обов'язковими.")
+    station = _owned_station(request)
+    form = EmployeeForm(request.POST)
+    if form.is_valid():
+        employee = form.save(commit=False)
+        employee.station = station
+        employee.save()
+        messages.success(request, 'Співробітника додано.')
     else:
-        Employee.objects.create(
-            station=station, full_name=full_name, phone=phone, email=email,
-            position=position, base_salary=base_salary, commission_percent=commission
-        )
-        messages.success(request, f"Працівника {full_name} успішно додано.")
-    return _redirect_to_dashboard(station.pk)
+        _show_errors(request, form)
+    return redirect(reverse('accounting:dashboard') + f'?station_id={station.pk}')
 
-@login_required_session
+
 @role_required('station')
 @require_POST
 def edit_employee_view(request, employee_id):
-    user = get_current_user(request)
-    employee = get_object_or_404(Employee, pk=employee_id, station__user=user)
-
-    full_name = request.POST.get('full_name', '').strip()
-    position = request.POST.get('position', '').strip()
-    if not full_name or not position:
-        messages.error(request, "Ім'я та посада є обов'язковими.")
+    employee = get_object_or_404(Employee, pk=employee_id, station__user=request.user)
+    form = EmployeeForm(request.POST, instance=employee)
+    if form.is_valid():
+        form.save()
+        messages.success(request, 'Дані співробітника оновлено.')
     else:
-        employee.full_name = full_name
-        employee.position = position
-        employee.phone = request.POST.get('phone', '').strip() or None
-        employee.email = request.POST.get('email', '').strip() or None
-        employee.base_salary = _safe_decimal(request.POST.get('base_salary'))
-        employee.commission_percent = _safe_decimal(request.POST.get('commission_percent'))
-        employee.is_active = (request.POST.get('is_active') == 'true')
-        employee.save()
-        messages.success(request, f"Дані працівника {full_name} оновлено.")
-    return _redirect_to_dashboard(employee.station.pk)
+        _show_errors(request, form)
+    return redirect(reverse('accounting:dashboard') + f'?station_id={employee.station_id}')
 
-@login_required_session
+
 @role_required('station')
 @require_POST
 def fire_employee_view(request, employee_id):
-    user = get_current_user(request)
-    employee = get_object_or_404(Employee, pk=employee_id, station__user=user)
+    employee = get_object_or_404(Employee, pk=employee_id, station__user=request.user)
     employee.is_active = False
-    employee.save()
-    messages.success(request, f"Працівника {employee.full_name} звільнено.")
-    return _redirect_to_dashboard(employee.station.pk)
+    employee.save(update_fields=['is_active'])
+    messages.success(request, 'Співробітника позначено як звільненого.')
+    return redirect(reverse('accounting:dashboard') + f'?station_id={employee.station_id}')
 
-@login_required_session
+
 @role_required('station')
 @require_POST
-def pay_salary_view(request):
-    user = get_current_user(request)
-    employee = get_object_or_404(Employee, pk=_safe_int(request.POST.get('employee_id')), station__user=user)
-    amount = _safe_decimal(request.POST.get('amount'))
+def pay_salary_view(request, employee_id=None):
+    emp_id = employee_id or request.POST.get('employee_id')
+    employee = get_object_or_404(Employee, pk=emp_id, station__user=request.user)
+    amount = _money(request.POST.get('amount'))
 
-    if amount <= 0:
-        messages.error(request, "Сума виплати має бути більшою за нуль.")
-        return _redirect_to_dashboard(employee.station.pk)
+    if amount is None:
+        messages.error(request, 'Вкажіть додатну суму виплати.')
+        return redirect(reverse('accounting:dashboard') + f'?station_id={employee.station_id}')
 
-    try:
-        with transaction.atomic():
-            balance = SalaryBalance.objects.select_for_update().get(employee=employee)
-            if amount > balance.current_balance:
-                messages.error(request, f"Сума виплати ({amount} грн) перевищує баланс ({balance.current_balance} грн).")
-                return _redirect_to_dashboard(employee.station.pk)
+    with transaction.atomic():
+        _lock_station(employee.station_id)
+        balance, _ = SalaryBalance.objects.select_for_update().get_or_create(employee=employee)
 
-            balance.total_paid = F('total_paid') + amount
-            balance.save(update_fields=['total_paid'])
+        if amount > balance.current_balance:
+            messages.error(request, 'Сума перевищує доступний баланс зарплати.')
+            return redirect(reverse('accounting:dashboard') + f'?station_id={employee.station_id}')
 
-            Transaction.objects.create(
-                station=employee.station, type='expense', category='salary',
-                amount=amount, description=f"Виплата зарплати: {employee.full_name} ({employee.position})",
-                employee=employee, date=datetime.date.today()
-            )
-        messages.success(request, f"Виплата {amount} грн працівнику {employee.full_name} проведена.")
-    except Exception as err:
-        logger.error("Помилка при виплаті зарплати: %s", err, exc_info=True)
-        messages.error(request, "Помилка при виплаті зарплати.")
+        balance.total_paid += amount
+        balance.save(update_fields=['total_paid', 'updated_at'])
+        Transaction.objects.create(
+            station=employee.station,
+            employee=employee,
+            type='expense',
+            category='salary',
+            amount=amount,
+            description=f'Виплата зарплати: {employee.full_name}',
+        )
 
-    return _redirect_to_dashboard(employee.station.pk)
+    messages.success(request, 'Виплату проведено.')
+    return redirect(reverse('accounting:dashboard') + f'?station_id={employee.station_id}')
 
-@login_required_session
+
 @role_required('station')
 @require_POST
 def add_transaction_view(request):
-    user = get_current_user(request)
-    station = get_object_or_404(ServiceStation, pk=_safe_int(request.POST.get('station_id')), user=user)
-
-    t_type = request.POST.get('type')
-    category = request.POST.get('category')
-    amount = _safe_decimal(request.POST.get('amount'))
-    description = request.POST.get('description', '').strip()
-    date_str = request.POST.get('date')
-
-    if t_type not in ['income', 'expense']:
-        messages.error(request, "Невірний тип операції.")
-    elif category not in dict(Transaction.TRANSACTION_CATEGORIES):
-        messages.error(request, "Невірна категорія операції.")
-    elif amount <= 0:
-        messages.error(request, "Сума має бути більшою за нуль.")
+    station = _owned_station(request)
+    form = TransactionForm(request.POST)
+    if form.is_valid():
+        record = form.save(commit=False)
+        record.station = station
+        record.save()
+        messages.success(request, 'Операцію додано.')
     else:
-        t_date = datetime.date.today()
-        if date_str:
-            try:
-                t_date = datetime.datetime.strptime(date_str, "%Y-%m-%d").date()
-            except ValueError:
-                messages.error(request, "Невірний формат дати. Використовуйте РРРР-ММ-ДД.")
-                return _redirect_to_dashboard(station.pk)
-        Transaction.objects.create(
-            station=station, type=t_type, category=category,
-            amount=amount, description=description, date=t_date
-        )
-        messages.success(request, "Операцію успішно додано.")
-    return _redirect_to_dashboard(station.pk)
+        _show_errors(request, form)
+    return redirect(reverse('accounting:dashboard') + f'?station_id={station.pk}')
 
-@login_required_session
+
 @role_required('station')
 @require_POST
-def complete_booking_view(request):
-    user = get_current_user(request)
-    booking_id = request.POST.get('booking_id')
-    actual_price = _safe_decimal(request.POST.get('actual_price'))
+def complete_booking_view(request, booking_id=None):
+    b_id = booking_id or request.POST.get('booking_id')
+    booking = get_object_or_404(Booking.objects.select_related('station', 'car'), pk=b_id, station__user=request.user)
+
+    amount = _money(request.POST.get('actual_price') or request.POST.get('total_price') or request.POST.get('amount'))
+    if amount is None:
+        messages.error(request, 'Вкажіть коректну загальну вартість робіт.')
+        return redirect(reverse('accounting:dashboard') + f'?station_id={booking.station_id}')
+
     employee_id = request.POST.get('employee_id')
-    mileage = _safe_int(request.POST.get('mileage')) or None
-    work_list = request.POST.get('work_list', '').strip()
-    spare_parts = request.POST.get('spare_parts', '').strip()
-    used_parts_json = request.POST.get('used_parts_json')
+    employee = None
+    if employee_id:
+        employee = Employee.objects.filter(pk=employee_id, station=booking.station, is_active=True).first()
+        if employee is None:
+            messages.error(request, 'Майстер не належить цьому СТО.')
+            return redirect(reverse('accounting:dashboard') + f'?station_id={booking.station_id}')
 
-    if actual_price <= 0:
-        messages.error(request, "Вартість ремонту повинна бути більшою за нуль.")
-        return redirect('profile')
-
-    used_parts_data = []
-    if used_parts_json:
+    mileage_text = request.POST.get('mileage', '').strip()
+    mileage = None
+    if mileage_text:
         try:
-            used_parts_data = json.loads(used_parts_json)
-        except Exception:
-            pass
+            mileage = int(mileage_text)
+        except ValueError:
+            mileage = -1
+        if mileage < 0:
+            messages.error(request, 'Пробіг має бути невід’ємним числом.')
+            return redirect(reverse('accounting:dashboard') + f'?station_id={booking.station_id}')
+
+    try:
+        quantities = _posted_parts(request.POST.get('used_parts_json'))
+    except ValueError as error:
+        messages.error(request, str(error))
+        return redirect(reverse('accounting:dashboard') + f'?station_id={booking.station_id}')
 
     try:
         with transaction.atomic():
-            booking = Booking.objects.select_for_update().get(pk=booking_id, station__user=user)
+            _lock_station(booking.station_id)
+            booking = Booking.objects.select_for_update().get(pk=booking.pk)
 
             if booking.status == 'completed':
-                messages.warning(request, f"Заявка #{booking.pk} вже була завершена.")
-                return redirect(reverse('profile') + '?tab=bookings')
+                return redirect(reverse('accounting:dashboard') + f'?station_id={booking.station_id}')
             if booking.status == 'cancelled':
-                messages.error(request, f"Неможливо завершити скасовану заявку #{booking.pk}.")
-                return redirect(reverse('profile') + '?tab=bookings')
+                raise ValueError('Скасовану заявку не можна завершити.')
 
-            employee = Employee.objects.filter(pk=employee_id, station=booking.station).first() if employee_id else None
+            parts = {part.pk: part for part in SparePart.objects.select_for_update().filter(pk__in=quantities, station_id=booking.station_id)}
+            if len(parts) != len(quantities):
+                raise ValueError('Одна із запчастин не належить цьому СТО.')
+
+            for part_id, quantity in quantities.items():
+                if parts[part_id].quantity < quantity:
+                    raise ValueError(f'Недостатньо запчастини «{parts[part_id].name}» на складі.')
+
+            work_list = request.POST.get('work_list', '').strip() or booking.description
+            spare_parts_field = request.POST.get('spare_parts', '').strip()
+            used_names, parts_cost = [], Decimal('0.00')
+
+            for part_id, quantity in quantities.items():
+                part = parts[part_id]
+                part.quantity -= quantity
+                part.save(update_fields=['quantity', 'updated_at'])
+
+                UsedSparePart.objects.create(
+                    booking=booking, spare_part=part, part_name=part.name,
+                    quantity=quantity, cost_price=part.cost_price, selling_price=part.selling_price,
+                )
+                parts_cost += part.cost_price * quantity
+                used_names.append(f'{part.name} × {quantity}')
+
+            Transaction.objects.create(
+                station=booking.station, booking=booking, employee=employee,
+                type='income', category='service', amount=amount,
+                description=f'Виконання заявки #{booking.pk}',
+            )
+
+            if parts_cost:
+                Transaction.objects.create(
+                    station=booking.station, booking=booking, type='expense',
+                    category='spare_parts', amount=parts_cost,
+                    description=f'Собівартість запчастин для заявки #{booking.pk}',
+                )
+
+            if employee is not None:
+                commission = (amount * employee.commission_percent / Decimal('100')).quantize(Decimal('0.01'))
+                if commission:
+                    balance, _ = SalaryBalance.objects.select_for_update().get_or_create(employee=employee)
+                    balance.total_earned += commission
+                    balance.save(update_fields=['total_earned', 'updated_at'])
+
+            if booking.car_id:
+                history_parts = spare_parts_field or (', '.join(used_names) if used_names else None)
+                CarHistory.objects.create(
+                    car=booking.car, booking=booking, station=booking.station,
+                    date=timezone.localdate(), mileage=mileage, work_list=work_list,
+                    spare_parts=history_parts, price=amount,
+                )
 
             booking.status = 'completed'
             booking.save(update_fields=['status'])
+    except ValueError as error:
+        messages.error(request, str(error))
+        return redirect(reverse('accounting:dashboard') + f'?station_id={booking.station_id}')
 
-            desc = f"Завершено ремонт за заявкою #{booking.id} ({booking.service_name or 'Загальні роботи'})"
-            if employee:
-                desc += f". Виконавець: {employee.full_name}."
+    messages.success(request, 'Заявку завершено, фінанси та склад оновлено.')
+    return redirect(reverse('accounting:dashboard') + f'?station_id={booking.station_id}')
 
-            tx = Transaction.objects.create(
-                station=booking.station, type='income', category='service',
-                amount=actual_price, description=desc, booking=booking,
-                employee=employee, date=datetime.date.today()
-            )
 
-            if employee and employee.commission_percent > 0:
-                commission = (actual_price * (employee.commission_percent / Decimal('100.00'))).quantize(Decimal('0.01'))
-                sb = SalaryBalance.objects.select_for_update().get(employee=employee)
-                sb.total_earned = F('total_earned') + commission
-                sb.save(update_fields=['total_earned'])
-                tx.description += f" Нараховано комісію: {commission} грн."
-                tx.save(update_fields=['description'])
-
-            total_parts_cost = Decimal('0.00')
-            parts_summary = []
-            for item in used_parts_data:
-                p_id = item.get('part_id')
-                try:
-                    p_qty = int(item.get('qty', 0))
-                except (TypeError, ValueError):
-                    p_qty = 0
-                if p_id and p_qty > 0:
-                    try:
-                        sp = SparePart.objects.select_for_update().get(pk=p_id, station=booking.station)
-                    except SparePart.DoesNotExist:
-                        continue
-                    if sp.quantity < p_qty:
-                        raise ValueError(
-                            f"Недостатньо запчастини \"{sp.name}\" на складі: є {sp.quantity} шт, потрібно {p_qty} шт."
-                        )
-                    sp.quantity = F('quantity') - p_qty
-                    sp.save(update_fields=['quantity'])
-                    UsedSparePart.objects.create(
-                        booking=booking, spare_part=sp, part_name=sp.name,
-                        quantity=p_qty, cost_price=sp.cost_price, selling_price=sp.selling_price
-                    )
-                    line_cost = sp.cost_price * p_qty
-                    line_sell = sp.selling_price * p_qty
-                    total_parts_cost += line_cost
-                    parts_summary.append(f"{sp.name} x{p_qty} ({line_sell} грн)")
-
-            if total_parts_cost > 0:
-                Transaction.objects.create(
-                    station=booking.station, type='expense', category='spare_parts',
-                    amount=total_parts_cost, description=f"Списання запчастин за заявкою #{booking.id}",
-                    booking=booking, employee=employee, date=datetime.date.today()
-                )
-
-            if parts_summary:
-                auto_parts_str = ", ".join(parts_summary)
-                spare_parts = f"{auto_parts_str}\n{spare_parts}" if spare_parts else auto_parts_str
-
-            if booking.car:
-                final_works = work_list or (booking.service_name or booking.description or 'Виконано роботи')
-                CarHistory.objects.create(
-                    car=booking.car, booking=booking, station=booking.station,
-                    date=datetime.date.today(), mileage=mileage, work_list=final_works,
-                    spare_parts=spare_parts, price=actual_price
-                )
-
-        messages.success(request, f"Ремонт за заявкою #{booking.id} успішно завершено.")
-    except Booking.DoesNotExist:
-        messages.error(request, "Заявку не знайдено.")
-    except ValueError as err:
-        # Недостатня кількість запчастин — транзакція відкочується повністю
-        messages.error(request, str(err))
-    except Exception as err:
-        logger.error("Помилка завершення ремонту: %s", err, exc_info=True)
-        messages.error(request, "Помилка при завершенні ремонту.")
-
-    return redirect(reverse('profile') + '?tab=bookings')
-
-# --- Управління Складом Запчастин ---
-
-@login_required_session
 @role_required('station')
 @require_POST
 def add_spare_part_view(request):
-    user = get_current_user(request)
-    station = get_object_or_404(ServiceStation, pk=_safe_int(request.POST.get('station_id')), user=user)
-    name = request.POST.get('name', '').strip()
-    if not name:
-        messages.error(request, "Вкажіть назву запчастини.")
-        return _redirect_to_dashboard(station.pk)
+    station = _owned_station(request)
+    form = SparePartForm(request.POST)
+    if form.is_valid():
+        part = form.save(commit=False)
+        part.station = station
+        part.save()
+        messages.success(request, 'Запчастину додано на склад.')
+    else:
+        _show_errors(request, form)
+    return redirect(reverse('accounting:dashboard') + f'?station_id={station.pk}')
 
-    SparePart.objects.create(
-        station=station, name=name, sku=request.POST.get('sku', '').strip() or None,
-        quantity=max(0, _safe_int(request.POST.get('quantity'))),
-        cost_price=max(Decimal('0.00'), _safe_decimal(request.POST.get('cost_price'))),
-        selling_price=max(Decimal('0.00'), _safe_decimal(request.POST.get('selling_price'))),
-        min_quantity=max(0, _safe_int(request.POST.get('min_quantity'), 5))
-    )
-    messages.success(request, f"Запчастину '{name}' додано на склад.")
-    return redirect(reverse('profile') + '?tab=inventory')
 
-@login_required_session
 @role_required('station')
 @require_POST
-def edit_spare_part_view(request):
-    user = get_current_user(request)
-    part = get_object_or_404(SparePart, pk=request.POST.get('part_id'), station__user=user)
+def edit_spare_part_view(request, part_id=None):
+    p_id = part_id or request.POST.get('part_id')
+    part = get_object_or_404(SparePart, pk=p_id, station__user=request.user)
+    form = SparePartForm(request.POST, instance=part)
+    if form.is_valid():
+        form.save()
+        messages.success(request, 'Запчастину оновлено.')
+    else:
+        _show_errors(request, form)
+    return redirect(reverse('accounting:dashboard') + f'?station_id={part.station_id}')
 
-    if name := request.POST.get('name', '').strip():
-        part.name = name
-    part.sku = request.POST.get('sku', '').strip() or None
 
-    if (q := request.POST.get('quantity')) is not None and q != '':
-        part.quantity = max(0, _safe_int(q))
-    if (cp := request.POST.get('cost_price')) is not None and cp != '':
-        part.cost_price = max(Decimal('0.00'), _safe_decimal(cp))
-    if (sp := request.POST.get('selling_price')) is not None and sp != '':
-        part.selling_price = max(Decimal('0.00'), _safe_decimal(sp))
-    if (mq := request.POST.get('min_quantity')) is not None and mq != '':
-        part.min_quantity = max(0, _safe_int(mq))
-
-    part.save()
-    messages.success(request, f"Запчастину '{part.name}' оновлено.")
-    return redirect(reverse('profile') + '?tab=inventory')
-
-@login_required_session
 @role_required('station')
 @require_POST
-def delete_spare_part_view(request):
-    user = get_current_user(request)
-    part = get_object_or_404(SparePart, pk=request.POST.get('part_id'), station__user=user)
-    name = part.name
+def delete_spare_part_view(request, part_id=None):
+    p_id = part_id or request.POST.get('part_id')
+    part = get_object_or_404(SparePart, pk=p_id, station__user=request.user)
+    station_id = part.station_id
     part.delete()
-    messages.success(request, f"Запчастину '{name}' видалено зі складу.")
-    return redirect(reverse('profile') + '?tab=inventory')
+    messages.success(request, 'Запчастину видалено зі складу.')
+    return redirect(reverse('accounting:dashboard') + f'?station_id={station_id}')
 
-# --- Експорт Звітів (Excel та PDF) ---
 
-@login_required_session
-@role_required('station')
-def export_transactions_xlsx(request):
-    user = get_current_user(request)
-    if not user or not (st_id := _safe_int(request.GET.get('station_id'))):
-        messages.error(request, "Не вказано СТО для експорту.")
-        return redirect('profile')
+def _report_transactions(request):
+    station = _owned_station(request)
+    queryset = Transaction.objects.filter(station=station).select_related('employee', 'booking')
+    start_text, end_text = request.GET.get('start_date', ''), request.GET.get('end_date', '')
 
-    station = get_object_or_404(ServiceStation, pk=st_id, user=user)
-    start_date, end_date = _parse_date_range(request)
+    try:
+        start_date = datetime.date.fromisoformat(start_text) if start_text else None
+        end_date = datetime.date.fromisoformat(end_text) if end_text else None
+    except ValueError:
+        return station, None
+
+    if start_date and end_date and start_date > end_date:
+        return station, None
+    if start_date:
+        queryset = queryset.filter(date__gte=start_date)
+    if end_date:
+        queryset = queryset.filter(date__lte=end_date)
 
     t_type = request.GET.get('type')
+    if t_type in ('income', 'expense'):
+        queryset = queryset.filter(type=t_type)
+
     category = request.GET.get('category')
-    emp_filter = request.GET.get('employee_id')
-
-    transactions = Transaction.objects.filter(
-        station=station, date__range=[start_date, end_date]
-    ).select_related('employee', 'booking')
-
-    if t_type in ['income', 'expense']:
-        transactions = transactions.filter(type=t_type)
     if category and category != 'all':
-        transactions = transactions.filter(category=category)
-    if emp_filter and emp_filter != 'all' and (e_id := _safe_int(emp_filter)):
-        transactions = transactions.filter(employee_id=e_id)
+        queryset = queryset.filter(category=category)
 
-    safe_name = re.sub(r'[^a-zA-Z0-9_-]', '', re.sub(r'\s+', '_', station.name)).strip('_')[:50] or 'station'
-    filename = f"{safe_name}_report_{start_date}_{end_date}.xlsx"
+    employee_id = request.GET.get('employee_id')
+    if employee_id and employee_id != 'all':
+        try:
+            queryset = queryset.filter(employee_id=int(employee_id))
+        except (ValueError, TypeError):
+            pass
 
-    import openpyxl
-    from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
-    from openpyxl.utils import get_column_letter
+    return station, queryset.order_by('-date', '-created_at')
 
-    wb = openpyxl.Workbook()
-    ws = wb.active
-    ws.title = "Фінансовий звіт"
-    ws.views.sheetView[0].showGridLines = True
 
-    ws.merge_cells('A1:G1')
-    ws['A1'].value = f"ФІНАНСОВИЙ ЗВІТ СТО: {station.name.upper()}"
-    ws['A1'].font = Font(name='Arial', size=14, bold=True, color="FFFFFF")
-    ws['A1'].fill = PatternFill(start_color="1E293B", fill_type="solid")
-    ws['A1'].alignment = Alignment(horizontal="center", vertical="center")
+@role_required('station')
+@require_GET
+def export_transactions_xlsx(request):
+    station, transactions = _report_transactions(request)
+    if transactions is None:
+        messages.error(request, 'Перевірте дати звіту.')
+        return redirect('accounting:dashboard')
 
-    ws.merge_cells('A2:G2')
-    ws['A2'].value = f"Період: {start_date.strftime('%d.%m.%Y')} — {end_date.strftime('%d.%m.%Y')}"
-    ws['A2'].font = Font(name='Arial', size=10, italic=True, color="475569")
-    ws['A2'].alignment = Alignment(horizontal="center", vertical="center")
+    workbook = Workbook()
+    sheet = workbook.active
+    sheet.title = 'Операції'
+    sheet.append(['Дата', 'Тип', 'Категорія', 'Сума, грн', 'Опис', 'Заявка', 'Співробітник'])
+    for cell in sheet[1]:
+        cell.font = Font(bold=True)
 
-    headers = ['Дата', 'Тип операції', 'Категорія', 'Сума (грн)', 'Опис', 'ID Заявки', 'Співробітник']
-    ws.append([])
-    ws.append(headers)
-
-    header_fill = PatternFill(start_color="0284C7", fill_type="solid")
-    header_font = Font(name='Arial', size=11, bold=True, color="FFFFFF")
-    for col_idx in range(1, 8):
-        cell = ws.cell(row=4, column=col_idx)
-        cell.fill, cell.font = header_fill, header_font
-        cell.alignment = Alignment(horizontal="center", vertical="center")
-
-    total_inc, total_exp = Decimal('0.00'), Decimal('0.00')
-    curr_row = 5
-    for t in transactions:
-        ws.append([
-            t.date.strftime("%d.%m.%Y"), t.get_type_display(), t.get_category_display(),
-            float(t.amount), t.description or '', t.booking.id if t.booking else '',
-            t.employee.full_name if t.employee else ''
+    for record in transactions:
+        sheet.append([
+            record.date.strftime('%d.%m.%Y'),
+            record.get_type_display(),
+            record.get_category_display(),
+            float(record.amount),
+            record.description or '',
+            record.booking_id or '',
+            record.employee.full_name if record.employee else '',
         ])
-        fill = PatternFill(start_color="F8FAFC" if curr_row % 2 == 0 else "FFFFFF", fill_type="solid")
-        for c_idx in range(1, 8):
-            cell = ws.cell(row=curr_row, column=c_idx)
-            cell.fill = fill
-            cell.font = Font(name='Arial', size=10)
-            if c_idx == 4:
-                cell.number_format = '#,##0.00 "грн"'
-                cell.alignment = Alignment(horizontal="right")
-                if t.type == 'income':
-                    cell.font = Font(name='Arial', size=10, bold=True, color="16A34A")
-                    total_inc += t.amount
-                else:
-                    cell.font = Font(name='Arial', size=10, bold=True, color="DC2626")
-                    total_exp += t.amount
-        curr_row += 1
 
-    summary_row = curr_row + 1
-    ws.cell(row=summary_row, column=3, value="ЧИСТИЙ ПРИБУТОК:").font = Font(name='Arial', size=11, bold=True)
-    net_cell = ws.cell(row=summary_row, column=4, value=float(total_inc - total_exp))
-    net_cell.font = Font(name='Arial', size=12, bold=True, color="16A34A" if total_inc >= total_exp else "DC2626")
-    net_cell.number_format = '#,##0.00 "грн"'
+    for cell in sheet['D'][1:]:
+        cell.number_format = '#,##0.00'
 
-    for col in ws.columns:
-        max_len = max((len(str(cell.value or '')) for cell in col if cell.row > 2), default=10)
-        ws.column_dimensions[get_column_letter(col[0].column)].width = max(max_len + 4, 14)
+    widths = {'A': 16, 'B': 15, 'C': 22, 'D': 18, 'E': 55, 'F': 14, 'G': 30}
+    for col, width in widths.items():
+        sheet.column_dimensions[col].width = width
 
-    response = HttpResponse(content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
-    response['Content-Disposition'] = f'attachment; filename="{filename}"'
-    wb.save(response)
+    output = BytesIO()
+    workbook.save(output)
+    output.seek(0)
+
+    response = HttpResponse(
+        output.getvalue(),
+        content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+    )
+    response['Content-Disposition'] = f'attachment; filename="transactions_{station.pk}.xlsx"'
     return response
 
-@login_required_session
+
+def _pdf_font():
+    font_name = 'KarroDejaVu'
+    if font_name in pdfmetrics.getRegisteredFontNames():
+        return font_name
+    candidates = [
+        Path(settings.BASE_DIR) / 'static' / 'fonts' / 'DejaVuSans.ttf',
+        Path('/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf'),
+        Path('/usr/share/fonts/dejavu-sans-fonts/DejaVuSans.ttf'),
+    ]
+    for path in candidates:
+        if path.is_file():
+            pdfmetrics.registerFont(TTFont(font_name, str(path)))
+            return font_name
+    return 'Helvetica'
+
+
 @role_required('station')
+@require_GET
 def export_financial_report_pdf(request):
-    user = get_current_user(request)
-    if not user:
-        return redirect('login')
+    station, transactions = _report_transactions(request)
+    if transactions is None:
+        messages.error(request, 'Перевірте дати звіту.')
+        return redirect('accounting:dashboard')
 
-    stations = ServiceStation.objects.filter(user=user)
-    if not stations.exists():
-        messages.warning(request, "Спочатку створіть СТО.")
-        return redirect('profile')
+    font_name = _pdf_font()
+    income = transactions.filter(type='income').aggregate(s=Sum('amount'))['s'] or Decimal('0.00')
+    expense = transactions.filter(type='expense').aggregate(s=Sum('amount'))['s'] or Decimal('0.00')
 
-    st_id = _safe_int(request.GET.get('station_id'))
-    selected_station = stations.filter(pk=st_id).first() if st_id else stations.first()
-    start_date, end_date = _parse_date_range(request)
+    output = BytesIO()
+    pdf = canvas.Canvas(output, pagesize=A4)
+    page_width, page_height = A4
 
-    period_transactions = list(Transaction.objects.filter(station=selected_station, date__range=[start_date, end_date]).select_related('employee', 'booking'))
-    total_income = sum((t.amount for t in period_transactions if t.type == 'income'), Decimal('0.00'))
-    total_expense = sum((t.amount for t in period_transactions if t.type == 'expense'), Decimal('0.00'))
-    net_profit = total_income - total_expense
+    def page_header():
+        pdf.setFont(font_name, 15)
+        pdf.drawString(40, page_height - 48, f'Фінансовий звіт: {station.name}')
+        pdf.setFont(font_name, 10)
+        pdf.drawString(40, page_height - 68, f'Сформовано: {timezone.localdate():%d.%m.%Y}')
+        pdf.drawString(40, page_height - 88, f'Дохід: {income:.2f} грн')
+        pdf.drawString(220, page_height - 88, f'Витрати: {expense:.2f} грн')
+        pdf.drawString(410, page_height - 88, f'Результат: {income - expense:.2f} грн')
+        pdf.line(40, page_height - 100, page_width - 40, page_height - 100)
 
-    completed_bookings = Booking.objects.filter(station=selected_station, status='completed', created_at__date__range=[start_date, end_date]).count()
+    page_header()
+    y = page_height - 125
 
-    income_cats, expense_cats = {}, {}
-    for t in period_transactions:
-        c_disp = t.get_category_display()
-        if t.type == 'income':
-            income_cats[c_disp] = income_cats.get(c_disp, Decimal('0.00')) + t.amount
-        else:
-            expense_cats[c_disp] = expense_cats.get(c_disp, Decimal('0.00')) + t.amount
+    for record in transactions:
+        if y < 55:
+            pdf.showPage()
+            page_header()
+            y = page_height - 125
 
-    metrics = {
-        'total_income': total_income, 'total_expense': total_expense,
-        'net_profit': net_profit, 'profit_margin': float((net_profit / total_income) * 100) if total_income > 0 else 0.0,
-        'completed_bookings': completed_bookings,
-        'income_by_category': income_cats, 'expense_by_category': expense_cats,
-    }
-    employees = list(Employee.objects.filter(station=selected_station).select_related('salary_balance'))
+        pdf.setFont(font_name, 9)
+        pdf.drawString(40, y, record.date.strftime('%d.%m.%Y'))
+        pdf.drawString(110, y, record.get_type_display())
+        pdf.drawString(200, y, record.get_category_display())
+        pdf.drawRightString(page_width - 40, y, f'{record.amount:.2f} грн')
+        y -= 15
 
-    pdf_bytes = generate_financial_report_pdf(selected_station, start_date, end_date, period_transactions, metrics, employees)
-    safe_name = re.sub(r'[^a-zA-Z0-9_-]', '', re.sub(r'\s+', '_', selected_station.name)).strip('_')[:50] or 'station'
-    filename = f"financial_report_{safe_name}_{start_date}_{end_date}.pdf"
+        if record.description:
+            pdf.setFont(font_name, 8)
+            pdf.drawString(110, y, record.description[:75])
+            y -= 17
 
-    response = HttpResponse(pdf_bytes, content_type='application/pdf')
+    pdf.save()
+    output.seek(0)
+
     disposition = 'inline' if request.GET.get('inline') == '1' else 'attachment'
-    response['Content-Disposition'] = f'{disposition}; filename="{filename}"'
+    response = HttpResponse(output.getvalue(), content_type='application/pdf')
+    response['Content-Disposition'] = f'{disposition}; filename="financial_report_{station.pk}.pdf"'
     return response
 
-# --- Пошук та Імпорт Запчастин від Постачальників ---
 
-@login_required_session
 @role_required('station')
+@require_GET
 def search_supplier_parts_api(request):
-    query = request.GET.get('query', '').strip()
-    supplier = request.GET.get('supplier', 'all').strip()
-    return JsonResponse(search_supplier_parts(query, supplier))
+    query = request.GET.get('query') or request.GET.get('q', '')
+    supplier = request.GET.get('supplier') or request.GET.get('supplier_code', 'all')
+    return JsonResponse(search_supplier_parts(query=query[:100], supplier_code=supplier))
 
-@require_POST
-@login_required_session
+
 @role_required('station')
+@require_POST
 def import_supplier_part_view(request):
-    user = get_current_user(request)
-    station = get_object_or_404(ServiceStation, pk=_safe_int(request.POST.get('station_id')), user=user)
-
+    station = _owned_station(request)
     sku = request.POST.get('sku', '').strip()
     part_name = request.POST.get('part_name', '').strip()
-    brand = request.POST.get('brand', '').strip()
-    cost_price = _safe_decimal(request.POST.get('cost_price'))
-    selling_price = _safe_decimal(request.POST.get('selling_price'))
-    quantity = max(1, _safe_int(request.POST.get('quantity'), 1))
+    quantity = _positive_int(request.POST.get('quantity', 1)) or 1
 
-    if not part_name:
-        messages.error(request, 'Назва запчастини є обов\'язковою.')
-        return _redirect_to_dashboard(station.pk)
-
-    full_name = f"{part_name} ({brand})" if brand else part_name
-    existing_part = SparePart.objects.filter(station=station, name=full_name, sku=sku).first()
-
-    if existing_part:
-        existing_part.quantity += quantity
-        existing_part.cost_price = cost_price
-        if selling_price > 0:
-            existing_part.selling_price = selling_price
-        existing_part.save()
-        messages.success(request, f'Кількість запчастини "{full_name}" оновлено (+{quantity} шт).')
+    item = next((part for part in CATALOG_DATABASE if part['sku'] == sku), None)
+    if item:
+        name = item['part_name']
+        cost = Decimal(str(item['cost_price']))
+        selling = Decimal(str(item['suggested_retail_price']))
+        supplier_name = item.get('supplier_name', 'Постачальник')
     else:
-        if selling_price <= 0:
-            selling_price = round(cost_price * Decimal('1.35'), 2)
-        SparePart.objects.create(
-            station=station, name=full_name, sku=sku, quantity=quantity,
-            cost_price=cost_price, selling_price=selling_price, min_quantity=3
-        )
-        messages.success(request, f'Запчастину "{full_name}" додано на склад СТО.')
+        name = part_name or sku or 'Запчастина'
+        cost = _money(request.POST.get('cost_price')) or Decimal('0.00')
+        selling = _money(request.POST.get('selling_price')) or Decimal('0.00')
+        supplier_name = 'Постачальник'
 
-    return _redirect_to_dashboard(station.pk)
+    with transaction.atomic():
+        _lock_station(station.pk)
+        part = SparePart.objects.select_for_update().filter(station=station, sku=sku).first()
+
+        if part is None:
+            SparePart.objects.create(
+                station=station, name=name, sku=sku,
+                quantity=quantity, cost_price=cost, selling_price=selling,
+            )
+        else:
+            part.quantity += quantity
+            part.cost_price = cost
+            part.selling_price = selling
+            part.save(update_fields=['quantity', 'cost_price', 'selling_price', 'updated_at'])
+
+        if cost > 0:
+            Transaction.objects.create(
+                station=station, type='expense', category='spare_parts',
+                amount=cost * quantity,
+                description=f'Закупівля: {name} × {quantity}, {supplier_name}',
+            )
+
+    messages.success(request, 'Запчастину додано на склад, закупівлю записано у витрати.')
+    return redirect(reverse('accounting:dashboard') + f'?station_id={station.pk}')

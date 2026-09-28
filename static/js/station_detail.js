@@ -1,245 +1,224 @@
-document.addEventListener('DOMContentLoaded', function() {
-    /* Вибір зірочок для оцінки відгуку */
+document.addEventListener('DOMContentLoaded', () => {
     const picker = document.getElementById('star-picker');
     const ratingInput = document.getElementById('rating-value');
 
     if (picker && ratingInput) {
-        const labels = picker.querySelectorAll('label');
-        let currentRating = 5;
-        updateStars(currentRating);
+        const labels = [...picker.querySelectorAll('label[data-rating]')];
+        let rating = Number(ratingInput.value) || 5;
 
+        function paintStars(value) {
+            labels.forEach(label => {
+                label.style.color = Number(label.dataset.rating) <= value
+                    ? '#F59E0B'
+                    : 'var(--border-hover)';
+            });
+        }
+
+        paintStars(rating);
         labels.forEach(label => {
-            const rating = parseInt(label.dataset.rating);
-
             label.addEventListener('click', () => {
-                currentRating = rating;
+                rating = Number(label.dataset.rating);
                 ratingInput.value = rating;
-                updateStars(rating);
+                paintStars(rating);
             });
-
-            label.addEventListener('mouseenter', () => updateStars(rating));
+            label.addEventListener('mouseenter', () => {
+                paintStars(Number(label.dataset.rating));
+            });
         });
-
-        picker.addEventListener('mouseleave', () => updateStars(currentRating));
-
-        function updateStars(n) {
-            labels.forEach(l => {
-                const r = parseInt(l.dataset.rating);
-                l.style.color = r <= n ? '#F59E0B' : 'var(--border-hover)';
-            });
-        }
+        picker.addEventListener('mouseleave', () => paintStars(rating));
     }
 
-    /* Кнопка завантаження фотографії СТО */
     const photoInput = document.getElementById('photo-input');
-    const uploadBtn = document.getElementById('upload-btn');
-    if (photoInput && uploadBtn) {
-        photoInput.addEventListener('change', () => {
-            if (photoInput.files.length > 0) {
-                uploadBtn.style.display = 'inline-block';
-            }
-        });
-    }
-
-    /* Міні-карта розташування СТО */
-    const mapContainer = document.getElementById('station-map');
-    if (mapContainer && mapContainer.dataset.lat && mapContainer.dataset.lng) {
-        const lat = parseFloat(mapContainer.dataset.lat);
-        const lng = parseFloat(mapContainer.dataset.lng);
-        const name = mapContainer.dataset.name;
-        const address = mapContainer.dataset.address;
-
-        // Функція екранування HTML для захисту від XSS
-        function escapeHtml(text) {
-            const div = document.createElement('div');
-            div.textContent = text;
-            return div.innerHTML;
+    const uploadButton = document.getElementById('upload-btn');
+    photoInput?.addEventListener('change', () => {
+        if (uploadButton) {
+            uploadButton.style.display = photoInput.files.length
+                ? 'inline-block'
+                : 'none';
         }
+    });
 
-        const map = L.map('station-map', { zoomControl: false, scrollWheelZoom: false }).setView([lat, lng], 15);
+    const mapElement = document.getElementById('station-map');
+    if (mapElement && typeof L !== 'undefined') {
+        const lat = Number(mapElement.dataset.lat);
+        const lng = Number(mapElement.dataset.lng);
 
-        // Світла тема карти Voyager
-        L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}.png', {
-            maxZoom: 19,
-            attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>'
-        }).addTo(map);
+        if (Number.isFinite(lat) && Number.isFinite(lng) &&
+            Math.abs(lat) <= 90 && Math.abs(lng) <= 180) {
+            const map = L.map(mapElement, {
+                zoomControl: false,
+                scrollWheelZoom: false
+            }).setView([lat, lng], 15);
 
-        // Брендований синій маркер для СТО
-        const pinIcon = L.divIcon({
-            html: `
-                <svg viewBox="0 0 24 24" width="32" height="32" fill="none" style="filter: drop-shadow(0 4px 8px rgba(0,82,204,0.25));">
-                    <path d="M12 2C8.13 2 5 5.13 5 9C5 14.25 12 22 12 22S19 14.25 19 9C19 5.13 15.87 2 12 2Z" fill="#0052CC" stroke="#ffffff" stroke-width="1.5"/>
-                    <circle cx="12" cy="9" r="3" fill="#ffffff"/>
-                </svg>
-            `,
-            className: 'custom-pin-marker',
-            iconSize: [32, 32],
-            iconAnchor: [16, 32],
-            popupAnchor: [0, -32]
-        });
+            L.tileLayer(
+                'https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}.png',
+                {
+                    maxZoom: 19,
+                    attribution: '&copy; OpenStreetMap contributors &copy; CARTO'
+                }
+            ).addTo(map);
 
-        // Безпечно виводимо дані СТО в попапі на карті
-        L.marker([lat, lng], { icon: pinIcon }).addTo(map).bindPopup(`
-            <div style="padding: 4px;">
-                <div style="font-weight: 700; font-size: 0.9rem; color: var(--text);">${escapeHtml(name)}</div>
-                <div style="font-size: 0.75rem; color: var(--text-muted);">${escapeHtml(address)}</div>
-            </div>
-        `).openPopup();
+            const popup = document.createElement('div');
+            const name = document.createElement('strong');
+            const address = document.createElement('div');
+            name.textContent = mapElement.dataset.name || '';
+            address.textContent = mapElement.dataset.address || '';
+            popup.append(name, address);
 
-        setTimeout(() => {
-            map.invalidateSize();
-        }, 250);
+            L.marker([lat, lng]).addTo(map).bindPopup(popup).openPopup();
+            setTimeout(() => map.invalidateSize(), 250);
+        }
     }
 
-    /* Модальне вікно створення заявки та AJAX-запит */
-    const openBtn = document.getElementById('openBookingModalBtn');
-    const closeBtn = document.getElementById('closeBookingModalBtn');
+    const openButton = document.getElementById('openBookingModalBtn');
     const modal = document.getElementById('bookingModal');
-    const bookingForm = document.getElementById('bookingForm');
+    const form = document.getElementById('bookingForm');
+    if (!openButton || !modal || !form) return;
 
-    if (openBtn && modal && bookingForm) {
-        // Відкриття модалки
-        openBtn.addEventListener('click', () => {
-            modal.classList.add('active');
-        });
+    const dateInput = document.getElementById('bookingDate');
+    const timeInput = document.getElementById('bookingTime');
+    const durationInput = document.getElementById('bookingDuration');
+    const slotsGrid = document.getElementById('slotsGrid');
+    const submitButton = document.getElementById('submitBookingBtn');
+    const stationId = openButton.dataset.stationId;
+    let slotsRequest = null;
 
-        // Закриття модалки
-        closeBtn.addEventListener('click', () => {
-            modal.classList.remove('active');
-        });
+    if (!dateInput || !timeInput || !durationInput ||
+        !slotsGrid || !submitButton || !stationId) return;
 
-        // Закриття при кліку поза формою
-        modal.addEventListener('click', (e) => {
-            if (e.target === modal) {
-                modal.classList.remove('active');
-            }
-        });
+    const today = new Date();
+    dateInput.min = [
+        today.getFullYear(),
+        String(today.getMonth() + 1).padStart(2, '0'),
+        String(today.getDate()).padStart(2, '0')
+    ].join('-');
 
-        const bookingTimeInput = document.getElementById('bookingTime');
-        const bookingDateInput = document.getElementById('bookingDate');
-        const bookingDurationSelect = document.getElementById('bookingDuration');
-        const slotsGrid = document.getElementById('slotsGrid');
-        const submitBtn = document.getElementById('submitBookingBtn');
-        const bookingCarSelect = document.getElementById('bookingCar');
-        const bookingServiceInput = document.getElementById('bookingService');
+    function showSlotMessage(text) {
+        slotsGrid.replaceChildren();
+        const label = document.createElement('span');
+        label.className = 'info-text';
+        label.textContent = text;
+        slotsGrid.appendChild(label);
+    }
 
-        // Встановлення мінімальної дати для вибору (сьогодні)
-        if (bookingDateInput) {
-            const today = new Date().toISOString().split('T')[0];
-            bookingDateInput.min = today;
+    async function loadSlots() {
+        slotsRequest?.abort();
+        timeInput.value = '';
+        submitButton.disabled = true;
+
+        if (!dateInput.value) {
+            showSlotMessage(t('st.pick_date_hint'));
+            return;
         }
 
-        // Функція оновлення доступних слотів
-        function fetchAvailableSlots() {
-            const date = bookingDateInput.value;
-            const duration = bookingDurationSelect.value;
-            const stationId = openBtn.getAttribute('data-station-id');
+        const controller = new AbortController();
+        slotsRequest = controller;
+        showSlotMessage(t('st.loading_slots'));
 
-            if (!date) {
-                slotsGrid.innerHTML = `<span class="info-text">${t('st.pick_date_hint')}</span>`;
-                submitBtn.disabled = true;
-                bookingTimeInput.value = '';
-                return;
+        const params = new URLSearchParams({
+            date: dateInput.value,
+            duration: durationInput.value
+        });
+
+        try {
+            const response = await fetch(
+                `/api/stations/${encodeURIComponent(stationId)}/available-slots/?${params}`,
+                { signal: controller.signal }
+            );
+            const data = await response.json();
+            if (!response.ok || data.status !== 'success') {
+                throw new Error(data.message || t('st.slots_error'));
             }
 
-            slotsGrid.innerHTML = `<span class="info-text">${t('st.loading_slots')}</span>`;
-            submitBtn.disabled = true;
-            bookingTimeInput.value = '';
-
-            fetch(`/api/stations/${stationId}/available-slots/?date=${date}&duration=${duration}`)
-                .then(response => response.json())
-                .then(data => {
-                    if (data.status === 'success') {
-                        if (data.is_closed) {
-                            slotsGrid.innerHTML = `<span class="info-text" style="color: #ef4444; font-weight: 600;">${data.message || t('st.closed_day_msg')}</span>`;
-                        } else if (data.slots && data.slots.length > 0) {
-                            slotsGrid.innerHTML = '';
-                            data.slots.forEach(slot => {
-                                const btn = document.createElement('button');
-                                btn.type = 'button';
-                                btn.className = 'slot-btn';
-                                btn.textContent = slot;
-                                btn.addEventListener('click', () => {
-                                    // Знімаємо клас active з інших кнопок
-                                    slotsGrid.querySelectorAll('.slot-btn').forEach(b => b.classList.remove('active'));
-                                    btn.classList.add('active');
-                                    // Записуємо повну дату та час
-                                    bookingTimeInput.value = `${date}T${slot}`;
-                                    submitBtn.disabled = false;
-                                });
-                                slotsGrid.appendChild(btn);
-                            });
-                        } else {
-                            slotsGrid.innerHTML = `<span class="info-text" style="color: var(--error);">${t('st.no_slots_left')}</span>`;
-                        }
-                    } else {
-                        slotsGrid.innerHTML = `<span class="info-text" style="color: var(--error);">${data.message || t('st.slots_error')}</span>`;
-                    }
-                })
-                .catch(err => {
-                    slotsGrid.innerHTML = `<span class="info-text" style="color: var(--error);">${t('common.connection_error')}</span>`;
+            if (slotsRequest !== controller) return;
+            if (data.is_closed) {
+                showSlotMessage(data.message || t('st.closed_day_msg'));
+            } else if (!data.slots?.length) {
+                showSlotMessage(t('st.no_slots_left'));
+            } else {
+                slotsGrid.replaceChildren();
+                data.slots.forEach(slot => {
+                    const button = document.createElement('button');
+                    button.type = 'button';
+                    button.className = 'slot-btn';
+                    button.textContent = slot;
+                    button.addEventListener('click', () => {
+                        slotsGrid.querySelectorAll('.slot-btn').forEach(item => {
+                            item.classList.remove('active');
+                        });
+                        button.classList.add('active');
+                        timeInput.value = `${dateInput.value}T${slot}`;
+                        submitButton.disabled = false;
+                    });
+                    slotsGrid.appendChild(button);
                 });
-        }
-
-        if (bookingDateInput && bookingDurationSelect) {
-            bookingDateInput.addEventListener('change', fetchAvailableSlots);
-            bookingDurationSelect.addEventListener('change', fetchAvailableSlots);
-        }
-
-        // Відправка форми через AJAX
-        bookingForm.addEventListener('submit', (e) => {
-            e.preventDefault();
-            
-            if (!bookingTimeInput.value) {
-                alert(t('st.pick_slot_alert'));
-                return;
             }
+        } catch (error) {
+            if (error.name !== 'AbortError' && slotsRequest === controller) {
+                showSlotMessage(error.message || t('common.connection_error'));
+            }
+        }
+    }
 
-            const stationId = openBtn.getAttribute('data-station-id');
-            const description = document.getElementById('bookingDescription').value;
-            const scheduledTime = bookingTimeInput.value;
-            const duration = bookingDurationSelect.value;
-            const carId = bookingCarSelect ? bookingCarSelect.value : null;
-            const serviceName = bookingServiceInput ? bookingServiceInput.value : '';
-            const csrfToken = bookingForm.querySelector('[name=csrfmiddlewaretoken]').value;
+    openButton.addEventListener('click', () => modal.classList.add('active'));
+    document.getElementById('closeBookingModalBtn')?.addEventListener(
+        'click',
+        () => modal.classList.remove('active')
+    );
+    modal.addEventListener('click', event => {
+        if (event.target === modal) modal.classList.remove('active');
+    });
 
-            const data = {
-                station_id: stationId,
-                car_id: carId,
-                service_name: serviceName,
-                description: description,
-                scheduled_time: scheduledTime,
-                duration: duration
-            };
+    dateInput.addEventListener('change', loadSlots);
+    durationInput.addEventListener('change', loadSlots);
 
-            fetch('/api/bookings/create/', {
+    form.addEventListener('submit', async event => {
+        event.preventDefault();
+        if (!timeInput.value) {
+            alert(t('st.pick_slot_alert'));
+            return;
+        }
+
+        submitButton.disabled = true;
+        const csrf = form.querySelector('[name="csrfmiddlewaretoken"]')?.value;
+        const data = {
+            station_id: stationId,
+            car_id: document.getElementById('bookingCar')?.value || '',
+            service_name: document.getElementById('bookingService')?.value || '',
+            description: document.getElementById('bookingDescription')?.value || '',
+            scheduled_time: timeInput.value,
+            duration: durationInput.value
+        };
+
+        try {
+            const response = await fetch('/api/bookings/create/', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
-                    'X-CSRFToken': csrfToken
+                    'X-CSRFToken': csrf || ''
                 },
                 body: JSON.stringify(data)
-            })
-            .then(response => {
-                if (response.status === 401) {
-                    throw new Error(t('st.login_required'));
-                }
-                return response.json().then(res => {
-                    if (!response.ok) throw new Error(res.message || t('st.server_error'));
-                    return res;
-                });
-            })
-            .then(data => {
-                alert(data.message);
-                modal.classList.remove('active');
-                bookingForm.reset();
-                if (slotsGrid) {
-                    slotsGrid.innerHTML = `<span class="info-text">${t('st.pick_date_hint')}</span>`;
-                }
-            })
-            .catch(error => {
-                alert(error.message);
             });
-        });
-    }
+            const result = await response.json();
+
+            if (!response.ok || result.status !== 'success') {
+                throw new Error(
+                    result.message ||
+                    (response.status === 401
+                        ? t('st.login_required')
+                        : t('st.server_error'))
+                );
+            }
+
+            alert(result.message);
+            modal.classList.remove('active');
+            form.reset();
+            timeInput.value = '';
+            showSlotMessage(t('st.pick_date_hint'));
+        } catch (error) {
+            alert(error.message || t('common.connection_error'));
+        } finally {
+            submitButton.disabled = !timeInput.value;
+        }
+    });
 });

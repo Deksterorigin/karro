@@ -1,6 +1,5 @@
-# Локальний каталог запчастин для пошуку та закупівлі (демонстраційні дані постачальників)
-
 import re
+
 
 SUPPLIERS = [
     {'code': 'intercars', 'name': 'InterCars Україна', 'badge_color': '#0284c7'},
@@ -8,10 +7,7 @@ SUPPLIERS = [
     {'code': 'technovector', 'name': 'TechnoVector / Омега', 'badge_color': '#d97706'},
 ]
 
-
-# Базовий каталог найпопулярніших запчастин та витратних матеріалів
 CATALOG_DATABASE = [
-    # Гальмівна система
     {
         'sku': 'P 85 020',
         'oem': '8E0 698 151 F',
@@ -23,8 +19,8 @@ CATALOG_DATABASE = [
         'cost_price': 1250.00,
         'suggested_retail_price': 1750.00,
         'stock_qty': 14,
-        'delivery_days': 0, # В наявності
-        'compatibility': 'VAG (Audi A4, A6, Passat B6/B7)'
+        'delivery_days': 0,
+        'compatibility': 'VAG (Audi A4, A6, Passat B6/B7)',
     },
     {
         'sku': '0 986 479 098',
@@ -38,7 +34,7 @@ CATALOG_DATABASE = [
         'suggested_retail_price': 2250.00,
         'stock_qty': 8,
         'delivery_days': 1,
-        'compatibility': 'VW Golf VII, Octavia A7, Passat B8'
+        'compatibility': 'VW Golf VII, Octavia A7, Passat B8',
     },
     {
         'sku': 'GDB1330',
@@ -52,14 +48,12 @@ CATALOG_DATABASE = [
         'suggested_retail_price': 1350.00,
         'stock_qty': 22,
         'delivery_days': 0,
-        'compatibility': 'Skoda Octavia Tour, VW Golf IV'
+        'compatibility': 'Skoda Octavia Tour, VW Golf IV',
     },
-
-    # Фільтри та мастила
     {
         'sku': 'HU 719/7 x',
         'oem': '071 115 562 C',
-        'part_name': 'Фільтр масляний масляний картридж',
+        'part_name': 'Фільтр масляний картридж',
         'brand': 'MANN-FILTER',
         'category': 'Фільтри',
         'supplier_code': 'intercars',
@@ -68,7 +62,7 @@ CATALOG_DATABASE = [
         'suggested_retail_price': 380.00,
         'stock_qty': 45,
         'delivery_days': 0,
-        'compatibility': 'VAG 1.9 TDI, 2.0 TDI'
+        'compatibility': 'VAG 1.9 TDI, 2.0 TDI',
     },
     {
         'sku': 'C 30 005',
@@ -82,7 +76,7 @@ CATALOG_DATABASE = [
         'suggested_retail_price': 580.00,
         'stock_qty': 30,
         'delivery_days': 0,
-        'compatibility': 'Skoda Kodiaq, Tiguan, Octavia'
+        'compatibility': 'Skoda Kodiaq, Tiguan, Octavia',
     },
     {
         'sku': 'MOT-8100-5W30-5L',
@@ -96,7 +90,7 @@ CATALOG_DATABASE = [
         'suggested_retail_price': 2200.00,
         'stock_qty': 18,
         'delivery_days': 0,
-        'compatibility': 'Універсальна (ACEA C2/C3, MB 229.52, BMW LL-04)'
+        'compatibility': 'Універсальна (ACEA C2/C3, MB 229.52, BMW LL-04)',
     },
     {
         'sku': 'CAS-EDGE-5W30-4L',
@@ -110,10 +104,8 @@ CATALOG_DATABASE = [
         'suggested_retail_price': 1950.00,
         'stock_qty': 25,
         'delivery_days': 0,
-        'compatibility': 'VW 504.00 / 507.00'
+        'compatibility': 'VW 504.00 / 507.00',
     },
-
-    # Підвіска та ходова частина
     {
         'sku': '31925 01',
         'oem': '1K0 407 151 AC',
@@ -126,7 +118,7 @@ CATALOG_DATABASE = [
         'suggested_retail_price': 2850.00,
         'stock_qty': 10,
         'delivery_days': 1,
-        'compatibility': 'VW Passat B6/B7, CC, Tiguan'
+        'compatibility': 'VW Passat B6/B7, CC, Tiguan',
     },
     {
         'sku': '311 409',
@@ -140,10 +132,8 @@ CATALOG_DATABASE = [
         'suggested_retail_price': 2490.00,
         'stock_qty': 12,
         'delivery_days': 0,
-        'compatibility': 'Passat B6/B7, Superb II'
+        'compatibility': 'Passat B6/B7, Superb II',
     },
-
-    # Система запалювання та ГРМ
     {
         'sku': 'VLINE-28',
         'oem': '101 000 063 AA',
@@ -156,7 +146,7 @@ CATALOG_DATABASE = [
         'suggested_retail_price': 210.00,
         'stock_qty': 120,
         'delivery_days': 0,
-        'compatibility': 'Японські та європейські авто 1.6-2.0L'
+        'compatibility': 'Японські та європейські авто 1.6-2.0L',
     },
     {
         'sku': 'K015607XS',
@@ -170,7 +160,7 @@ CATALOG_DATABASE = [
         'suggested_retail_price': 4600.00,
         'stock_qty': 6,
         'delivery_days': 1,
-        'compatibility': 'VAG 1.6 / 2.0 TDI Common Rail'
+        'compatibility': 'VAG 1.6 / 2.0 TDI Common Rail',
     },
     {
         'sku': '5416XS',
@@ -184,36 +174,40 @@ CATALOG_DATABASE = [
         'suggested_retail_price': 890.00,
         'stock_qty': 15,
         'delivery_days': 0,
-        'compatibility': 'Audi A4 1.6/1.8T, Golf IV 1.6'
-    }
+        'compatibility': 'Audi A4 1.6/1.8T, Golf IV 1.6',
+    },
 ]
 
+
 def search_supplier_parts(query='', supplier_code='all'):
-    clean_query = str(query).strip().lower()
-    
+    query_text = str(query).strip().casefold()
+    query_compact = re.sub(r'[\s\-/\.]', '', query_text)
     results = []
-    for item in CATALOG_DATABASE:
-        if supplier_code and supplier_code != 'all' and item['supplier_code'] != supplier_code:
+
+    for part in CATALOG_DATABASE:
+        if supplier_code not in ('', 'all', None, part['supplier_code']):
             continue
 
-        if not clean_query:
-            results.append(item)
-            continue
+        searchable = ' '.join(
+            str(part[field])
+            for field in (
+                'sku',
+                'oem',
+                'part_name',
+                'brand',
+                'category',
+                'compatibility',
+            )
+        ).casefold()
 
-        # Збіг за артикулом, OEM або назвою
-        searchable_text = f"{item['sku']} {item['oem']} {item['part_name']} {item['brand']} {item['category']} {item['compatibility']}".lower()
-        
-        searchable_normalized = re.sub(r'[\s\-\/\.]', '', searchable_text)
-        query_normalized = re.sub(r'[\s\-\/\.]', '', clean_query)
-
-        if clean_query in searchable_text or query_normalized in searchable_normalized:
-            results.append(item)
+        compact = re.sub(r'[\s\-/\.]', '', searchable)
+        if not query_text or query_text in searchable or query_compact in compact:
+            results.append(part)
 
     return {
         'status': 'success',
         'query': query,
         'count': len(results),
         'suppliers': SUPPLIERS,
-        'parts': results
+        'parts': results,
     }
-

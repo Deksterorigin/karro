@@ -1,10 +1,12 @@
-import re
-import requests
+import datetime
 import logging
+import re
+
+import requests
+
 
 logger = logging.getLogger(__name__)
 
-# Словник WMI для швидкого визначення маркувальних даних автівки за першими символами
 WMI_MAP = {
     'WBA': ('BMW', 'Німеччина'),
     'WBS': ('BMW M', 'Німеччина'),
@@ -49,89 +51,106 @@ WMI_MAP = {
     'UU1': ('Dacia', 'Румунія'),
 }
 
-# 10-й символ VIN визначає рік випуску (SAE J272)
-YEAR_CODES = {
-    'A': 2010, 'B': 2011, 'C': 2012, 'D': 2013, 'E': 2014,
-    'F': 2015, 'G': 2016, 'H': 2017, 'J': 2018, 'K': 2019,
-    'L': 2020, 'M': 2021, 'N': 2022, 'P': 2023, 'R': 2024,
-    'S': 2025, 'T': 2026, '1': 2001, '2': 2002, '3': 2003,
-    '4': 2004, '5': 2005, '6': 2006, '7': 2007, '8': 2008, '9': 2009
-}
+YEAR_CODES = 'ABCDEFGHJKLMNPRSTVWXY123456789'
 
-def decode_vin(vin_code):
-    if not vin_code:
-        return {'status': 'error', 'message': 'VIN-код порожній'}
 
-    clean_vin = re.sub(r'[^A-HJ-NPR-Z0-9]', '', str(vin_code).strip().upper())
-    if len(clean_vin) != 17:
-        return {'status': 'error', 'message': 'VIN-код має містити рівно 17 символів'}
-
-    # Запит до NHTSA API
-    nhtsa_url = f'https://vpic.nhtsa.dot.gov/api/vehicles/decodevinvalues/{clean_vin}?format=json'
+def _parse_year_fallback(vin):
     try:
-        resp = requests.get(nhtsa_url, timeout=3.5)
-        if resp.status_code == 200:
-            results = resp.json().get('Results', [])
-            if results:
-                item = results[0]
-                make = item.get('Make', '').strip()
-                model = item.get('Model', '').strip()
-                year_str = item.get('ModelYear', '').strip()
-                displacement = item.get('DisplacementL', '').strip()
-                cylinders = item.get('EngineCylinders', '').strip()
-                fuel_type = item.get('FuelTypePrimary', '').strip()
-                body_class = item.get('BodyClass', '').strip()
+        index = YEAR_CODES.index(vin[9])
+    except ValueError:
+        return None
 
-                if make and model:
-                    engine_desc = ""
-                    if displacement:
-                        engine_desc = f"{displacement}L"
-                        if cylinders:
-                            engine_desc += f" V{cylinders}" if cylinders in ['6', '8', '12'] else f" i{cylinders}"
-                    elif fuel_type:
-                        engine_desc = fuel_type
+    first_year = 1980 + index
+    latest_year = datetime.date.today().year + 1
 
-                    year_val = int(year_str) if year_str.isdigit() else _parse_year_fallback(clean_vin)
+    possible_years = [
+        first_year + 30 * cycle
+        for cycle in range(3)
+        if first_year + 30 * cycle <= latest_year
+    ]
+    return max(possible_years) if possible_years else None
 
-                    return {
-                        'status': 'success',
-                        'vin': clean_vin,
-                        'brand': make.capitalize(),
-                        'model': model,
-                        'year': year_val,
-                        'engine': engine_desc or 'Бензин',
-                        'fuel_type': fuel_type,
-                        'body_class': body_class,
-                        'source': 'nhtsa'
-                    }
-    except Exception as err:
-        logger.warning(f"Помилка отримання даних через NHTSA API ({clean_vin}): {err}")
 
-    # Локальний фолбек за WMI кодом
-    wmi = clean_vin[:3]
-    brand_info = WMI_MAP.get(wmi)
-    
-    if not brand_info:
-        for k, v in WMI_MAP.items():
-            if clean_vin.startswith(k[:2]):
-                brand_info = v
-                break
-
-    brand_name = brand_info[0] if brand_info else 'Невідомий бренд'
-    year_val = _parse_year_fallback(clean_vin)
+def _local_result(vin):
+    brand_info = WMI_MAP.get(vin[:3])
 
     return {
         'status': 'success',
-        'vin': clean_vin,
-        'brand': brand_name,
-        'model': 'Модель',
-        'year': year_val,
-        'engine': '2.0L Бензин',
-        'fuel_type': 'Бензин',
-        'body_class': 'Легковий',
-        'source': 'pattern'
+        'vin': vin,
+        'brand': brand_info[0] if brand_info else 'Невідомий бренд',
+        'model': '',
+        'year': _parse_year_fallback(vin),
+        'engine': '',
+        'fuel_type': '',
+        'body_class': '',
+        'source': 'pattern',
     }
 
-def _parse_year_fallback(vin):
-    return YEAR_CODES.get(vin[9], 2018)
 
+def decode_vin(vin_code):
+    vin = str(vin_code or '').strip().upper()
+
+    if not vin:
+        return {'status': 'error', 'message': 'VIN-код порожній'}
+
+    if not re.fullmatch(r'[A-HJ-NPR-Z0-9]{17}', vin):
+        return {
+            'status': 'error',
+            'message': 'VIN має містити 17 символів без літер I, O та Q',
+        }
+
+    url = f'https://vpic.nhtsa.dot.gov/api/vehicles/decodevinvalues/{vin}'
+
+    try:
+        response = requests.get(
+            url,
+            params={'format': 'json'},
+            timeout=(2, 4),
+        )
+        response.raise_for_status()
+        results = response.json().get('Results', [])
+
+        if results:
+            item = results[0]
+            make = (item.get('Make') or '').strip()
+            model = (item.get('Model') or '').strip()
+
+            if make and model:
+                brand_info = WMI_MAP.get(vin[:3])
+                if brand_info and brand_info[0].upper() == make.upper():
+                    brand = brand_info[0]
+                elif make.isupper():
+                    brand = make.title()
+                else:
+                    brand = make
+
+                year_text = str(item.get('ModelYear') or '').strip()
+                year = (
+                    int(year_text)
+                    if year_text.isdigit()
+                    else _parse_year_fallback(vin)
+                )
+
+                displacement = (item.get('DisplacementL') or '').strip()
+                cylinders = (item.get('EngineCylinders') or '').strip()
+                fuel_type = (item.get('FuelTypePrimary') or '').strip()
+                engine = f'{displacement}L' if displacement else ''
+
+                if engine and cylinders:
+                    engine += f', {cylinders} цил.'
+
+                return {
+                    'status': 'success',
+                    'vin': vin,
+                    'brand': brand,
+                    'model': model,
+                    'year': year,
+                    'engine': engine,
+                    'fuel_type': fuel_type,
+                    'body_class': (item.get('BodyClass') or '').strip(),
+                    'source': 'nhtsa',
+                }
+    except (requests.RequestException, ValueError, TypeError, KeyError) as error:
+        logger.warning('Не вдалося декодувати VIN через NHTSA: %s', error)
+
+    return _local_result(vin)

@@ -1,26 +1,33 @@
-from django.db import models
-from django.db.models import Sum, Avg
-from django.core.validators import MinValueValidator, MaxValueValidator, RegexValidator
-from django.contrib.auth.models import AbstractBaseUser, PermissionsMixin, BaseUserManager
-from django.utils import timezone
 import datetime
+
+from django.contrib.auth.models import AbstractBaseUser, BaseUserManager, PermissionsMixin
+from django.core.exceptions import ValidationError
+from django.core.validators import MaxValueValidator, MinValueValidator, RegexValidator
+from django.db import models
+from django.db.models import Avg, Sum
+from django.utils import timezone
 
 from .textnorm import fold_text
 
 
 def get_current_year_plus_one():
-    # Поточний рік + 1 для валідатора випуску авто
     return datetime.date.today().year + 1
 
 
 class UserManager(BaseUserManager):
-    """Кастомний менеджер користувачів з авторизацією за email."""
-    
+    """Створює користувачів з авторизацією за email."""
+
     def create_user(self, email, full_name, phone, role, password=None, **extra_fields):
         if not email:
-            raise ValueError("Email є обов'язковим для реєстрації")
-        email = self.normalize_email(email)
-        user = self.model(email=email, full_name=full_name, phone=phone, role=role, **extra_fields)
+            raise ValueError("Email обов'язковий")
+
+        user = self.model(
+            email=self.normalize_email(email),
+            full_name=full_name,
+            phone=phone,
+            role=role,
+            **extra_fields,
+        )
         user.set_password(password)
         user.save(using=self._db)
         return user
@@ -28,11 +35,19 @@ class UserManager(BaseUserManager):
     def create_superuser(self, email, full_name, phone, role='station', password=None, **extra_fields):
         extra_fields.setdefault('is_staff', True)
         extra_fields.setdefault('is_superuser', True)
+
+        if not extra_fields.get('is_staff'):
+            raise ValueError('Суперкористувач повинен мати is_staff=True.')
+        if not extra_fields.get('is_superuser'):
+            raise ValueError('Суперкористувач повинен мати is_superuser=True.')
+        if not password:
+            raise ValueError('Для суперкористувача потрібен пароль.')
+
         return self.create_user(email, full_name, phone, role, password, **extra_fields)
 
 
 class User(AbstractBaseUser, PermissionsMixin):
-    """Основна модель користувача (клієнт або автосервіс)."""
+    """Клієнт або представник СТО."""
 
     ROLE_CHOICES = [
         ('client', 'Клієнт'),
@@ -41,13 +56,13 @@ class User(AbstractBaseUser, PermissionsMixin):
 
     user_id = models.AutoField(primary_key=True)
     full_name = models.CharField(max_length=100, verbose_name="Повне ім'я")
-    phone = models.CharField(max_length=20, unique=True, verbose_name="Телефон")
-    email = models.EmailField(max_length=100, unique=True, verbose_name="Email")
-    role = models.CharField(max_length=10, choices=ROLE_CHOICES, db_index=True, verbose_name="Роль")
-    avatar = models.ImageField(upload_to='avatars/', null=True, blank=True, verbose_name="Аватар")
-    is_active = models.BooleanField(default=True, verbose_name="Активний")
-    is_staff = models.BooleanField(default=False, verbose_name="Персонал")
-    date_joined = models.DateTimeField(auto_now_add=True, verbose_name="Дата реєстрації")
+    phone = models.CharField(max_length=20, unique=True, verbose_name='Телефон')
+    email = models.EmailField(max_length=100, unique=True, verbose_name='Email')
+    role = models.CharField(max_length=10, choices=ROLE_CHOICES, db_index=True, verbose_name='Роль')
+    avatar = models.ImageField(upload_to='avatars/', null=True, blank=True, verbose_name='Аватар')
+    is_active = models.BooleanField(default=True, verbose_name='Активний')
+    is_staff = models.BooleanField(default=False, verbose_name='Персонал')
+    date_joined = models.DateTimeField(auto_now_add=True, verbose_name='Дата реєстрації')
 
     objects = UserManager()
 
@@ -72,26 +87,26 @@ class User(AbstractBaseUser, PermissionsMixin):
 
 
 class ServiceStation(models.Model):
-    """Профіль автосервісу зі зв'язком до власника-користувача."""
+    """СТО та його контактні дані."""
 
     station_id = models.AutoField(primary_key=True)
-    name = models.CharField(max_length=100, verbose_name="Назва СТО")
-    city = models.CharField(max_length=100, blank=True, default='', db_index=True, verbose_name="Місто")
-    name_norm = models.CharField(max_length=150, blank=True, default='', editable=False, db_index=True, verbose_name="Назва (нормалізована)")
-    city_norm = models.CharField(max_length=150, blank=True, default='', editable=False, db_index=True, verbose_name="Місто (нормалізоване)")
-    address = models.CharField(max_length=200, verbose_name="Адреса")
-    phone = models.CharField(max_length=20, verbose_name="Телефон")
-    user = models.ForeignKey(User, on_delete=models.CASCADE, db_column='user_id', verbose_name="Власник")
-    latitude = models.DecimalField(max_digits=9, decimal_places=6, null=True, blank=True, verbose_name="Широта")
-    longitude = models.DecimalField(max_digits=9, decimal_places=6, null=True, blank=True, verbose_name="Довгота")
-    is_verified = models.BooleanField(default=False, verbose_name="Верифікована")
-    opening_time = models.TimeField(default='09:00', verbose_name="Час відкриття")
-    closing_time = models.TimeField(default='18:00', verbose_name="Час закриття")
-    logo = models.ImageField(upload_to='station_logos/', null=True, blank=True, verbose_name="Логотип СТО")
-    edrpou = models.CharField(max_length=20, blank=True, null=True, verbose_name="ЄДРПОУ / ІПН")
-    bank_details = models.TextField(blank=True, null=True, verbose_name="Банківські реквізити")
-    legal_address = models.CharField(max_length=255, blank=True, null=True, verbose_name="Юридична адреса")
-    created_at = models.DateTimeField(auto_now_add=True, verbose_name="Дата створення")
+    name = models.CharField(max_length=100, verbose_name='Назва СТО')
+    city = models.CharField(max_length=100, blank=True, default='', db_index=True, verbose_name='Місто')
+    name_norm = models.CharField(max_length=150, blank=True, default='', editable=False, db_index=True)
+    city_norm = models.CharField(max_length=150, blank=True, default='', editable=False, db_index=True)
+    address = models.CharField(max_length=200, verbose_name='Адреса')
+    phone = models.CharField(max_length=20, verbose_name='Телефон')
+    user = models.ForeignKey(User, on_delete=models.CASCADE, db_column='user_id', verbose_name='Власник')
+    latitude = models.DecimalField(max_digits=9, decimal_places=6, null=True, blank=True, verbose_name='Широта')
+    longitude = models.DecimalField(max_digits=9, decimal_places=6, null=True, blank=True, verbose_name='Довгота')
+    is_verified = models.BooleanField(default=False, verbose_name='Верифікована')
+    opening_time = models.TimeField(default='09:00', verbose_name='Час відкриття')
+    closing_time = models.TimeField(default='18:00', verbose_name='Час закриття')
+    logo = models.ImageField(upload_to='station_logos/', null=True, blank=True, verbose_name='Логотип')
+    edrpou = models.CharField(max_length=20, blank=True, null=True, verbose_name='ЄДРПОУ')
+    bank_details = models.TextField(blank=True, null=True, verbose_name='Банківські реквізити')
+    legal_address = models.CharField(max_length=255, blank=True, null=True, verbose_name='Юридична адреса')
+    created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
         db_table = 'service_station'
@@ -102,54 +117,47 @@ class ServiceStation(models.Model):
     def save(self, *args, **kwargs):
         self.name_norm = fold_text(self.name)
         self.city_norm = fold_text(self.city)
+
+        if kwargs.get('update_fields') is not None:
+            update_fields = set(kwargs['update_fields'])
+            if 'name' in update_fields:
+                update_fields.add('name_norm')
+            if 'city' in update_fields:
+                update_fields.add('city_norm')
+            kwargs['update_fields'] = update_fields
+
         super().save(*args, **kwargs)
 
     def __str__(self):
         return self.name
 
     def avg_rating(self):
-        # Середньозважена оцінка на основі відгуків
-        res = self.review_set.aggregate(avg=Avg('rating'))['avg']
-        return round(res, 1) if res is not None else None
+        average = self.review_set.aggregate(avg=Avg('rating'))['avg']
+        return round(average, 1) if average is not None else None
 
     def review_count(self):
         return self.review_set.count()
 
     def get_or_create_schedules(self):
-        # Авто-ініціалізація тижневого розкладу роботи СТО
-        existing = {s.day_of_week: s for s in self.schedules.all()}
+        existing = {schedule.day_of_week: schedule for schedule in self.schedules.all()}
         schedules = []
+
         for day in range(7):
             if day in existing:
                 schedules.append(existing[day])
-            else:
-                is_work = day < 6
-                open_t = '10:00' if day == 5 else '09:00'
-                close_t = '16:00' if day == 5 else '18:00'
-                sch = StationSchedule.objects.create(
+                continue
+
+            schedules.append(
+                StationSchedule.objects.create(
                     station=self,
                     day_of_week=day,
-                    is_working=is_work,
-                    opening_time=open_t,
-                    closing_time=close_t
+                    is_working=day < 6,
+                    opening_time='10:00' if day == 5 else '09:00',
+                    closing_time='16:00' if day == 5 else '18:00',
                 )
-                schedules.append(sch)
-        return sorted(schedules, key=lambda x: x.day_of_week)
+            )
 
-    def is_open_now(self):
-        # Перевіряємо чи відчинений сервіс за поточним часом та обідом
-        now = timezone.localtime()
-        sch = self.schedules.filter(day_of_week=now.weekday()).first()
-        if not sch or not sch.is_working:
-            return False
-
-        current_time = now.time()
-        if sch.opening_time <= current_time <= sch.closing_time:
-            if sch.break_start and sch.break_end:
-                if sch.break_start <= current_time <= sch.break_end:
-                    return False
-            return True
-        return False
+        return schedules
 
     def get_day_schedule(self, day_num):
         sch = self.schedules.filter(day_of_week=day_num).first()
@@ -158,9 +166,25 @@ class ServiceStation(models.Model):
             sch = self.schedules.filter(day_of_week=day_num).first()
         return sch
 
+    def is_open_now(self):
+        now = timezone.localtime()
+        schedule = self.schedules.filter(day_of_week=now.weekday()).first()
+
+        if not schedule or not schedule.is_working:
+            return False
+
+        current_time = now.time()
+        if not (schedule.opening_time <= current_time <= schedule.closing_time):
+            return False
+
+        if schedule.break_start and schedule.break_end and (schedule.break_start <= current_time <= schedule.break_end):
+            return False
+
+        return True
+
 
 class StationSchedule(models.Model):
-    """Графік роботи автосервісу по днях тижня."""
+    """Тижневий графік роботи СТО."""
 
     DAY_CHOICES = (
         (0, 'Понеділок'),
@@ -172,56 +196,44 @@ class StationSchedule(models.Model):
         (6, 'Неділя'),
     )
 
-    station = models.ForeignKey(ServiceStation, on_delete=models.CASCADE, related_name='schedules', verbose_name="СТО")
-    day_of_week = models.IntegerField(choices=DAY_CHOICES, verbose_name="День тижня")
-    is_working = models.BooleanField(default=True, verbose_name="Робочий день")
-    opening_time = models.TimeField(default='09:00', verbose_name="Час відкриття")
-    closing_time = models.TimeField(default='18:00', verbose_name="Час закриття")
-    break_start = models.TimeField(null=True, blank=True, verbose_name="Початок обіду")
-    break_end = models.TimeField(null=True, blank=True, verbose_name="Кінець обіду")
+    station = models.ForeignKey(ServiceStation, on_delete=models.CASCADE, related_name='schedules')
+    day_of_week = models.IntegerField(choices=DAY_CHOICES)
+    is_working = models.BooleanField(default=True)
+    opening_time = models.TimeField(default='09:00')
+    closing_time = models.TimeField(default='18:00')
+    break_start = models.TimeField(null=True, blank=True)
+    break_end = models.TimeField(null=True, blank=True)
 
     class Meta:
         db_table = 'station_schedule'
-        verbose_name = 'Графік роботи СТО'
-        verbose_name_plural = 'Графіки роботи СТО'
         unique_together = ('station', 'day_of_week')
         ordering = ['day_of_week']
 
     def __str__(self):
-        day_name = dict(self.DAY_CHOICES).get(self.day_of_week, str(self.day_of_week))
-        station_name = self.station.name if hasattr(self, 'station') and self.station else 'СТО'
+        day_name = self.get_day_of_week_display()
         if not self.is_working:
-            return f'{station_name} — {day_name}: Вихідний'
-        
-        break_str = f' (Обід {self.break_start.strftime("%H:%M")}-{self.break_end.strftime("%H:%M")})' if self.break_start and self.break_end else ''
-        open_str = self.opening_time.strftime("%H:%M") if self.opening_time else "09:00"
-        close_str = self.closing_time.strftime("%H:%M") if self.closing_time else "18:00"
-        return f'{station_name} — {day_name}: {open_str}-{close_str}{break_str}'
+            return f'{self.station.name} — {day_name}: Вихідний'
+        return f'{self.station.name} — {day_name}: {self.opening_time}-{self.closing_time}'
 
 
 class Car(models.Model):
-    """Автомобіль у гаражі клієнта з валідацією VIN."""
+    """Автомобіль клієнта."""
 
     vin_validator = RegexValidator(
         regex=r'^[A-HJ-NPR-Z0-9]{17}$',
-        message='VIN має містити 17 символів (без літер I, O, Q).'
+        message='VIN має містити 17 символів (без літер I, O, Q).',
     )
 
-    vin_code = models.CharField(max_length=17, primary_key=True, validators=[vin_validator], verbose_name="VIN-код")
-    brand = models.CharField(max_length=50, verbose_name="Марка")
-    model = models.CharField(max_length=50, verbose_name="Модель")
-    year = models.IntegerField(
-        validators=[MinValueValidator(1900), MaxValueValidator(get_current_year_plus_one)],
-        verbose_name="Рік випуску"
-    )
-    user = models.ForeignKey(User, on_delete=models.CASCADE, db_column='user_id', verbose_name="Власник")
-    engine = models.CharField(max_length=100, blank=True, null=True, verbose_name="Об'єм / Двигун")
-    photo = models.ImageField(upload_to='cars/', null=True, blank=True, verbose_name="Фото")
+    vin_code = models.CharField(max_length=17, primary_key=True, validators=[vin_validator])
+    brand = models.CharField(max_length=50)
+    model = models.CharField(max_length=50)
+    year = models.IntegerField(validators=[MinValueValidator(1900), MaxValueValidator(get_current_year_plus_one)])
+    user = models.ForeignKey(User, on_delete=models.CASCADE, db_column='user_id')
+    engine = models.CharField(max_length=100, blank=True, null=True)
+    photo = models.ImageField(upload_to='cars/', null=True, blank=True)
 
     class Meta:
         db_table = 'car'
-        verbose_name = 'Автомобіль'
-        verbose_name_plural = 'Автомобілі'
         ordering = ['-year']
 
     def __str__(self):
@@ -229,73 +241,65 @@ class Car(models.Model):
 
 
 class Service(models.Model):
-    """Каталог послуг та прайс СТО."""
+    """Послуга автосервісу."""
 
     service_id = models.AutoField(primary_key=True)
-    service_name = models.CharField(max_length=100, verbose_name="Назва послуги")
-    service_name_norm = models.CharField(max_length=150, blank=True, default='', editable=False, db_index=True, verbose_name="Назва послуги (нормалізована)")
-    description = models.TextField(blank=True, null=True, verbose_name="Опис")
-    price = models.DecimalField(
-        max_digits=10, decimal_places=2,
-        validators=[MinValueValidator(0.01)],
-        verbose_name="Ціна (грн)"
-    )
-    station = models.ForeignKey(ServiceStation, on_delete=models.CASCADE, db_column='station_id', verbose_name="СТО")
-
-    def save(self, *args, **kwargs):
-        self.service_name_norm = fold_text(self.service_name)
-        super().save(*args, **kwargs)
+    service_name = models.CharField(max_length=100)
+    service_name_norm = models.CharField(max_length=150, blank=True, default='', editable=False, db_index=True)
+    description = models.TextField(blank=True, null=True)
+    price = models.DecimalField(max_digits=10, decimal_places=2, validators=[MinValueValidator(0.01)])
+    station = models.ForeignKey(ServiceStation, on_delete=models.CASCADE, db_column='station_id')
 
     class Meta:
         db_table = 'service'
-        verbose_name = 'Послуга'
-        verbose_name_plural = 'Послуги'
         ordering = ['service_name']
+
+    def save(self, *args, **kwargs):
+        self.service_name_norm = fold_text(self.service_name)
+
+        if kwargs.get('update_fields') is not None:
+            update_fields = set(kwargs['update_fields'])
+            if 'service_name' in update_fields:
+                update_fields.add('service_name_norm')
+            kwargs['update_fields'] = update_fields
+
+        super().save(*args, **kwargs)
 
     def __str__(self):
         return f'{self.service_name} — {self.price} грн'
 
 
 class Review(models.Model):
-    """Відгук та оцінка клієнта після обслуговування."""
+    """Відгук про роботу СТО."""
 
     review_id = models.AutoField(primary_key=True)
-    text = models.TextField(verbose_name="Текст відгуку")
-    rating = models.SmallIntegerField(
-        validators=[MinValueValidator(1), MaxValueValidator(5)],
-        verbose_name="Оцінка (1–5)"
-    )
-    date = models.DateField(auto_now_add=True, verbose_name="Дата")
-    user = models.ForeignKey(User, on_delete=models.CASCADE, db_column='user_id', verbose_name="Автор")
-    photo = models.ImageField(upload_to='reviews/', null=True, blank=True, verbose_name="Фото відгуку")
-    owner_response = models.TextField(null=True, blank=True, verbose_name="Відповідь автосервісу")
-    response_date = models.DateTimeField(null=True, blank=True, verbose_name="Дата відповіді СТО")
-    station = models.ForeignKey(ServiceStation, on_delete=models.CASCADE, db_column='station_id', verbose_name="СТО")
+    text = models.TextField()
+    rating = models.SmallIntegerField(validators=[MinValueValidator(1), MaxValueValidator(5)])
+    date = models.DateField(auto_now_add=True)
+    user = models.ForeignKey(User, on_delete=models.CASCADE, db_column='user_id')
+    photo = models.ImageField(upload_to='reviews/', null=True, blank=True)
+    owner_response = models.TextField(null=True, blank=True)
+    response_date = models.DateTimeField(null=True, blank=True)
+    station = models.ForeignKey(ServiceStation, on_delete=models.CASCADE, db_column='station_id')
 
     class Meta:
         db_table = 'review'
-        verbose_name = 'Відгук'
-        verbose_name_plural = 'Відгуки'
         ordering = ['-date']
 
     def __str__(self):
-        return f'Відгук від {self.user.full_name} — оцінка {self.rating}/5'
+        return f'Відгук від {self.user.full_name} — {self.rating}/5'
 
 
 class StationBox(models.Model):
-    """Робочий пост або бокс СТО."""
+    """Робочий бокс на СТО."""
 
     box_id = models.AutoField(primary_key=True)
-    station = models.ForeignKey(
-        ServiceStation, on_delete=models.CASCADE, related_name='boxes', db_column='station_id', verbose_name="СТО"
-    )
-    name = models.CharField(max_length=50, verbose_name="Назва боксу")
-    is_active = models.BooleanField(default=True, verbose_name="Активний")
+    station = models.ForeignKey(ServiceStation, on_delete=models.CASCADE, related_name='boxes', db_column='station_id')
+    name = models.CharField(max_length=50)
+    is_active = models.BooleanField(default=True)
 
     class Meta:
         db_table = 'station_box'
-        verbose_name = 'Робочий бокс'
-        verbose_name_plural = 'Робочі бокси'
         ordering = ['name']
 
     def __str__(self):
@@ -303,7 +307,7 @@ class StationBox(models.Model):
 
 
 class Booking(models.Model):
-    """Заявка на ремонт або ТО."""
+    """Заявка на обслуговування."""
 
     STATUS_CHOICES = [
         ('pending', 'Очікує'),
@@ -312,53 +316,54 @@ class Booking(models.Model):
         ('cancelled', 'Скасовано'),
     ]
 
-    client = models.ForeignKey(
-        User, on_delete=models.CASCADE, related_name='bookings', db_column='client_id', verbose_name="Клієнт"
-    )
-    station = models.ForeignKey(
-        ServiceStation, on_delete=models.SET_NULL, null=True, related_name='bookings', db_column='station_id', verbose_name="СТО"
-    )
-    box = models.ForeignKey(
-        StationBox, on_delete=models.SET_NULL, null=True, blank=True, related_name='bookings', db_column='box_id', verbose_name="Робочий бокс"
-    )
-    duration = models.PositiveIntegerField(default=60, verbose_name="Тривалість (хвилин)")
-    car = models.ForeignKey(Car, on_delete=models.SET_NULL, null=True, blank=True, related_name='bookings', verbose_name="Автомобіль")
-    service_name = models.CharField(max_length=150, blank=True, null=True, verbose_name="Назва послуги")
-    description = models.TextField(verbose_name="Опис проблеми")
-    status = models.CharField(max_length=10, choices=STATUS_CHOICES, default='pending', db_index=True, verbose_name="Статус")
-    scheduled_time = models.DateTimeField(null=True, blank=True, db_index=True, verbose_name="Бажаний час візиту")
-    created_at = models.DateTimeField(auto_now_add=True, verbose_name="Створено")
+    client = models.ForeignKey(User, on_delete=models.CASCADE, related_name='bookings', db_column='client_id')
+    station = models.ForeignKey(ServiceStation, on_delete=models.SET_NULL, null=True, related_name='bookings', db_column='station_id')
+    box = models.ForeignKey(StationBox, on_delete=models.SET_NULL, null=True, blank=True, related_name='bookings', db_column='box_id')
+    duration = models.PositiveIntegerField(default=60)
+    car = models.ForeignKey(Car, on_delete=models.SET_NULL, null=True, blank=True, related_name='bookings')
+    service_name = models.CharField(max_length=150, blank=True, null=True)
+    description = models.TextField()
+    status = models.CharField(max_length=10, choices=STATUS_CHOICES, default='pending', db_index=True)
+    scheduled_time = models.DateTimeField(null=True, blank=True, db_index=True)
+    created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
         db_table = 'booking'
-        verbose_name = 'Заявка на ремонт'
-        verbose_name_plural = 'Заявки на ремонт'
         ordering = ['-created_at']
 
+    def clean(self):
+        super().clean()
+        errors = {}
+
+        if self.car_id and self.client_id and self.car.user_id != self.client_id:
+            errors['car'] = 'Автомобіль не належить клієнту цієї заявки.'
+
+        if self.box_id and (not self.station_id or self.box.station_id != self.station_id):
+            errors['box'] = 'Бокс має належати СТО цієї заявки.'
+
+        if errors:
+            raise ValidationError(errors)
+
     def __str__(self):
-        station_name = self.station.name if self.station else 'Видалена СТО'
-        return f'Заявка #{self.pk} — {self.client.full_name} → {station_name} ({self.get_status_display()})'
+        return f'Заявка #{self.pk} — {self.client.full_name} ({self.get_status_display()})'
 
     @property
     def approved_chat_costs(self):
-        # Загальна вартість додатково підтверджених у чаті робіт/запчастин
         total = self.chat_messages.filter(is_approved=True).aggregate(total=Sum('proposed_cost'))['total']
         return total or 0
 
 
 class Notification(models.Model):
-    """Системні сповіщення для користувачів."""
+    """Сповіщення для користувача."""
 
-    recipient = models.ForeignKey(User, on_delete=models.CASCADE, related_name='notifications', db_column='recipient_id', verbose_name="Отримувач")
-    booking = models.ForeignKey(Booking, on_delete=models.CASCADE, related_name='notifications', db_column='booking_id', verbose_name="Заявка")
-    message = models.TextField(verbose_name="Повідомлення")
-    is_read = models.BooleanField(default=False, db_index=True, verbose_name="Прочитано")
-    created_at = models.DateTimeField(auto_now_add=True, verbose_name="Створено")
+    recipient = models.ForeignKey(User, on_delete=models.CASCADE, related_name='notifications', db_column='recipient_id')
+    booking = models.ForeignKey(Booking, on_delete=models.CASCADE, related_name='notifications', db_column='booking_id')
+    message = models.TextField()
+    is_read = models.BooleanField(default=False, db_index=True)
+    created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
         db_table = 'notification'
-        verbose_name = 'Сповіщення'
-        verbose_name_plural = 'Сповіщення'
         ordering = ['-created_at']
 
     def __str__(self):
@@ -366,28 +371,39 @@ class Notification(models.Model):
 
 
 class CarHistory(models.Model):
-    """Історія обслуговування авто (заповнюється автоматично при викон. заявки)."""
+    """Історія виконаних робіт з автомобілем."""
 
     history_id = models.AutoField(primary_key=True)
-    car = models.ForeignKey(Car, on_delete=models.CASCADE, related_name='history_records', verbose_name="Автомобіль")
-    booking = models.ForeignKey(Booking, on_delete=models.SET_NULL, null=True, blank=True, related_name='car_history_records', verbose_name="Заявка")
-    station = models.ForeignKey(ServiceStation, on_delete=models.SET_NULL, null=True, blank=True, related_name='car_history_records', verbose_name="СТО")
-    date = models.DateField(default=datetime.date.today, verbose_name="Дата обслуговування")
-    mileage = models.PositiveIntegerField(null=True, blank=True, verbose_name="Пробіг (км)")
-    work_list = models.TextField(verbose_name="Перелік виконаних робіт")
-    spare_parts = models.TextField(null=True, blank=True, verbose_name="Використані запчастини")
-    price = models.DecimalField(
-        max_digits=10, decimal_places=2,
-        validators=[MinValueValidator(0.01)],
-        verbose_name="Підсумкова вартість (грн)"
-    )
-    created_at = models.DateTimeField(auto_now_add=True, verbose_name="Дата запису")
+    car = models.ForeignKey(Car, on_delete=models.CASCADE, related_name='history_records')
+    booking = models.ForeignKey(Booking, on_delete=models.SET_NULL, null=True, blank=True, related_name='car_history_records')
+    station = models.ForeignKey(ServiceStation, on_delete=models.SET_NULL, null=True, blank=True, related_name='car_history_records')
+    date = models.DateField(default=datetime.date.today)
+    mileage = models.PositiveIntegerField(null=True, blank=True)
+    work_list = models.TextField()
+    spare_parts = models.TextField(null=True, blank=True)
+    price = models.DecimalField(max_digits=10, decimal_places=2, validators=[MinValueValidator(0.01)])
+    created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
         db_table = 'car_history'
-        verbose_name = 'Запис історії обслуговування'
-        verbose_name_plural = 'Історія обслуговування'
         ordering = ['-date', '-created_at']
+
+    def clean(self):
+        super().clean()
+        errors = {}
+
+        if self.booking_id and self.car_id:
+            booking = self.booking
+            if booking.car_id and booking.car_id != self.car_id:
+                errors['car'] = 'Автомобіль не збігається з автомобілем у заявці.'
+            elif booking.client_id != self.car.user_id:
+                errors['car'] = 'Автомобіль не належить клієнту заявки.'
+
+            if self.station_id and booking.station_id and self.station_id != booking.station_id:
+                errors['station'] = 'СТО не збігається із СТО в заявці.'
+
+        if errors:
+            raise ValidationError(errors)
 
     def __str__(self):
         station_name = self.station.name if self.station else 'СТО'
@@ -396,23 +412,21 @@ class CarHistory(models.Model):
 
 
 class BookingChatMessage(models.Model):
-    """Чат заявки для обміну фото та узгодження цін/деталей."""
+    """Повідомлення в чаті заявки."""
 
     message_id = models.AutoField(primary_key=True)
-    booking = models.ForeignKey(Booking, on_delete=models.CASCADE, related_name='chat_messages', verbose_name="Заявка")
-    sender = models.ForeignKey(User, on_delete=models.CASCADE, related_name='sent_chat_messages', verbose_name="Відправник")
-    text = models.TextField(blank=True, null=True, verbose_name="Текст повідомлення")
-    image = models.ImageField(upload_to='chat_photos/', null=True, blank=True, verbose_name="Фото несправності")
-    proposed_cost = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True, verbose_name="Запропонована додаткова вартість (грн)")
-    is_approved = models.BooleanField(null=True, blank=True, verbose_name="Статус узгодження клієнтом")
-    is_read = models.BooleanField(default=False, verbose_name="Прочитано")
-    created_at = models.DateTimeField(auto_now_add=True, verbose_name="Дата створення")
+    booking = models.ForeignKey(Booking, on_delete=models.CASCADE, related_name='chat_messages')
+    sender = models.ForeignKey(User, on_delete=models.CASCADE, related_name='sent_chat_messages')
+    text = models.TextField(blank=True, null=True)
+    image = models.ImageField(upload_to='chat_photos/', null=True, blank=True)
+    proposed_cost = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
+    is_approved = models.BooleanField(null=True, blank=True)
+    is_read = models.BooleanField(default=False)
+    created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
         db_table = 'booking_chat_message'
-        verbose_name = 'Повідомлення чату'
-        verbose_name_plural = 'Повідомлення чату'
         ordering = ['created_at']
 
     def __str__(self):
-        return f'Чат #{self.booking_id} — {self.sender.full_name} ({self.created_at.strftime("%d.%m %H:%M")})'
+        return f'Чат #{self.booking_id} — {self.sender.full_name}'

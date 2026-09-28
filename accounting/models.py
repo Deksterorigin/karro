@@ -1,97 +1,104 @@
+import datetime
+
+from django.core.exceptions import ValidationError
+from django.core.validators import MaxValueValidator, MinValueValidator
 from django.db import models
 from django.db.models.signals import post_save
 from django.dispatch import receiver
-from main.models import ServiceStation, Booking
-import datetime
+
+from main.models import Booking, ServiceStation
 
 
 class Employee(models.Model):
-    """Модель працівника СТО (механік, майстер-приймальник тощо)."""
+    """Співробітник автосервісу."""
 
     employee_id = models.AutoField(primary_key=True)
-    station = models.ForeignKey(
-        ServiceStation, on_delete=models.CASCADE, verbose_name="СТО", related_name="employees"
-    )
-    full_name = models.CharField(max_length=100, verbose_name="Повне ім'я")
-    phone = models.CharField(max_length=20, blank=True, null=True, verbose_name="Телефон")
-    email = models.EmailField(max_length=100, blank=True, null=True, verbose_name="Email")
-    position = models.CharField(max_length=100, verbose_name="Посада")
-    base_salary = models.DecimalField(max_digits=10, decimal_places=2, default=0.00, verbose_name="Ставка (грн)")
-    commission_percent = models.DecimalField(max_digits=5, decimal_places=2, default=0.00, verbose_name="Комісія (%)")
-    is_active = models.BooleanField(default=True, verbose_name="Активний")
+    station = models.ForeignKey(ServiceStation, on_delete=models.CASCADE, related_name='employees')
+    full_name = models.CharField(max_length=100)
+    phone = models.CharField(max_length=20, blank=True, null=True)
+    email = models.EmailField(max_length=100, blank=True, null=True)
+    position = models.CharField(max_length=100)
+    base_salary = models.DecimalField(max_digits=10, decimal_places=2, default=0.00, validators=[MinValueValidator(0)])
+    commission_percent = models.DecimalField(max_digits=5, decimal_places=2, default=0.00, validators=[MinValueValidator(0), MaxValueValidator(100)])
+    is_active = models.BooleanField(default=True)
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
         db_table = 'employee'
-        verbose_name = 'Працівник'
-        verbose_name_plural = 'Працівники'
         ordering = ['full_name']
 
     def __str__(self):
-        return f"{self.full_name} ({self.position})"
+        return f'{self.full_name} ({self.position})'
 
 
 class SalaryBalance(models.Model):
-    """Баланс нарахованої та виплаченої заробітної плати працівника."""
+    """Нарахування та виплати співробітнику."""
 
-    employee = models.OneToOneField(Employee, on_delete=models.CASCADE, related_name="salary_balance")
-    total_earned = models.DecimalField(max_digits=10, decimal_places=2, default=0.00, verbose_name="Всього зароблено")
-    total_paid = models.DecimalField(max_digits=10, decimal_places=2, default=0.00, verbose_name="Всього виплачено")
+    employee = models.OneToOneField(Employee, on_delete=models.CASCADE, related_name='salary_balance')
+    total_earned = models.DecimalField(max_digits=10, decimal_places=2, default=0.00, validators=[MinValueValidator(0)])
+    total_paid = models.DecimalField(max_digits=10, decimal_places=2, default=0.00, validators=[MinValueValidator(0)])
     updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
         db_table = 'salary_balance'
-        verbose_name = 'Баланс зарплати'
-        verbose_name_plural = 'Баланси зарплат'
 
     @property
     def current_balance(self):
         return self.total_earned - self.total_paid
 
     def __str__(self):
-        return f"Баланс: {self.employee.full_name} ({self.current_balance} грн)"
+        return f'Баланс: {self.employee.full_name} ({self.current_balance} грн)'
 
 
 class Transaction(models.Model):
-    """Фінансова транзакція (доходи від послуг/запчастин, витрати на оренду/зарплату)."""
+    """Дохід або витрата СТО."""
 
     TRANSACTION_TYPES = [
         ('income', 'Дохід'),
         ('expense', 'Витрата'),
     ]
-
     TRANSACTION_CATEGORIES = [
-        ('service', 'Послуги СТО (Дохід)'),
+        ('service', 'Послуги СТО'),
         ('other_income', 'Інші доходи'),
-        ('salary', 'Виплата зарплати (Витрата)'),
-        ('spare_parts', 'Запчастини (Витрата)'),
-        ('rent', 'Оренда (Витрата)'),
-        ('utilities', 'Комунальні послуги (Витрата)'),
+        ('salary', 'Зарплата'),
+        ('spare_parts', 'Запчастини'),
+        ('rent', 'Оренда'),
+        ('utilities', 'Комунальні'),
         ('other_expense', 'Інші витрати'),
     ]
 
     transaction_id = models.AutoField(primary_key=True)
-    station = models.ForeignKey(ServiceStation, on_delete=models.CASCADE, verbose_name="СТО", related_name="transactions")
-    type = models.CharField(max_length=10, choices=TRANSACTION_TYPES, verbose_name="Тип", db_index=True)
-    category = models.CharField(max_length=20, choices=TRANSACTION_CATEGORIES, verbose_name="Категорія")
-    amount = models.DecimalField(max_digits=10, decimal_places=2, verbose_name="Сума (грн)")
-    description = models.TextField(blank=True, null=True, verbose_name="Опис")
-    date = models.DateField(default=datetime.date.today, verbose_name="Дата", db_index=True)
-    booking = models.ForeignKey(Booking, on_delete=models.SET_NULL, null=True, blank=True, verbose_name="Заявка", related_name="transactions")
-    employee = models.ForeignKey(Employee, on_delete=models.SET_NULL, null=True, blank=True, verbose_name="Працівник", related_name="transactions")
+    station = models.ForeignKey(ServiceStation, on_delete=models.CASCADE, related_name='transactions')
+    type = models.CharField(max_length=10, choices=TRANSACTION_TYPES, db_index=True)
+    category = models.CharField(max_length=20, choices=TRANSACTION_CATEGORIES)
+    amount = models.DecimalField(max_digits=10, decimal_places=2, validators=[MinValueValidator(0.01)])
+    description = models.TextField(blank=True, null=True)
+    date = models.DateField(default=datetime.date.today, db_index=True)
+    booking = models.ForeignKey(Booking, on_delete=models.SET_NULL, null=True, blank=True, related_name='transactions')
+    employee = models.ForeignKey(Employee, on_delete=models.SET_NULL, null=True, blank=True, related_name='transactions')
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
         db_table = 'transaction'
-        verbose_name = 'Фінансова операція'
-        verbose_name_plural = 'Фінансові операції'
         ordering = ['-date', '-created_at']
 
+    def clean(self):
+        super().clean()
+        errors = {}
+
+        if self.booking_id and self.station_id and self.booking.station_id != self.station_id:
+            errors['booking'] = 'Заявка не належить цьому СТО.'
+
+        if self.employee_id and self.station_id and self.employee.station_id != self.station_id:
+            errors['employee'] = 'Співробітник не належить цьому СТО.'
+
+        if errors:
+            raise ValidationError(errors)
+
     def __str__(self):
-        return f"{self.get_type_display()} — {self.amount} грн ({self.date})"
+        return f'{self.get_type_display()} — {self.amount} грн ({self.date})'
 
 
-# Авто-створення балансу зарплати при додаванні працівника
 @receiver(post_save, sender=Employee)
 def create_employee_balance(sender, instance, created, **kwargs):
     if created:
@@ -99,28 +106,22 @@ def create_employee_balance(sender, instance, created, **kwargs):
 
 
 class SparePart(models.Model):
-    """Складський облік запчастин та матеріалів автосервісу."""
+    """Запчастина на складі СТО."""
 
     part_id = models.AutoField(primary_key=True)
-    station = models.ForeignKey(ServiceStation, on_delete=models.CASCADE, related_name='spare_parts', verbose_name="СТО")
-    name = models.CharField(max_length=150, verbose_name="Назва запчастини/матеріалу")
-    sku = models.CharField(max_length=50, blank=True, null=True, verbose_name="Артикул / Каталожний номер")
-    quantity = models.PositiveIntegerField(default=0, verbose_name="Кількість на складі")
-    cost_price = models.DecimalField(max_digits=10, decimal_places=2, default=0.00, verbose_name="Собівартість (грн)")
-    selling_price = models.DecimalField(max_digits=10, decimal_places=2, default=0.00, verbose_name="Ціна продажу (грн)")
-    min_quantity = models.PositiveIntegerField(default=5, verbose_name="Мінімальний залишок")
-    created_at = models.DateTimeField(auto_now_add=True, verbose_name="Створено")
-    updated_at = models.DateTimeField(auto_now=True, verbose_name="Оновлено")
+    station = models.ForeignKey(ServiceStation, on_delete=models.CASCADE, related_name='spare_parts')
+    name = models.CharField(max_length=150)
+    sku = models.CharField(max_length=50, blank=True, null=True)
+    quantity = models.PositiveIntegerField(default=0)
+    cost_price = models.DecimalField(max_digits=10, decimal_places=2, default=0.00, validators=[MinValueValidator(0)])
+    selling_price = models.DecimalField(max_digits=10, decimal_places=2, default=0.00, validators=[MinValueValidator(0)])
+    min_quantity = models.PositiveIntegerField(default=5)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
         db_table = 'spare_part'
-        verbose_name = 'Запчастина на складі'
-        verbose_name_plural = 'Запчастини на складі'
         ordering = ['name']
-
-    def __str__(self):
-        sku_str = f' [{self.sku}]' if self.sku else ''
-        return f'{self.name}{sku_str} — {self.quantity} шт (Закупка: {self.cost_price} грн, Продаж: {self.selling_price} грн)'
 
     @property
     def is_low_stock(self):
@@ -137,21 +138,28 @@ class SparePart(models.Model):
             return round(float(margin), 1)
         return 0.0
 
+    def __str__(self):
+        sku_str = f' [{self.sku}]' if self.sku else ''
+        return f'{self.name}{sku_str} — {self.quantity} шт'
+
 
 class UsedSparePart(models.Model):
-    """Деталі, списані під конкретне замовлення."""
+    """Запчастина, використана під час виконання заявки."""
 
-    booking = models.ForeignKey(Booking, on_delete=models.CASCADE, related_name='used_parts', verbose_name="Заявка")
-    spare_part = models.ForeignKey(SparePart, on_delete=models.SET_NULL, null=True, blank=True, related_name='used_instances', verbose_name="Запчастина")
-    part_name = models.CharField(max_length=150, verbose_name="Назва деталі")
-    quantity = models.PositiveIntegerField(default=1, verbose_name="Використана кількість")
-    cost_price = models.DecimalField(max_digits=10, decimal_places=2, verbose_name="Собівартість (грн)")
-    selling_price = models.DecimalField(max_digits=10, decimal_places=2, verbose_name="Ціна продажу (грн)")
+    booking = models.ForeignKey(Booking, on_delete=models.CASCADE, related_name='used_parts')
+    spare_part = models.ForeignKey(SparePart, on_delete=models.SET_NULL, null=True, blank=True, related_name='used_instances')
+    part_name = models.CharField(max_length=150)
+    quantity = models.PositiveIntegerField(default=1, validators=[MinValueValidator(1)])
+    cost_price = models.DecimalField(max_digits=10, decimal_places=2, validators=[MinValueValidator(0)])
+    selling_price = models.DecimalField(max_digits=10, decimal_places=2, validators=[MinValueValidator(0)])
 
     class Meta:
         db_table = 'used_spare_part'
-        verbose_name = 'Використана запчастина'
-        verbose_name_plural = 'Використані запчастини'
+
+    def clean(self):
+        super().clean()
+        if self.booking_id and self.spare_part_id and self.spare_part.station_id != self.booking.station_id:
+            raise ValidationError({'spare_part': 'Запчастина не належить СТО цієї заявки.'})
 
     def __str__(self):
         return f'{self.part_name} x{self.quantity} для Заявки #{self.booking_id}'
