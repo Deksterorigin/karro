@@ -51,10 +51,10 @@ document.addEventListener('DOMContentLoaded', () => {
             }).setView([lat, lng], 15);
 
             L.tileLayer(
-                'https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}.png',
+                'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
                 {
                     maxZoom: 19,
-                    attribution: '&copy; OpenStreetMap contributors &copy; CARTO'
+                    attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
                 }
             ).addTo(map);
 
