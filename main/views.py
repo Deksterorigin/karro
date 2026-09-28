@@ -4,11 +4,9 @@ from decimal import Decimal, InvalidOperation
 import json
 import logging
 import re
-from io import BytesIO
 from urllib.parse import urlencode
 
 import requests
-from PIL import Image, ImageOps, UnidentifiedImageError
 from django import forms
 from django.conf import settings as django_settings
 from django.contrib import messages
@@ -16,9 +14,8 @@ from django.contrib.auth import authenticate, login, logout, update_session_auth
 from django.contrib.auth.password_validation import validate_password
 from django.core.cache import cache
 from django.core.exceptions import ValidationError
-from django.core.files.base import ContentFile
 from django.db import DatabaseError, IntegrityError, transaction
-from django.db.models import F, Prefetch
+from django.db.models import F, Prefetch, Q
 from django.http import JsonResponse, HttpResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
@@ -47,77 +44,16 @@ logger = logging.getLogger(__name__)
 
 MAX_LOGIN_ATTEMPTS = 5
 LOGIN_LOCKOUT_SECONDS = 300
-MAX_IMAGE_SIZE_BYTES = 3 * 1024 * 1024
-ALLOWED_IMAGE_FORMATS = {'JPEG', 'PNG', 'WEBP', 'GIF'}
-
-
-class RegistrationForm(forms.ModelForm):
-    password = forms.CharField(widget=forms.PasswordInput)
-    password2 = forms.CharField(widget=forms.PasswordInput)
-
-    class Meta:
-        model = User
-        fields = ['full_name', 'phone', 'email', 'role']
-
-    def clean_email(self):
-        return self.cleaned_data['email'].strip().lower()
-
-    def clean_password2(self):
-        password = self.cleaned_data.get('password')
-        password2 = self.cleaned_data['password2']
-        if password and password != password2:
-            raise forms.ValidationError('Паролі не збігаються.')
-        return password2
-
-    def clean(self):
-        cleaned_data = super().clean()
-        password = cleaned_data.get('password')
-        if password and not self.has_error('password2'):
-            user = User(
-                email=cleaned_data.get('email', ''),
-                full_name=cleaned_data.get('full_name', ''),
-                phone=cleaned_data.get('phone', ''),
-                role=cleaned_data.get('role', ''),
-            )
-            try:
-                validate_password(password, user)
-            except ValidationError as error:
-                self.add_error('password', error)
-        return cleaned_data
-
-
-class ProfileForm(forms.ModelForm):
-    class Meta:
-        model = User
-        fields = ['full_name', 'phone']
-
-
-class CarForm(forms.ModelForm):
-    class Meta:
-        model = Car
-        fields = ['vin_code', 'brand', 'model', 'year']
-
-    def clean_vin_code(self):
-        return self.cleaned_data['vin_code'].strip().upper()
-
-
-class StationForm(forms.ModelForm):
-    class Meta:
-        model = ServiceStation
-        fields = ['name', 'city', 'address', 'phone', 'latitude', 'longitude']
-
-    def clean(self):
-        cleaned_data = super().clean()
-        latitude, longitude = cleaned_data.get('latitude'), cleaned_data.get('longitude')
-        if (latitude is None) != (longitude is None):
-            raise forms.ValidationError('Вкажіть обидві координати або залиште обидва поля порожніми.')
-        return cleaned_data
-
-
-class ServiceForm(forms.ModelForm):
-    class Meta:
-        model = Service
-        fields = ['service_name', 'price', 'description']
+from .forms import CarForm, ProfileForm, RegistrationForm, ServiceForm, StationForm
+from .image_utils import (
+    ALLOWED_IMAGE_FORMATS,
+    MAX_IMAGE_SIZE_BYTES,
+    _save_file,
+    _validate_image_upload,
+    optimize_image,
+    save_optimized_file,
+    validate_image_upload,
+)
 
 
 def _show_form_errors(request, form):
@@ -161,66 +97,6 @@ def get_current_user(request):
 def is_valid_vin(vin):
     return bool(re.fullmatch(r'[A-HJ-NPR-Z0-9]{17}', (vin or '').upper()))
 
-
-def _validate_image_upload(uploaded_file):
-    if not uploaded_file:
-        return False, 'Оберіть файл для завантаження.'
-    if uploaded_file.size > MAX_IMAGE_SIZE_BYTES:
-        return False, 'Розмір файлу перевищує 3 МБ.'
-
-    try:
-        with Image.open(uploaded_file) as image:
-            if image.format not in ALLOWED_IMAGE_FORMATS:
-                return False, 'Дозволені лише JPEG, PNG, WebP та GIF.'
-            image.verify()
-    except (UnidentifiedImageError, OSError, ValueError, Image.DecompressionBombError):
-        return False, 'Файл не є коректним зображенням.'
-    finally:
-        uploaded_file.seek(0)
-    return True, None
-
-
-def optimize_image(uploaded_file, max_size=(1920, 1080), quality=85):
-    """Зменшує великі фото перед збереженням."""
-    if not uploaded_file:
-        return uploaded_file
-
-    try:
-        with Image.open(uploaded_file) as source:
-            image_format = source.format
-            if image_format == 'GIF':
-                uploaded_file.seek(0)
-                return uploaded_file
-
-            image = ImageOps.exif_transpose(source)
-            image.thumbnail(max_size, Image.Resampling.LANCZOS)
-            if image_format == 'JPEG' and image.mode not in ('RGB', 'L'):
-                image = image.convert('RGB')
-
-            output = BytesIO()
-            save_options = {'optimize': True}
-            if image_format in ('JPEG', 'WEBP'):
-                save_options['quality'] = quality
-            image.save(output, format=image_format, **save_options)
-        return ContentFile(output.getvalue(), name=uploaded_file.name)
-    except (OSError, ValueError) as error:
-        logger.warning('Не вдалося зменшити фото: %s', error)
-        uploaded_file.seek(0)
-        return uploaded_file
-
-
-def _save_file(instance, field_name, uploaded_file):
-    """Замінює файл і прибирає попередній після успішного збереження."""
-    old_file = getattr(instance, field_name)
-    old_name = old_file.name if old_file else None
-    storage = old_file.storage
-
-    setattr(instance, field_name, optimize_image(uploaded_file))
-    instance.save(update_fields=[field_name])
-
-    new_name = getattr(instance, field_name).name
-    if old_name and old_name != new_name:
-        storage.delete(old_name)
 
 
 def _redirect_to_profile(**query_params):
@@ -549,6 +425,9 @@ def _handle_booking_status(request, user):
 
     booking = get_object_or_404(Booking, pk=_safe_int(request.POST.get('booking_id')), station__user=user)
     status = request.POST.get('status')
+    if status == 'completed':
+        messages.warning(request, 'Для завершення заявки скористайтеся формою закриття замовлення.')
+        return
     if status not in dict(Booking.STATUS_CHOICES):
         messages.error(request, 'Невірний статус заявки.')
         return
@@ -844,8 +723,10 @@ def create_booking_api(request):
             if error:
                 return _api_error(error)
 
-            if not station.boxes.filter(is_active=True).exists():
+            if not station.boxes.exists():
                 StationBox.objects.create(station=station, name='Бокс 1', is_active=True)
+            elif not station.boxes.filter(is_active=True).exists():
+                return _api_error('На цьому СТО наразі немає доступних робочих боксів.')
 
             box = _free_box(station, start, duration)
             if box is None:
@@ -1062,10 +943,12 @@ def booking_chat_api(request, booking_id):
     if not request.user.is_authenticated:
         return _api_error('Увійдіть в акаунт.', 401)
 
-    booking = get_object_or_404(Booking.objects.select_related('station'), pk=booking_id)
+    booking = get_object_or_404(
+        Booking.objects.select_related('station'),
+        Q(client=request.user) | Q(station__user=request.user),
+        pk=booking_id,
+    )
     user = request.user
-    if not _booking_participant(booking, user):
-        return _api_error('Немає доступу до чату.', 403)
 
     if request.method == 'GET':
         chat_messages = BookingChatMessage.objects.filter(booking=booking).select_related('sender')
@@ -1074,6 +957,9 @@ def booking_chat_api(request, booking_id):
 
     if request.method != 'POST':
         return _api_error('Метод не підтримується.', 405)
+
+    if booking.status == 'completed':
+        return _api_error('Цю заявку вже завершено. Чат закрито для нових повідомлень.')
 
     text = request.POST.get('text', '').strip()
     image = request.FILES.get('image')
@@ -1137,6 +1023,9 @@ def respond_cost_approval_api(request, message_id):
         )
         booking = message.booking
 
+        if booking.status == 'completed':
+            return _api_error('Цю заявку вже завершено.')
+
         if message.proposed_cost is None:
             return _api_error('У цьому повідомленні немає запропонованої суми.')
         if message.is_approved is not None:
@@ -1162,10 +1051,11 @@ def respond_cost_approval_api(request, message_id):
 
 @login_required_session
 def download_act_pdf_view(request, booking_id):
-    booking = get_object_or_404(Booking.objects.select_related('station'), pk=booking_id)
-    if not _booking_participant(booking, request.user):
-        messages.error(request, 'У вас немає прав для перегляду документа.')
-        return redirect('profile')
+    booking = get_object_or_404(
+        Booking.objects.select_related('station', 'car', 'client'),
+        Q(client=request.user) | Q(station__user=request.user),
+        pk=booking_id,
+    )
 
     pdf_bytes = generate_act_pdf(booking)
     response = HttpResponse(pdf_bytes, content_type='application/pdf')

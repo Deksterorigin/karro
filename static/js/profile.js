@@ -539,7 +539,7 @@ function renderBookingMessages(chatMessages) {
 
                 [
                     ['approve', 'btn-approve-cost', t('chat.approve_btn')],
-                    ['decline', 'btn-decline-cost', t('chat.decline_btn')]
+                    ['reject', 'btn-decline-cost', t('chat.decline_btn')]
                 ].forEach(([action, className, label]) => {
                     const button = chatText('button', className, label);
                     button.type = 'button';

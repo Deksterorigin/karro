@@ -2,14 +2,14 @@ import calendar
 import datetime
 import json
 from collections import Counter
-from decimal import Decimal, InvalidOperation
+from decimal import Decimal, InvalidOperation, ROUND_HALF_UP
 from io import BytesIO
 from pathlib import Path
 
 from django import forms
 from django.conf import settings
 from django.contrib import messages
-from django.db import models, transaction
+from django.db import DatabaseError, models, transaction
 from django.db.models import Case, DecimalField, Sum, Value, When
 from django.http import HttpResponse, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
@@ -24,39 +24,11 @@ from reportlab.pdfbase.ttfonts import TTFont
 from reportlab.pdfgen import canvas
 
 from main.decorators import login_required_session, role_required
-from main.models import Booking, CarHistory, ServiceStation
+from main.models import Booking, BookingChatMessage, CarHistory, ServiceStation
 
+from .forms import EmployeeForm, SparePartForm, TransactionForm
 from .models import Employee, SalaryBalance, SparePart, Transaction, UsedSparePart
 from .supplier_api import CATALOG_DATABASE, search_supplier_parts
-
-
-class EmployeeForm(forms.ModelForm):
-    class Meta:
-        model = Employee
-        fields = ['full_name', 'phone', 'email', 'position', 'base_salary', 'commission_percent', 'is_active']
-
-
-class SparePartForm(forms.ModelForm):
-    class Meta:
-        model = SparePart
-        fields = ['name', 'sku', 'quantity', 'cost_price', 'selling_price', 'min_quantity']
-
-
-class TransactionForm(forms.ModelForm):
-    class Meta:
-        model = Transaction
-        fields = ['type', 'category', 'amount', 'description', 'date']
-
-    def clean(self):
-        data = super().clean()
-        cat, t_type, amount = data.get('category'), data.get('type'), data.get('amount')
-        if amount is not None and amount <= 0:
-            raise forms.ValidationError('Сума має бути більшою за нуль.')
-        incomes = {'service', 'other_income'}
-        expenses = {'salary', 'spare_parts', 'rent', 'utilities', 'other_expense'}
-        if (t_type == 'income' and cat not in incomes) or (t_type == 'expense' and cat not in expenses):
-            raise forms.ValidationError('Категорія не відповідає типу операції.')
-        return data
 
 
 def _show_errors(request, form):
@@ -354,9 +326,14 @@ def complete_booking_view(request, booking_id=None):
     b_id = booking_id or request.POST.get('booking_id')
     booking = get_object_or_404(Booking.objects.select_related('station', 'car'), pk=b_id, station__user=request.user)
 
-    amount = _money(request.POST.get('actual_price') or request.POST.get('total_price') or request.POST.get('amount'))
-    if amount is None:
-        messages.error(request, 'Вкажіть коректну загальну вартість робіт.')
+    base_work_price = _money(
+        request.POST.get('base_work_price')
+        or request.POST.get('actual_price')
+        or request.POST.get('total_price')
+        or request.POST.get('amount')
+    )
+    if base_work_price is None:
+        messages.error(request, 'Вкажіть коректну вартість робіт.')
         return redirect(reverse('accounting:dashboard') + f'?station_id={booking.station_id}')
 
     employee_id = request.POST.get('employee_id')
@@ -390,11 +367,18 @@ def complete_booking_view(request, booking_id=None):
             booking = Booking.objects.select_for_update().get(pk=booking.pk)
 
             if booking.status == 'completed':
+                messages.info(request, 'Цю заявку вже було завершено.')
                 return redirect(reverse('accounting:dashboard') + f'?station_id={booking.station_id}')
             if booking.status == 'cancelled':
                 raise ValueError('Скасовану заявку не можна завершити.')
 
-            parts = {part.pk: part for part in SparePart.objects.select_for_update().filter(pk__in=quantities, station_id=booking.station_id)}
+            # Завантажуємо запчастини з сортуванням за pk для уникнення блокувань (deadlock)
+            parts_qs = SparePart.objects.select_for_update().filter(
+                pk__in=quantities.keys(),
+                station_id=booking.station_id,
+            ).order_by('pk')
+            parts = {part.pk: part for part in parts_qs}
+
             if len(parts) != len(quantities):
                 raise ValueError('Одна із запчастин не належить цьому СТО.')
 
@@ -402,9 +386,22 @@ def complete_booking_view(request, booking_id=None):
                 if parts[part_id].quantity < quantity:
                     raise ValueError(f'Недостатньо запчастини «{parts[part_id].name}» на складі.')
 
+            # Рахуємо узгоджені в чаті додаткові роботи
+            approved_extra_total = BookingChatMessage.objects.filter(
+                booking=booking,
+                is_approved=True,
+            ).aggregate(total=Sum('proposed_cost'))['total'] or Decimal('0.00')
+
+            parts_selling_total = sum(parts[p_id].selling_price * qty for p_id, qty in quantities.items())
+            parts_cost_total = sum(parts[p_id].cost_price * qty for p_id, qty in quantities.items())
+
+            # Вартість робіт для нарахування заробітної плати
+            labor_total = (base_work_price + approved_extra_total).quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)
+            grand_total = (labor_total + parts_selling_total).quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)
+
             work_list = request.POST.get('work_list', '').strip() or booking.description
             spare_parts_field = request.POST.get('spare_parts', '').strip()
-            used_names, parts_cost = [], Decimal('0.00')
+            used_names = []
 
             for part_id, quantity in quantities.items():
                 part = parts[part_id]
@@ -412,42 +409,70 @@ def complete_booking_view(request, booking_id=None):
                 part.save(update_fields=['quantity', 'updated_at'])
 
                 UsedSparePart.objects.create(
-                    booking=booking, spare_part=part, part_name=part.name,
-                    quantity=quantity, cost_price=part.cost_price, selling_price=part.selling_price,
+                    booking=booking,
+                    spare_part=part,
+                    part_name=part.name,
+                    sku=part.sku,
+                    quantity=quantity,
+                    cost_price=part.cost_price,
+                    selling_price=part.selling_price,
                 )
-                parts_cost += part.cost_price * quantity
                 used_names.append(f'{part.name} × {quantity}')
 
+            # Фіксуємо дохід за надані послуги та матеріали
             Transaction.objects.create(
-                station=booking.station, booking=booking, employee=employee,
-                type='income', category='service', amount=amount,
+                station=booking.station,
+                booking=booking,
+                employee=employee,
+                type='income',
+                category='service',
+                amount=grand_total,
                 description=f'Виконання заявки #{booking.pk}',
             )
 
-            if parts_cost:
+            # Фіксуємо витрату собівартості використаних деталей
+            if parts_cost_total > 0:
                 Transaction.objects.create(
-                    station=booking.station, booking=booking, type='expense',
-                    category='spare_parts', amount=parts_cost,
+                    station=booking.station,
+                    booking=booking,
+                    type='expense',
+                    category='spare_parts',
+                    amount=parts_cost_total.quantize(Decimal('0.01'), rounding=ROUND_HALF_UP),
                     description=f'Собівартість запчастин для заявки #{booking.pk}',
                 )
 
+            # Нараховуємо комісійні майстру (тільки від суми робіт)
             if employee is not None:
-                commission = (amount * employee.commission_percent / Decimal('100')).quantize(Decimal('0.01'))
-                if commission:
+                commission = (labor_total * employee.commission_percent / Decimal('100')).quantize(
+                    Decimal('0.01'),
+                    rounding=ROUND_HALF_UP,
+                )
+                if commission > 0:
                     balance, _ = SalaryBalance.objects.select_for_update().get_or_create(employee=employee)
                     balance.total_earned += commission
                     balance.save(update_fields=['total_earned', 'updated_at'])
 
+            # Додаємо запис в історію автомобіля
             if booking.car_id:
                 history_parts = spare_parts_field or (', '.join(used_names) if used_names else None)
                 CarHistory.objects.create(
-                    car=booking.car, booking=booking, station=booking.station,
-                    date=timezone.localdate(), mileage=mileage, work_list=work_list,
-                    spare_parts=history_parts, price=amount,
+                    car=booking.car,
+                    booking=booking,
+                    station=booking.station,
+                    date=timezone.localdate(),
+                    mileage=mileage,
+                    work_list=work_list,
+                    spare_parts=history_parts,
+                    price=grand_total,
                 )
 
+            booking.base_work_price = base_work_price
             booking.status = 'completed'
-            booking.save(update_fields=['status'])
+            booking.save(update_fields=['status', 'base_work_price'])
+
+    except DatabaseError:
+        messages.error(request, 'Помилка бази даних під час завершення заявки. Спробуйте ще раз.')
+        return redirect(reverse('accounting:dashboard') + f'?station_id={booking.station_id}')
     except ValueError as error:
         messages.error(request, str(error))
         return redirect(reverse('accounting:dashboard') + f'?station_id={booking.station_id}')
@@ -692,12 +717,5 @@ def import_supplier_part_view(request):
             part.selling_price = selling
             part.save(update_fields=['quantity', 'cost_price', 'selling_price', 'updated_at'])
 
-        if cost > 0:
-            Transaction.objects.create(
-                station=station, type='expense', category='spare_parts',
-                amount=cost * quantity,
-                description=f'Закупівля: {name} × {quantity}, {supplier_name}',
-            )
-
-    messages.success(request, 'Запчастину додано на склад, закупівлю записано у витрати.')
+    messages.success(request, 'Запчастину успішно додано на склад.')
     return redirect(reverse('accounting:dashboard') + f'?station_id={station.pk}')

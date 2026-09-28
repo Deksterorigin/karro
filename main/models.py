@@ -208,6 +208,8 @@ class StationSchedule(models.Model):
         db_table = 'station_schedule'
         unique_together = ('station', 'day_of_week')
         ordering = ['day_of_week']
+        verbose_name = 'Графік роботи'
+        verbose_name_plural = 'Графіки роботи'
 
     def __str__(self):
         day_name = self.get_day_of_week_display()
@@ -235,6 +237,8 @@ class Car(models.Model):
     class Meta:
         db_table = 'car'
         ordering = ['-year']
+        verbose_name = 'Автомобіль'
+        verbose_name_plural = 'Автомобілі'
 
     def __str__(self):
         return f'{self.brand} {self.model} ({self.year})'
@@ -253,6 +257,8 @@ class Service(models.Model):
     class Meta:
         db_table = 'service'
         ordering = ['service_name']
+        verbose_name = 'Послуга'
+        verbose_name_plural = 'Послуги'
 
     def save(self, *args, **kwargs):
         self.service_name_norm = fold_text(self.service_name)
@@ -285,6 +291,8 @@ class Review(models.Model):
     class Meta:
         db_table = 'review'
         ordering = ['-date']
+        verbose_name = 'Відгук'
+        verbose_name_plural = 'Відгуки'
 
     def __str__(self):
         return f'Відгук від {self.user.full_name} — {self.rating}/5'
@@ -301,6 +309,8 @@ class StationBox(models.Model):
     class Meta:
         db_table = 'station_box'
         ordering = ['name']
+        verbose_name = 'Робочий бокс'
+        verbose_name_plural = 'Робочі бокси'
 
     def __str__(self):
         return f'{self.station.name} — {self.name}'
@@ -325,11 +335,14 @@ class Booking(models.Model):
     description = models.TextField()
     status = models.CharField(max_length=10, choices=STATUS_CHOICES, default='pending', db_index=True)
     scheduled_time = models.DateTimeField(null=True, blank=True, db_index=True)
+    base_work_price = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True, verbose_name='Вартість робіт')
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
         db_table = 'booking'
         ordering = ['-created_at']
+        verbose_name = 'Заявка на обслуговування'
+        verbose_name_plural = 'Заявки на обслуговування'
 
     def clean(self):
         super().clean()
@@ -365,6 +378,8 @@ class Notification(models.Model):
     class Meta:
         db_table = 'notification'
         ordering = ['-created_at']
+        verbose_name = 'Сповіщення'
+        verbose_name_plural = 'Сповіщення'
 
     def __str__(self):
         return f'Сповіщення для {self.recipient.full_name}: {self.message[:30]}'
@@ -387,6 +402,8 @@ class CarHistory(models.Model):
     class Meta:
         db_table = 'car_history'
         ordering = ['-date', '-created_at']
+        verbose_name = 'Запис історії авто'
+        verbose_name_plural = 'Історія авто'
 
     def clean(self):
         super().clean()
@@ -427,6 +444,23 @@ class BookingChatMessage(models.Model):
     class Meta:
         db_table = 'booking_chat_message'
         ordering = ['created_at']
+        verbose_name = 'Повідомлення в чаті'
+        verbose_name_plural = 'Повідомлення в чаті'
+
+    def clean(self):
+        super().clean()
+        if self.booking_id and self.booking.status == 'completed' and not self.pk:
+            raise ValidationError('Неможливо додати повідомлення до вже завершеної заявки.')
+
+    def save(self, *args, **kwargs):
+        if self.booking_id and self.booking.status == 'completed' and not self.pk:
+            raise ValidationError('Неможливо додати повідомлення до вже завершеної заявки.')
+        super().save(*args, **kwargs)
+
+    def delete(self, *args, **kwargs):
+        if self.booking_id and self.booking.status == 'completed':
+            raise ValidationError('Неможливо видалити повідомлення із завершеної заявки.')
+        return super().delete(*args, **kwargs)
 
     def __str__(self):
         return f'Чат #{self.booking_id} — {self.sender.full_name}'

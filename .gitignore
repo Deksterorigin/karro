@@ -39,7 +39,9 @@ logs/*.pdf
 
 # ── Локальні інструменти та робочі нотатки ──
 .agents/
+.gemini/
 design-system/
+skills-lock.json
 
 # ── OS ──
 .DS_Store

@@ -26,6 +26,8 @@ class Employee(models.Model):
     class Meta:
         db_table = 'employee'
         ordering = ['full_name']
+        verbose_name = 'Співробітник'
+        verbose_name_plural = 'Співробітники'
 
     def __str__(self):
         return f'{self.full_name} ({self.position})'
@@ -41,6 +43,8 @@ class SalaryBalance(models.Model):
 
     class Meta:
         db_table = 'salary_balance'
+        verbose_name = 'Баланс заробітної плати'
+        verbose_name_plural = 'Баланси заробітної плати'
 
     @property
     def current_balance(self):
@@ -81,6 +85,8 @@ class Transaction(models.Model):
     class Meta:
         db_table = 'transaction'
         ordering = ['-date', '-created_at']
+        verbose_name = 'Фінансова операція'
+        verbose_name_plural = 'Фінансові операції'
 
     def clean(self):
         super().clean()
@@ -122,6 +128,8 @@ class SparePart(models.Model):
     class Meta:
         db_table = 'spare_part'
         ordering = ['name']
+        verbose_name = 'Запчастина на складі'
+        verbose_name_plural = 'Запчастини на складі'
 
     @property
     def is_low_stock(self):
@@ -149,17 +157,32 @@ class UsedSparePart(models.Model):
     booking = models.ForeignKey(Booking, on_delete=models.CASCADE, related_name='used_parts')
     spare_part = models.ForeignKey(SparePart, on_delete=models.SET_NULL, null=True, blank=True, related_name='used_instances')
     part_name = models.CharField(max_length=150)
+    sku = models.CharField(max_length=50, blank=True, null=True, verbose_name='Артикул')
     quantity = models.PositiveIntegerField(default=1, validators=[MinValueValidator(1)])
     cost_price = models.DecimalField(max_digits=10, decimal_places=2, validators=[MinValueValidator(0)])
     selling_price = models.DecimalField(max_digits=10, decimal_places=2, validators=[MinValueValidator(0)])
 
     class Meta:
         db_table = 'used_spare_part'
+        verbose_name = 'Використана деталь'
+        verbose_name_plural = 'Використані деталі'
 
     def clean(self):
         super().clean()
         if self.booking_id and self.spare_part_id and self.spare_part.station_id != self.booking.station_id:
             raise ValidationError({'spare_part': 'Запчастина не належить СТО цієї заявки.'})
+        if self.booking_id and self.booking.status == 'completed' and not self.pk:
+            raise ValidationError('Неможливо додати запчастину до вже завершеної заявки.')
+
+    def save(self, *args, **kwargs):
+        if self.booking_id and self.booking.status == 'completed' and not self.pk:
+            raise ValidationError('Неможливо додати запчастину до вже завершеної заявки.')
+        super().save(*args, **kwargs)
+
+    def delete(self, *args, **kwargs):
+        if self.booking_id and self.booking.status == 'completed':
+            raise ValidationError('Неможливо видалити запчастину з уже завершеної заявки.')
+        return super().delete(*args, **kwargs)
 
     def __str__(self):
         return f'{self.part_name} x{self.quantity} для Заявки #{self.booking_id}'

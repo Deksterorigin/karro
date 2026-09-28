@@ -7,13 +7,30 @@ from .models import User, ServiceStation, Review, Booking, CarHistory, Car, Book
 @admin.register(BookingChatMessage)
 class BookingChatMessageAdmin(ModelAdmin):
     list_display = ('message_id', 'booking', 'sender', 'text', 'has_image', 'proposed_cost', 'is_approved', 'created_at')
-    list_filter = ('booking', 'sender', 'is_approved', 'created_at')
+    list_filter = ('is_approved', 'created_at')
     search_fields = ('text', 'sender__full_name', 'booking__id')
 
     def has_image(self, obj):
         return bool(obj.image)
     has_image.boolean = True
     has_image.short_description = "Фото"
+
+    def has_delete_permission(self, request, obj=None):
+        if obj and obj.booking and obj.booking.status == 'completed':
+            return False
+        return super().has_delete_permission(request, obj)
+
+    def has_change_permission(self, request, obj=None):
+        if obj and obj.booking and obj.booking.status == 'completed':
+            return False
+        return super().has_change_permission(request, obj)
+
+
+@admin.register(Car)
+class CarAdmin(ModelAdmin):
+    list_display = ('vin_code', 'brand', 'model', 'year', 'user')
+    list_filter = ('brand', 'year')
+    search_fields = ('vin_code', 'brand', 'model', 'user__full_name')
 
 
 @admin.register(CarHistory)
@@ -69,21 +86,16 @@ class ReviewAdmin(ModelAdmin):
 
 @admin.register(Booking)
 class BookingAdmin(ModelAdmin):
-    list_display = ('id', 'client', 'station', 'status', 'scheduled_time', 'created_at')
+    list_display = ('id', 'client', 'station', 'status', 'scheduled_time', 'base_work_price', 'created_at')
     list_filter = ('status', 'station', 'created_at')
     search_fields = ('client__full_name', 'station__name', 'description')
     list_per_page = 25
-    actions = ['confirm_bookings', 'complete_bookings', 'cancel_bookings']
+    actions = ['confirm_bookings', 'cancel_bookings']
 
     @action(description="Підтвердити заявки")
     def confirm_bookings(self, request, queryset):
         count = queryset.update(status='confirmed')
         self.message_user(request, f"Підтверджено {count} заявок.")
-
-    @action(description="Відзначити як виконані")
-    def complete_bookings(self, request, queryset):
-        count = queryset.update(status='completed')
-        self.message_user(request, f"Виконано {count} заявок.")
 
     @action(description="Скасувати заявки")
     def cancel_bookings(self, request, queryset):

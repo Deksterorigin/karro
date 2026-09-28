@@ -12,8 +12,18 @@ class SparePartAdmin(ModelAdmin):
 
 @admin.register(UsedSparePart)
 class UsedSparePartAdmin(ModelAdmin):
-    list_display = ('part_name', 'booking', 'quantity', 'cost_price', 'selling_price')
-    search_fields = ('part_name', 'booking__id')
+    list_display = ('part_name', 'sku', 'booking', 'quantity', 'cost_price', 'selling_price')
+    search_fields = ('part_name', 'sku', 'booking__id')
+
+    def has_delete_permission(self, request, obj=None):
+        if obj and obj.booking and obj.booking.status == 'completed':
+            return False
+        return super().has_delete_permission(request, obj)
+
+    def has_change_permission(self, request, obj=None):
+        if obj and obj.booking and obj.booking.status == 'completed':
+            return False
+        return super().has_change_permission(request, obj)
 
 
 @admin.register(Employee)

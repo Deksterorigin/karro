@@ -307,7 +307,8 @@ def generate_act_pdf(booking):
     # Запчастини
     part_items, parts_total = [], Decimal('0.00')
     for part in booking.used_parts.select_related('spare_part'):
-        p_name = part.part_name + (f' (арт. {part.spare_part.sku})' if part.spare_part and part.spare_part.sku else '')
+        sku_val = part.sku or (part.spare_part.sku if part.spare_part else None)
+        p_name = part.part_name + (f' (арт. {sku_val})' if sku_val else '')
         price = _money(part.selling_price)
         part_items.append((p_name, part.quantity, price))
         parts_total += price * part.quantity
@@ -319,7 +320,12 @@ def generate_act_pdf(booking):
         (m.text.strip() if m.text and m.text.strip() else 'Додаткова погоджена робота', 1, _money(m.proposed_cost))
         for m in approved
     ]
-    base_price = (_money(history.price) - parts_total - extra_total) if history else Decimal('0.00')
+    if booking.base_work_price is not None:
+        base_price = _money(booking.base_work_price)
+    elif history and history.price:
+        base_price = max(Decimal('0.00'), _money(history.price) - parts_total - extra_total)
+    else:
+        base_price = Decimal('0.00')
     base_name = booking.service_name or (history.work_list if history and history.work_list else '') or 'Технічне обслуговування'
     service_items.insert(0, (base_name, 1, base_price if base_price >= 0 else Decimal('0.00')))
     services_total = sum((p * q for _, q, p in service_items), Decimal('0.00'))
