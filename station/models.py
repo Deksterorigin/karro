@@ -20,6 +20,8 @@ class StationPhoto(models.Model):
     class Meta:
         db_table = 'station_photo'
         ordering = ['-uploaded_at']
+        verbose_name = 'Фотографія СТО'
+        verbose_name_plural = 'Фотографії СТО'
 
     def __str__(self):
         return f'Фото #{self.photo_id} — {self.station.name}'

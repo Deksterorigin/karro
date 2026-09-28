@@ -1,10 +1,13 @@
 import os
+
 from django.contrib import messages
 from django.db.models import Avg, Count
-from django.shortcuts import render, redirect, get_object_or_404
+from django.shortcuts import get_object_or_404, redirect, render
+from django.utils import timezone
 
-from main.models import ServiceStation, Service, Review, Car
-from main.views import get_current_user, _validate_image_upload
+from main.image_utils import validate_image_upload
+from main.models import Car, Review, Service, ServiceStation
+from main.views import get_current_user
 from .models import StationPhoto
 
 def station_detail(request, station_id):
@@ -49,7 +52,7 @@ def station_detail(request, station_id):
                         'station': station,
                     }
                     if review_photo:
-                        valid, error_msg = _validate_image_upload(review_photo)
+                        valid, error_msg = validate_image_upload(review_photo)
                         if valid:
                             review_kwargs['photo'] = review_photo
                         else:
@@ -66,7 +69,6 @@ def station_detail(request, station_id):
                 response_text = request.POST.get('response_text', '').strip()
                 review_obj = Review.objects.filter(pk=review_id, station=station).first()
                 if review_obj and response_text:
-                    from django.utils import timezone
                     review_obj.owner_response = response_text
                     review_obj.response_date = timezone.now()
                     review_obj.save()
@@ -82,7 +84,7 @@ def station_detail(request, station_id):
                 uploaded = request.FILES.get('station_photo')
                 caption = request.POST.get('caption', '').strip()
 
-                valid, error_msg = _validate_image_upload(uploaded)
+                valid, error_msg = validate_image_upload(uploaded)
                 if not valid:
                     messages.error(request, error_msg)
                 else:
